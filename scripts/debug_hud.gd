@@ -12,6 +12,9 @@ extends CanvasLayer
 ## Optional: shows which camera view is active.
 @export var view_switcher: ViewSwitcher
 
+## Optional: shows which feel preset is active.
+@export var preset_switcher: PresetSwitcher
+
 ## Whether the display is showing when the game starts.
 @export var start_visible: bool = true
 
@@ -55,12 +58,28 @@ func _physics_process(_delta: float) -> void:
 		"Slope: %+5.1f deg   On floor: %s" % [tank.slope_degrees, "yes" if tank.is_on_floor() else "no"],
 		"Traction capped: %s" % ("YES" if tank.is_traction_capped() else "no"),
 		"Ground: left %s, right %s" % [_terrain_name(tank.left_terrain), _terrain_name(tank.right_terrain)],
+		"Sideways slide: %.2f m/s" % tank.slide_speed(),
 		"Resets: %d" % _reset_count,
 	])
+	lines.append_array(_feel_lines(tank.tuning))
 	if is_instance_valid(view_switcher):
 		lines.append("View: %s   (V = switch, F3 = hide this)" % view_switcher.current_view_name())
 	lines.append_array(_phone_lines())
 	_label.text = "\n".join(lines)
+
+
+## The feel knobs, the preset they match, and the slope limit they give.
+func _feel_lines(tuning: TankTuning) -> PackedStringArray:
+	var preset: String = ""
+	if is_instance_valid(preset_switcher):
+		preset = preset_switcher.preset_name_for(tuning)
+	return [
+		"Preset: %s   (1 heavy, 2 nimble, 3 slippery)" % (preset if not preset.is_empty() else "none (saved or changed tuning)"),
+		"Knobs: weight %.2f  top speed %.1f  pulling power %.1f  grip %.1f°  sideways grip %.2f  tippiness %.2f" % [
+				tuning.weight, tuning.top_speed, tuning.pulling_power, tuning.grip, tuning.sideways_grip, tuning.tippiness],
+		"Climbable from a standstill: %.1f° (grip %.1f°, engine %.1f°)" % [
+				tuning.climbable_limit_degrees(), tuning.grip, tuning.engine_limit_degrees()],
+	]
 
 
 ## Phone controller status, if the scene has a ControllerServer.

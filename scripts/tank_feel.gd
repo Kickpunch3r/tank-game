@@ -43,6 +43,14 @@ func apply_to(tuning: Resource) -> void:
 		tuning.set(knob, get(knob))
 
 
+## True if a tank's tuning has exactly this preset's six knob values.
+func matches(tuning: Resource) -> bool:
+	for knob: StringName in KNOB_NAMES:
+		if not is_equal_approx(float(tuning.get(knob)), float(get(knob))):
+			return false
+	return true
+
+
 ## How fast a sideways slide fades away, in "per second" (higher = shorter
 ## slide), for a sideways_grip value. Shared by both tanks so the knob reads
 ## the same. 1 = no slide at all (INF).

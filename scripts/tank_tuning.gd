@@ -149,6 +149,18 @@ var traction_coeff: float:
 		grip = rad_to_deg(atan(value))
 
 
+## The steepest slope the engine alone could climb, in degrees: where gravity's
+## pull down the slope equals the push (pulling_power / weight).
+func engine_limit_degrees() -> float:
+	return rad_to_deg(asin(clampf(max_drive_accel / g, 0.0, 1.0))) if g > 0.0 else 90.0
+
+
+## The steepest slope the tank can climb from a standstill, in degrees: the
+## lower of the grip angle and the engine's limit.
+func climbable_limit_degrees() -> float:
+	return minf(grip, engine_limit_degrees())
+
+
 ## Drag on a tread at level 0, after weight: idle_drag / weight.
 func effective_idle_drag() -> float:
 	return idle_drag / maxf(weight, 0.01)

@@ -106,3 +106,35 @@ Push back on any of them.
   pushing and gravity wins above grip + N degrees). Not built.
 - The physics tank doesn't exist on this branch; its `grip` will use the same degrees and
   `tan()` (noted for the physics branch).
+
+## 9. Presets and switching
+- Files: `tuning/presets/heavy.tres`, `nimble.tres`, `slippery.tres` (type `TankFeel`: six knobs
+  only). Keys **1 / 2 / 3** (Input Map `preset_1..3`), handled by a new `PresetSwitcher` node in
+  the player rig. It sets the knobs on every tank in its `tanks` list (just `Tank` on this
+  branch), then rebuilds the Tab panel so it shows the new values.
+- Session-only, like the Tab panel: **Reset to saved** goes back to `tank_tuning.tres`.
+  **Copy values** lists the knobs under `tuning/tank_tuning.tres` (where they'd be saved).
+- **Which preset is active is worked out from the values** (`PresetSwitcher.preset_name_for`):
+  the HUD shows a preset's name only while all six knobs match it. Change one knob in the panel
+  and it shows "none". No stored state that could go out of date.
+- Starting values (my guesses, for you to tune):
+
+  | Knob | Saved tuning | Heavy | Nimble | Slippery |
+  |---|---|---|---|---|
+  | weight | 1 | 2 | 0.7 | 1 |
+  | top_speed | 10 | 8 | 12 | 10 |
+  | pulling_power | 5 | 8 (push 4) | 5 (push 7.1) | 5 |
+  | grip | 28.8° | 30° | 32° | 18° |
+  | sideways_grip | 1 | 1 | 0.8 | 0.25 |
+  | tippiness | 0 | 0.25 | 0.6 | 0.4 |
+
+- Note: Nimble's higher top speed lets it climb the 45° ramp with a run-up (8.5 m/s more speed
+  at the base than the 45° ramp can soak up). That breaks the "45° always fails" target, but
+  only in that preset; the target is for the saved tuning. Lower Nimble's top speed to 10 if
+  45° should stay impossible in every preset.
+- No key for "back to the saved tuning" (use the panel's Reset to saved). A 4th key could do it.
+
+## 10. HUD
+- New lines: sideways slide speed; the active preset; the six knob values; "climbable from a
+  standstill" = the lower of the grip angle and the engine's limit (asin(push / g)), shown with
+  both, e.g. "28.8° (grip 28.8°, engine 30.7°)".
