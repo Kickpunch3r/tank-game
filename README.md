@@ -27,6 +27,7 @@ pressing Play, not in the editor viewport.
 | `F3` | Hide / show the debug display |
 | `Tab` | Open / close the tuning panel (use the mouse on it) |
 | `1` / `2` / `3` | Feel preset: heavy / nimble / slippery (until you quit; Tab panel "Reset to saved" goes back) |
+| `T` | Swap tank: kinematic (green) / physics (blue-grey), at the same place |
 | `F11` | Full screen / window (the game starts full screen) |
 
 - **Levels:** each tread has 3 levels forward and 3 back: **0.25, 0.5 and full** (the phone's
@@ -68,14 +69,17 @@ pressing Play, not in the editor viewport.
   Inspector. Each value is explained in plain language there (from `scripts/tank_tuning.gd`).
   The first six are the **feel knobs** (below); the rest are "Advanced".
 - **Feel presets:** `tuning/presets/heavy.tres`, `nimble.tres`, `slippery.tres` hold just the
-  six knobs. Click one to change it; keys 1/2/3 put it on the tank while driving.
+  six knobs. Click one to change it; keys 1/2/3 put it on both tanks while driving.
+- **How the physics tank drives:** `tuning/physics_tank_tuning.tres`: the same six knobs, then
+  its own "Advanced" values (springs, centre of mass, sideways hold).
 - **The ramps:** edit `levels/slope_ladder.txt` (any text editor), one line per ramp, like
   `25  ledge` or `30  no ledge`. Save and press Play.
 - **Ramp size and spacing:** select the `SlopeLadder` node in `scenes/test_course.tscn`.
 - **The slit:** select `Visual/Hull/DriverSlitCamera` in `scenes/tank.tscn` for slit height,
   edge thickness and colours.
 - **Tank art:** the tank's meshes are under `Visual/Hull/Sway` in `scenes/tank.tscn` (that node
-  does the tippiness rocking; the slit camera is outside it so it never rocks).
+  does the tippiness rocking; the slit camera is outside it so it never rocks). The physics
+  tank's meshes are under `Visual/Hull` in `scenes/physics_tank.tscn` (its whole body tilts).
 
 ## How to tune (the six feel knobs)
 | Knob | What it does |
@@ -94,6 +98,21 @@ pressing Play, not in the editor viewport.
    run-up), then run the tests: the report has the slope table for the saved tuning and for
    each preset.
 4. Happy with it? **Copy values** and type them into `tuning/tank_tuning.tres` (or a preset).
+
+## Comparing the two tanks
+There are two tanks: the **kinematic** tank (green, rules-based: what the game has always used)
+and the **physics** tank (blue-grey: a real physics body on 8 springs, so it rocks, tips off
+ledges and has to lift its nose onto slopes). **T** swaps between them at the same spot; both
+use exactly the same controls (keyboard, phone, brake). The F3 display says which one is active.
+The six feel knobs and the presets mean the same in both.
+
+What to try (Tab panel "Reset point" takes you to each place):
+1. Climb the **30°** ramp from a standstill and with a run-up (Distance back 70), in each tank.
+2. Drive along the **ledge strip** with one tread over the edge (start "Ledge strip", climb
+   the little ramp, steer right until a tread hangs over).
+3. **Spin on the spot** on a slope (e.g. stop half-way up 20°, opposite levers).
+4. Drive over the **steps** and the **crest**.
+5. Try each **preset** (1/2/3) in each tank.
 
 ## Phone controller
 Drive the tank from a phone with two on-screen tread levers. The game hosts the page itself.
@@ -165,7 +184,7 @@ Using it:
 ```bash
 "C:\Users\Laptop\Documents\Godot_v4.6.3-stable_win64_console.exe" --headless --fixed-fps 60 --path . res://tests/test_runner.tscn
 ```
-- Takes a few seconds. Prints a results table, including every ramp from a standing start and
+- Takes about a minute (the physics tank's slope tests run 3 times each). Prints a results table, including every ramp from a standing start and
   with a run-up, and saves it to `tests/last_results.txt`.
 - Exit code 0 = everything passed, 1 = something failed.
 - **To watch the tests:** open `tests/test_runner.tscn` in the editor and press **F6**.
@@ -174,13 +193,13 @@ Using it:
 
 | Folder | Contents |
 |---|---|
-| `scenes/` | `test_course.tscn` (main scene), `tank.tscn`, `player_rig.tscn` (tank + cameras + debug display + Tab panel, shared by every level) |
+| `scenes/` | `test_course.tscn` (main scene), `tank.tscn` (kinematic), `physics_tank.tscn`, `player_rig.tscn` (both tanks + cameras + debug display + Tab panel, shared by every level) |
 | `levels/<name>/` | A level: `height.png` and its scene (e.g. `levels/starter/`) |
 | `tools/` | Helper scripts, e.g. the one that generated the starter height map |
 | `scripts/net/` | Phone controller: servers, station registry, phone input |
 | `web/` | `controller.html`: the page phones open (one self-contained file) |
 | `scripts/` | Game scripts: tank, treads, stations, inputs, cameras, course builders, HUD |
-| `tuning/` | `tank_tuning.tres`: all driving numbers; `presets/`: heavy, nimble, slippery |
+| `tuning/` | `tank_tuning.tres` and `physics_tank_tuning.tres`: all driving numbers; `presets/`: heavy, nimble, slippery |
 | `levels/` | Ramp lists: `slope_ladder.txt` (firm ramps), `terrain_ramps.txt` (sand and mud ramps) |
 | `terrain/` | Terrain types: `mud.tres`, `sand.tres` |
 | `art/` | Shaders and (later) models and sprites |

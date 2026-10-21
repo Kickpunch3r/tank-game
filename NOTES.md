@@ -7,7 +7,8 @@ check by hand. For how to run and play, see [README.md](README.md).
 - Version: **4.6.3 stable** (`4.6.3.stable.official.7d41c59c4`).
 - Editor: `C:\Users\Laptop\Documents\Godot_v4.6.3-stable_win64.exe`
 - Console (headless checks and tests): `C:\Users\Laptop\Documents\Godot_v4.6.3-stable_win64_console.exe`
-- Renderer: Forward+ on Direct3D 12 (Intel HD Graphics 520 on this laptop). Physics: Jolt.
+- Renderer: Forward+ on Direct3D 12 (Intel HD Graphics 520 on this laptop). Physics: Jolt
+  (60 Hz tick).
 
 ## Architecture
 
@@ -186,6 +187,92 @@ Decisions, alternatives and reasons: [docs/kinematic_tuning_design.md](docs/kine
   Heavy fails 25° standing because its push (4 m/s²) only climbs 24°; Nimble's 12 m/s top
   speed carries it up 45° with a run-up.
 
+### Physics tank (branch `physics-tank`, from PHYSICS_COMPARISON_PLAN.md)
+Decisions, alternatives and reasons: [docs/physics_tank_design.md](docs/physics_tank_design.md).
+- `PhysicsTank` (`scripts/physics_tank.gd`, `scenes/physics_tank.tscn`, blue-grey hull): a
+  `RigidBody3D` with a box collider (sloped nose and tail) riding on **8 spring probes**
+  (`RayCast3D`, 4 per tread, made by the script). Each grounded probe pushes the hull up at its
+  own place (spring + damper), pushes it along (its share of its tread's drive) and holds it
+  against sliding sideways; drive + sideways together are capped at tan(grip) × how hard that
+  probe is pressed. Treads brake / idle / drive like the kinematic tank's.
+- **Physics engine: Jolt** (as before). **Tick: 60 Hz**, unchanged (no jitter seen).
+- `PhysicsTankTuning` (`tuning/physics_tank_tuning.tres`): the same six knobs, then Advanced.
+  **Derived, not set:**
+  - mass = `weight` × `base_mass` (30 000 kg); push = `pulling_power / weight` (as kinematic)
+  - spring stiffness = (mass × g ÷ 8) ÷ (`target_sag` 0.15 × `spring_length` 1 m): each spring
+    sinks 15% under its share of the weight
+  - spring damping = `damping_ratio` (0.45) × 2 × √(stiffness × mass ÷ 8)
+  - sideways hold rate = the kinematic slide fade rate for the same `sideways_grip`, capped at
+    `max_sideways_rate` (6/s). This is also what makes turning heavy (the treads' ends are
+    dragged sideways in a turn).
+  - centre of mass height = 0.2 m + `tippiness` × 2 m (default tippiness 0.3 → 0.8 m)
+  - Fixed: probe layout (±1.5 m, ±1.875 / ±0.625 m), spring length 1 m, throttle response 5/s,
+    rolling resistance 0.1, idle drag 3, damping linear 0 / angular 0.1 (replacing Godot's
+    project damping, which otherwise adds 0.1 and cost 0.25 m/s of top speed).
+- **Two tanks, T to swap:** both are in `scenes/player_rig.tscn`; `PlayerRig` (root script)
+  keeps `active_tank`. The hidden tank is switched off (`process_mode` disabled: no input, out of
+  the physics world, not drawn). Each tank has its own `DriverStation`; on a swap the keyboard
+  levels carry over. Camera, slit view, HUD and Tab panel follow; works in levels too.
+- **Shared interface** (both tanks): `driver_station`, `tuning`, `bumped`, `place_at()`,
+  `reset_to_spawn()`, `set/get_spawn()`, `set/get_home()`, `standing_start_distance()`,
+  `display_name()`, `debug_lines()`. The HUD shows each tank's own lines plus shared ones.
+- Chase camera: smooths its look point up and down (`look_smoothing` 6; 0 = off) so spring
+  bounce doesn't tip the view. Never rolls (as before). The slit camera tilts with the hull.
+- HUD (physics): tread speeds and grip ok/SATURATED per tread, hull pitch and roll, and a probe
+  diagram: `#  15%` = touching, spring squashed 15%; `.  ---` = in the air.
+- Course additions (`ComparisonFeatures` node in the test course at x 100, z 90, built in code):
+  ledge strip (1.2 m platform beside a drop), steps 0.2 / 0.4 / 0.6 m, 15° crest. In the Tab
+  panel's reset-point list.
+
+#### Controls: differences from the original plan
+The physics tank uses exactly the kinematic tank's current controls (it reads its own
+`DriverStation` with the same sources). These differ from `PHYSICS_COMPARISON_PLAN.md` 2a:
+
+| Action | Keyboard | Phone | Notes |
+|---|---|---|---|
+| Left tread | `W` / `S` step a level | Left lever (7 notches) | Levels stay where left (not hold-to-drive) |
+| Right tread | `Up` / `Down` step a level | Right lever | |
+| Levels | 3 forward, 3 back: 0.25, 0.5, 1 | Same | Defined once in `scripts/tread_levels.gd` |
+| Brake (hold) | `Space` (action still called `driver_all_stop`) | BRAKE button | Not in the plan; brake wins over everything |
+| Reset | `R` | | Resets whichever tank is active |
+| Camera view | `V` | | |
+| Debug display | `F3` | | |
+| Tuning panel | `Tab` | | Not in the plan |
+| Full screen | `F11` | | Not in the plan |
+| Swap tank | `T` | | New (was free) |
+| Presets | `1` / `2` / `3` | | New (were free) |
+
+- Level 0 is idling (idle drag), not braking, in both tanks. The phone watchdog brakes for 3 s.
+- Gamepad sticks still work for both tanks; no gamepad brake (developer won't use one).
+
+#### Results side by side (slope ladder, full forward, 15 s limit)
+| Ramp | Kinematic standing | Kinematic run-up | Physics standing | Physics run-up |
+|---|---|---|---|---|
+| 5° ledge | 3.2 s | 10.0 s | 3.5 s | 10.2 s |
+| 10° no ledge | 3.5 s | 10.0 s | 3.7 s | 10.2 s |
+| 15° ledge | 4.0 s | 10.0 s | 4.0 s | 10.2 s |
+| 20° no ledge | 4.8 s | 10.0 s | 4.8 s | 10.3 s |
+| 25° ledge | 7.0 s | 10.0 s | 6.6 s | 10.6 s |
+| 30° no ledge | fails (4%) | 10.1 s | fails (44%) | 11.3 s |
+| 35° ledge | fails (3%) | 10.4 s | fails (23%) | fails (70%) |
+| 40° no ledge | fails (4%) | 11.2 s | fails (17%) | fails (41%) |
+| 45° ledge | fails (3%) | fails (78%) | fails (12%) | fails (28%) |
+| 55° no ledge | fails (5%) | fails (49%) | fails (7%) | fails (13%) |
+
+Physics: 3 runs each, majority (all agreed). Flat: straight 38.2 m in 5 s (kinematic 39.9);
+spin 44°/s (40); one-tread pivot 34°/s (25). Rest: settles in under 2 s at 15% squash.
+Ledge, middle 0.5 m inside the edge: leans 12° standing, up to 22.5° driving along; any
+further out it tips off. The physics run-up loses ~4 m/s lifting its nose onto 35°–40° ramps,
+so they fail; see the design doc.
+
+#### How to compare (by hand)
+1. Climb the 30° ramp from a standstill and with a run-up, in each tank (Tab, Reset point).
+2. Drive along the ledge strip with one tread over the edge.
+3. Spin on the spot on a slope.
+4. Drive over the steps and the crest.
+5. Try each preset (1/2/3) in each tank.
+6. Note what feels better: hull rocking, nose lifting onto slopes, ledges, turning weight.
+
 ### Phone controller (branch `phone-controller`, from PHONE_CONTROLLER_PLAN.md)
 - `ControllerServer` (`scripts/net/controller_server.gd`, a node in `scenes/player_rig.tscn`, so
   every level has it): HTTP server on 8080 (`ControllerHttpServer`, serves only
@@ -311,7 +398,8 @@ track_width 3 · turn_resistance 0.75 · turn_scrub 2 · tilt_smoothing 8 (rest 
 | 55° no ledge | fails (5% up) | fails (49% up) | fails / fails |
 
 All targets met. Run-up times are mostly the 70 m approach (about 8 s at full speed). Full
-suite: **159 of 159 checks pass** (input, views and HUD, tuning panel, feel knobs and presets, air and landing levers,
+suite: **190 of 190 checks pass** in about 70 s (input, views and HUD, tuning panel, feel knobs and presets,
+tank swapping, physics tank, air and landing levers,
 engine power, terrain, level builder, phone controller,
 course shape, flat driving, kill-plane,
 slopes, sanity). Flat: 39.9 m straight in 5 s with no drift; left tread only turns right;
@@ -340,6 +428,13 @@ committed). To watch: open `tests/test_runner.tscn` and press F6.
   ramp sides see a round tank; corners of the hull can poke into things.
 - **No sideways sliding** on slopes that lean left or right (the `sideways_grip` slide only
   comes from turning).
+- **Physics tank, untested by hand:** feel, visuals and how the probes behave on the painted
+  levels' steepest parts. Its phone buzz on hitting things uses a simple "sudden loss of
+  speed" rule (more than 3 m/s in one frame), not checked by hand.
+- **Physics tank on the 35°–40° ramps with a run-up:** fails, where the kinematic tank climbs
+  (lifting its nose onto the slope costs momentum). Possible fixes in the design doc.
+- **The hidden tank stays where it was left** (switched off). Swapping puts it at the active
+  tank's place, so this only matters if something looks at it.
 - **One-frame turning lag:** the tank moves along the heading it had at the start of each frame,
   so in a hard turn its real motion is ~2 cm/s sideways even with no slide. Was already so.
 - **Walls stall the treads:** driving into a wall slows the treads to the real speed (fixed 2026-10-21; they used to keep spinning at full speed).
@@ -365,6 +460,8 @@ committed). To watch: open `tests/test_runner.tscn` and press F6.
 - **Hull tilt:** smooth or floaty on ramps and the bumps (`tilt_smoothing`).
 - **Slit view:** slit height, readability, and how the view tips on slopes.
 - **Chase camera:** distance, height and smoothing (on the `ChaseCamera` node).
+- **Physics vs kinematic (T):** see "How to compare" under the physics tank section.
+- **Physics chase camera:** is the spring bounce calm enough (`look_smoothing`)?
 - **Feel knobs and presets** (1/2/3): does Heavy feel heavy, Nimble nimble, Slippery slippery?
   Is the tippiness rocking pleasant or sickening? Is the sideways slide visible enough?
 
@@ -482,3 +579,9 @@ committed). To watch: open `tests/test_runner.tscn` and press F6.
     six knobs in `TankTuning` (rest under Advanced), weight effects, tippiness sway
     (`Visual/Hull/Sway`), sideways slide, grip in degrees, presets on keys 1/2/3, HUD lines,
     new `FeelTests` suite. Default parity checked: identical results. 159 checks pass.
+19. **Physics tank** (branch `physics-tank`, built on `kinematic-tuning`, from
+    PHYSICS_COMPARISON_PLAN.md, overnight by Claude working alone; decisions in
+    `docs/physics_tank_design.md`): spring-probe `RigidBody3D` tank, `PhysicsTankTuning` with the
+    same six knobs, shared presets, T to swap (also in levels), ledge strip / steps / crest,
+    physics HUD, new `PhysicsTankTests`. Fixed: Tab panel's Reset to saved missed the hidden
+    tank. Kinematic results unchanged. 190 checks pass (~70 s).

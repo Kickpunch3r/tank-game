@@ -68,6 +68,13 @@ func run_swap() -> void:
 	report.check("Camera, HUD and Tab panel follow the physics tank",
 			chase.target == physics and hud.tank == physics and panel.tank == physics
 			and hud_text.contains("Tank: PHYSICS") and not panel.controls_for(&"base_mass").is_empty())
+	var probe_rows: int = 0
+	for line: String in hud_text.split("\n"):
+		if line.begins_with("   L ") and line.contains(" R "):
+			probe_rows += 1
+	report.check("Physics HUD: 8 probes (touching, spring squash), pitch and roll, grip per tread",
+			probe_rows == 4 and hud_text.contains("Hull pitch") and hud_text.contains("roll")
+			and hud_text.contains("grip ok") and hud_text.contains("%"), "%d probe rows" % probe_rows)
 	await _tap_key(KEY_V)
 	var physics_slit: DriverSlitCamera = physics.get_node(^"Visual/Hull/DriverSlitCamera")
 	report.check("V shows the physics tank's slit view", physics_slit.current and physics_slit.is_slit_visible())

@@ -148,3 +148,28 @@ lists the alternatives and why. Push back on any of them.
   14° tilt; every preset's spin at speed under 4°. No NaNs, nothing fell through the ground.
 - **Test time:** the full suite now takes about 70 s (was 14 s), mostly the physics slope
   ladder run 3 times standing and 3 times with a run-up, as the plan asks.
+
+## 9. HUD
+- The physics tank's `debug_lines()`: tread speeds with grip "ok" or "SATURATED" per tread,
+  forward speed and brake, hull pitch and roll, and a 4-row probe diagram (left and right tread,
+  front to back): `#  15%` = touching with the spring squashed 15%, `.  ---` = in the air.
+  Shared lines (keyboard levels, preset, knobs, climbable limit, view, phone) come from the HUD.
+
+## Hand-test checklist (physics branch)
+Nothing below could be tried in the cloud (no window, no screen, no phone). Start the game (F5).
+1. **Swap:** press T. The tank turns blue-grey, stays where it was, facing the same way, at
+   rest. F3 says "Tank: PHYSICS" and shows the probe diagram. Press T again: back to green.
+2. **Rest:** the physics tank should settle within a second or two and sit still (no shiver).
+3. **Drive:** same keys and levels as always; the hull should rock gently on take-off and
+   braking, and lean in turns. Space brakes and holds it on a slope.
+4. **Phone:** connect as usual, press T: the phone drives whichever tank is active; the BRAKE
+   button and the 3 s watchdog brake work for the physics tank. Does hitting a wall buzz?
+5. **Ledge strip** (Tab > Reset point > "Ledge strip"): climb the small ramp, steer right until
+   one tread hangs over: it should lean, teeter, and fall off if you go further.
+6. **Steps and crest:** drive over at half and full speed; watch the nose lift and drop.
+7. **Ramps:** 30° from a standstill (fails) and with a run-up (climbs) in both tanks; 35° with
+   a run-up: kinematic climbs, physics doesn't (see section 8).
+8. **Presets 1/2/3** in the physics tank: Nimble has a high centre of mass (rocks more),
+   Slippery drifts sideways in turns.
+9. **Starter level** (`levels/starter/starter.tscn`, F6): T works there too.
+10. **Chase camera:** is the view calm over the bumps? (`look_smoothing` on the ChaseCamera.)
