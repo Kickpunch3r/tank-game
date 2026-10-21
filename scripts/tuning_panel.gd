@@ -26,13 +26,13 @@ extends CanvasLayer
 # value it had when the game started (for "Reset to saved").
 var _settings: Array[Dictionary] = []
 var _sliders: Array[HSlider] = []
-var _value_labels: Array[Label] = []
+var _value_fields: Array[LineEdit] = []
 
 var _ramp_choice: OptionButton
 # One entry per dropdown item after "Start field": {"ladder": SlopeLadder, "index": int}.
 var _reset_choices: Array[Dictionary] = []
 var _distance_slider: HSlider
-var _distance_label: Label
+var _distance_field: LineEdit
 var _copy_button: Button
 var _start_field_spawn: Transform3D
 
@@ -45,10 +45,28 @@ func _ready() -> void:
 	_build_panel()
 
 
-func _unhandled_input(event: InputEvent) -> void:
+## Runs before the panel's own controls see the event, so Tab always opens and
+## closes the panel, even while typing in a value box.
+func _input(event: InputEvent) -> void:
 	if event.is_action_pressed(&"tuning_panel_toggle"):
+		_stop_typing()
 		visible = not visible
 		get_viewport().set_input_as_handled()
+		return
+	# Clicking anywhere outside the box being typed in finishes the typing,
+	# so the driving keys go back to the tank.
+	var mouse_button := event as InputEventMouseButton
+	if mouse_button != null and mouse_button.pressed:
+		var typing_in := get_viewport().gui_get_focus_owner() as LineEdit
+		if typing_in != null and not typing_in.get_global_rect().has_point(mouse_button.position):
+			typing_in.release_focus()
+
+
+## Finish typing in any value box (its value is applied as it lets go).
+func _stop_typing() -> void:
+	var typing_in := get_viewport().gui_get_focus_owner() as LineEdit
+	if typing_in != null:
+		typing_in.release_focus()
 
 
 # --- What can be changed ---------------------------------------------------
@@ -172,8 +190,8 @@ func _build_reset_point(list: VBoxContainer) -> void:
 	_distance_slider = _slider(0.0, longest_run_up, 1.0, start_distance)
 	_distance_slider.value_changed.connect(func(_value: float) -> void: _apply_reset_point())
 	row.add_child(_distance_slider)
-	_distance_label = _number_label()
-	row.add_child(_distance_label)
+	_distance_field = _value_field(_on_distance_typed)
+	row.add_child(_distance_field)
 	list.add_child(row)
 	list.add_child(_button("Reset now", _on_reset_now_pressed))
 	_apply_reset_point()
@@ -186,11 +204,11 @@ func _setting_row(index: int) -> HBoxContainer:
 	var slider: HSlider = _slider(setting.min, setting.max, setting.step, setting.target.get(setting.property))
 	slider.value_changed.connect(func(value: float) -> void: _on_setting_changed(index, value))
 	row.add_child(slider)
-	var value_label: Label = _number_label()
-	value_label.text = _format(setting.target.get(setting.property), setting.step)
-	row.add_child(value_label)
+	var field: LineEdit = _value_field(func(text: String) -> void: _on_value_typed(index, text))
+	field.text = _format(setting.target.get(setting.property))
+	row.add_child(field)
 	_sliders.append(slider)
-	_value_labels.append(value_label)
+	_value_fields.append(field)
 	return row
 
 
@@ -200,9 +218,29 @@ func _on_setting_changed(index: int, value: float) -> void:
 	var setting: Dictionary = _settings[index]
 	var target: Object = setting.target
 	target.set(setting.property, value)
-	_value_labels[index].text = _format(value, setting.step)
+	_value_fields[index].text = _format(value)
 	if target.has_method(&"on_setting_changed"):
 		target.call(&"on_setting_changed")
+
+
+## A value typed into a box: used exactly (not rounded to the slider's steps),
+## but kept within the slider's range. Anything that isn't a number is ignored.
+func _on_value_typed(index: int, text: String) -> void:
+	var setting: Dictionary = _settings[index]
+	var cleaned: String = text.strip_edges()
+	if not cleaned.is_valid_float():
+		_value_fields[index].text = _format(setting.target.get(setting.property))
+		return
+	var value: float = clampf(cleaned.to_float(), setting.min, setting.max)
+	_sliders[index].set_value_no_signal(value)
+	_on_setting_changed(index, value)
+
+
+func _on_distance_typed(text: String) -> void:
+	var cleaned: String = text.strip_edges()
+	if cleaned.is_valid_float():
+		_distance_slider.set_value_no_signal(clampf(cleaned.to_float(), 0.0, _distance_slider.max_value))
+	_apply_reset_point()
 
 
 func _on_reset_to_saved_pressed() -> void:
@@ -229,7 +267,7 @@ func _on_reset_now_pressed() -> void:
 
 ## Tell the tank where R should put it, from the ramp choice and distance.
 func _apply_reset_point() -> void:
-	_distance_label.text = "%d" % roundi(_distance_slider.value)
+	_distance_field.text = _format(_distance_slider.value)
 	var choice: int = _ramp_choice.selected
 	if choice <= 0:
 		tank.set_spawn(_start_field_spawn)
@@ -263,6 +301,14 @@ func set_setting(property: StringName, value: float) -> void:
 	push_warning("TuningPanel: no setting called %s" % property)
 
 
+## The slider and typing box for a setting (used by the tests).
+func controls_for(property: StringName) -> Dictionary:
+	for index: int in _settings.size():
+		if _settings[index].property == property:
+			return {"slider": _sliders[index], "field": _value_fields[index]}
+	return {}
+
+
 ## The current values as text, grouped by where each one is set in the editor.
 func values_text() -> String:
 	var lines: PackedStringArray = [
@@ -277,7 +323,7 @@ func values_text() -> String:
 			lines.append("")
 			lines.append("# " + place)
 		var value: float = setting.target.get(setting.property)
-		lines.append("%s = %s" % [setting.property, _format(value, setting.step)])
+		lines.append("%s = %s" % [setting.property, _format(value)])
 	return "\n".join(lines) + "\n"
 
 
@@ -309,15 +355,23 @@ func _name_label(text: String) -> Label:
 	return label
 
 
-func _number_label() -> Label:
-	var label := Label.new()
-	label.custom_minimum_size = Vector2(55.0, 0.0)
-	label.horizontal_alignment = HORIZONTAL_ALIGNMENT_RIGHT
-	return label
+## A box showing a value that you can click and type a new value into.
+## Enter, clicking elsewhere or Tab finishes typing and applies the value.
+## While typing, keys go to the box, not the tank.
+func _value_field(on_typed: Callable) -> LineEdit:
+	var field := LineEdit.new()
+	field.custom_minimum_size = Vector2(64.0, 0.0)
+	field.alignment = HORIZONTAL_ALIGNMENT_RIGHT
+	field.select_all_on_focus = true
+	field.text_submitted.connect(func(_text: String) -> void: field.release_focus())
+	# Applying on focus loss covers Enter, clicking away and Tab alike.
+	field.focus_exited.connect(func() -> void: on_typed.call(field.text))
+	return field
 
 
 ## Sliders and buttons never take keyboard focus, so the arrow keys and Space
-## keep driving the tank while the panel is open.
+## keep driving the tank while the panel is open. Sliders also ignore the
+## mouse wheel, so scrolling the panel never changes a value by accident.
 func _slider(min_value: float, max_value: float, step: float, value: float) -> HSlider:
 	var slider := HSlider.new()
 	slider.min_value = min_value
@@ -325,6 +379,7 @@ func _slider(min_value: float, max_value: float, step: float, value: float) -> H
 	slider.step = step
 	slider.value = value
 	slider.focus_mode = Control.FOCUS_NONE
+	slider.scrollable = false
 	slider.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	slider.size_flags_vertical = Control.SIZE_SHRINK_CENTER
 	return slider
@@ -338,5 +393,6 @@ func _button(text: String, on_pressed: Callable) -> Button:
 	return button
 
 
-func _format(value: float, step: float) -> String:
-	return str(snappedf(value, step))
+## Up to 4 decimal places, without trailing zeros (10, 0.55, 0.1234).
+func _format(value: float) -> String:
+	return String.num(value, 4)

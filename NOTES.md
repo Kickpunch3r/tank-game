@@ -71,7 +71,18 @@ check by hand. For how to run and play, see [README.md](README.md).
   Built in code from a list in `_define_settings()`; add a line there to expose a new value.
 - **Changes are session-only** (developer's choice, over saving into the .tres). "Copy values"
   gives the numbers as text, grouped by the file or node they belong in.
-- Sliders and buttons have no keyboard focus, so arrows and Space keep driving.
+- Sliders and buttons have no keyboard focus, so arrows and Space keep driving. Sliders have
+  `scrollable = false`, so the mouse wheel scrolls the panel instead of changing values
+  (checked in a real window: before, a wheel tick changed 10 → 9.5; now the value stays and the
+  panel scrolls).
+- Each setting also has a typing box (`LineEdit`): Enter, clicking elsewhere or Tab applies it.
+  Typed values are exact (not rounded to slider steps) but clamped to the slider's range;
+  non-numbers are ignored. While a box has focus it takes the keys, so driving keys don't
+  reach the tank. Tab is caught in `_input` (before the boxes), so it always closes the panel.
+  In hold-to-drive mode the keyboard source polls `Input` directly, so held keys could still
+  drive while typing (levels mode, the default, is safe).
+- Headless runs have a 64 × 64 px window, so the wheel test only truly runs in a window (F6);
+  headless it checks the `scrollable` setting instead.
 - A target that needs to react to a change (the slit redraws itself) has an
   `on_setting_changed()` method, which the panel calls.
 - The tuning resource is shared by every tank that uses `tank_tuning.tres`; the panel changes it
@@ -173,7 +184,7 @@ g 9.8 · track_width 3 · turn_resistance 0.75 · tilt_smoothing 8
 | 55° no ledge | fails (5% up) | fails (49% up) | fails / fails |
 
 All targets met. Run-up times are mostly the 70 m approach (about 8 s at full speed). Full
-suite: **74 of 74 checks pass** (input, views and HUD, tuning panel, air and landing levers,
+suite: **83 of 83 checks pass** (input, views and HUD, tuning panel, air and landing levers,
 engine power, terrain,
 course shape, flat driving, kill-plane,
 slopes, sanity). Flat: 39.9 m straight in 5 s with no drift; left tread only turns right;
@@ -263,3 +274,5 @@ committed). To watch: open `tests/test_runner.tscn` and press F6.
     and terrain ramps on the test course, terrain in the HUD and Tab panel. 74 checks pass
     (6 new terrain checks; terrain checks compare terrains rather than fix numbers, so they
     survive tuning). Fixed a test that started driving into the new terrain ramps.
+11. **Tab panel: typing and wheel:** typed exact values, wheel no longer changes values.
+    83 checks pass (9 new).

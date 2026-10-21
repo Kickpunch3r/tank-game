@@ -38,11 +38,13 @@ func run() -> void:
 			"mask top ends at %.2f of the screen" % mask_top.anchor_bottom)
 	var text: String = panel.values_text()
 	report.check("Copy values text lists current numbers and where they go",
-			text.contains("# tuning/tank_tuning.tres") and text.contains("max_tread_speed = 15.0")
+			text.contains("# tuning/tank_tuning.tres") and text.contains("max_tread_speed = 15")
 			and text.contains("slit_height = 0.3"))
 	panel._on_reset_to_saved_pressed()
 	report.check("Reset to saved puts values back",
 			is_equal_approx(tank.tuning.max_tread_speed, 10.0) and is_equal_approx(slit.slit_height, 0.18))
+
+	await _wheel_and_typing_tests(panel, tank)
 
 	# Reset point.
 	var index_30: int = _ramp_index(ladder, 30.0)
@@ -62,6 +64,81 @@ func run() -> void:
 
 	await _air_and_landing_tests()
 	await _engine_power_tests()
+
+
+func _wheel_and_typing_tests(panel: TuningPanel, tank: Tank) -> void:
+	panel.visible = true
+	await runner.wait_physics_frames(2)
+	var controls: Dictionary = panel.controls_for(&"max_tread_speed")
+	var slider: HSlider = controls.slider
+	var field: LineEdit = controls.field
+	var scroll: ScrollContainer = panel.find_children("*", "ScrollContainer", true, false)[0]
+
+	# Mouse wheel over a slider: the panel scrolls, the value doesn't change.
+	# Headless runs have a tiny 64 px window with the panel off-screen, so the
+	# real wheel test only runs in a window (F6); headless checks the setting.
+	var over_slider: Vector2 = slider.get_global_rect().get_center()
+	if panel.get_viewport().get_visible_rect().has_point(over_slider):
+		for i: int in 3:
+			await _send_mouse(MOUSE_BUTTON_WHEEL_DOWN, over_slider)
+		report.check("Scrolling over a slider scrolls the panel, not the value",
+				is_equal_approx(tank.tuning.max_tread_speed, 10.0) and scroll.scroll_vertical > 0,
+				"value %.2f, panel scrolled %d px" % [tank.tuning.max_tread_speed, scroll.scroll_vertical])
+		scroll.scroll_vertical = 0
+		await runner.wait_physics_frames(2)
+	else:
+		report.check("Sliders ignore the mouse wheel (setting checked; window too small to scroll)",
+				not slider.scrollable)
+
+	# Typing an exact value.
+	await _type_into(field, "12.34")
+	report.check("Typing a value sets it exactly (not rounded to slider steps)",
+			is_equal_approx(tank.tuning.max_tread_speed, 12.34), "value %s" % tank.tuning.max_tread_speed)
+	report.check("Enter finishes typing", panel.get_viewport().gui_get_focus_owner() == null)
+	await _type_into(field, "fast")
+	report.check("Typing something that isn't a number is ignored",
+			is_equal_approx(tank.tuning.max_tread_speed, 12.34) and field.text == "12.34", "box shows '%s'" % field.text)
+	await _type_into(field, "999")
+	report.check("Typed values stay within the slider's range",
+			is_equal_approx(tank.tuning.max_tread_speed, slider.max_value), "value %s" % tank.tuning.max_tread_speed)
+
+	# While typing, driving keys go to the box, not the tank.
+	var keyboard: KeyboardDriverInput = tank.driver_station.get_node(^"KeyboardDriverInput")
+	keyboard.clear_levels()
+	field.grab_focus()
+	await _tap_key(KEY_W)
+	report.check("While typing, W doesn't drive the tank", keyboard.left_level == 0)
+	await _send_mouse(MOUSE_BUTTON_LEFT, Vector2(20.0, 400.0))
+	report.check("Clicking outside the box finishes typing", panel.get_viewport().gui_get_focus_owner() == null)
+	await _tap_key(KEY_W)
+	report.check("After typing, W drives again", keyboard.left_level == 1)
+	keyboard.clear_levels()
+
+	field.grab_focus()
+	await _tap_key(KEY_TAB)
+	report.check("Tab closes the panel even while typing",
+			not panel.visible and panel.get_viewport().gui_get_focus_owner() == null)
+	panel._on_reset_to_saved_pressed()
+
+
+## Click into a value box, type, and press Enter.
+func _type_into(field: LineEdit, text: String) -> void:
+	field.grab_focus()
+	field.text = text
+	field.text_submitted.emit(text)
+	await runner.wait_physics_frames(2)
+
+
+func _send_mouse(button: MouseButton, where: Vector2) -> void:
+	for down: bool in [true, false]:
+		var event := InputEventMouseButton.new()
+		event.button_index = button
+		event.position = where
+		event.global_position = where
+		event.pressed = down
+		Input.parse_input_event(event)
+		Input.flush_buffered_events()
+	await runner.wait_physics_frames(2)
 
 
 func _engine_power_tests() -> void:
@@ -191,10 +268,15 @@ func _ramp_index(ladder: SlopeLadder, angle: float) -> int:
 	return 0
 
 
+## Press and release a key, filled in like a real keypress (key position, key
+## and the letter it types), so text boxes react to it as they would for real.
 func _tap_key(code: Key) -> void:
 	for down: bool in [true, false]:
 		var event := InputEventKey.new()
 		event.physical_keycode = code
+		event.keycode = code
+		if code >= KEY_A and code <= KEY_Z:
+			event.unicode = String.chr(code).to_lower().unicode_at(0)
 		event.pressed = down
 		Input.parse_input_event(event)
 		Input.flush_buffered_events()
