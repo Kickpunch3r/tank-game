@@ -12,6 +12,10 @@ const CLOSE_AFTER_ANSWER: float = 0.5
 ## The page to serve. Read fresh for every request, so edits show on reload.
 var page_path: String = ""
 
+## Filled into the page wherever it says {{WEBSOCKET_PORT}}, so the page
+## always connects to the right port.
+var websocket_port: int = 8081
+
 var _server := TCPServer.new()
 # One entry per open browser connection:
 # {"peer": StreamPeerTCP, "request": PackedByteArray, "age": float, "answered": bool}
@@ -63,9 +67,10 @@ func _answer(peer: StreamPeerTCP, request: String) -> void:
 	var method: String = first_line[0] if first_line.size() > 0 else ""
 	var path: String = first_line[1].get_slice("?", 0) if first_line.size() > 1 else ""
 	if method == "GET" and (path == "/" or path == "/index.html"):
-		var page: PackedByteArray = FileAccess.get_file_as_bytes(page_path)
+		var page: String = FileAccess.get_file_as_string(page_path)
 		if not page.is_empty():
-			_send(peer, "200 OK", "text/html; charset=utf-8", page)
+			page = page.replace("{{WEBSOCKET_PORT}}", str(websocket_port))
+			_send(peer, "200 OK", "text/html; charset=utf-8", page.to_utf8_buffer())
 			return
 		push_error("ControllerHttpServer: cannot read %s" % page_path)
 		_send(peer, "500 Internal Server Error", "text/plain", "Controller page missing".to_utf8_buffer())

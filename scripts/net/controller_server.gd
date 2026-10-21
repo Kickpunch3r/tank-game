@@ -56,6 +56,7 @@ func _ready() -> void:
 	add_to_group(GROUP)
 	var address: String = bind_address_override if not bind_address_override.is_empty() else bind_address
 	_http.page_path = page_path
+	_http.websocket_port = websocket_port
 	_http_error = _http.start(http_port, address)
 	_websocket_error = _websocket_server.listen(websocket_port, address)
 	if _http_error != OK or _websocket_error != OK:

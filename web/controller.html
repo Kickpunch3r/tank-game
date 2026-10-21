@@ -1,3 +1,281 @@
 <!doctype html>
-<html><head><meta charset="utf-8"><title>Tank controller</title></head>
-<body><p>Tank controller page (placeholder; the real levers come in milestone 3).</p></body></html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
+<title>Tank driver</title>
+<style>
+  /* Placeholder look: plain and high-contrast. Restyle freely. */
+  :root {
+    --background: #111;
+    --track: #2a2a2a;
+    --track-edge: #666;
+    --zero-line: #fff;
+    --thumb: #ffcc22;
+    --text: #fff;
+    --driver: #2e9e4f;
+    --spectator: #2f6fb5;
+    --waiting: #8a6d1a;
+    --lost: #a33;
+  }
+  html, body {
+    margin: 0; height: 100%; overflow: hidden;
+    background: var(--background); color: var(--text);
+    font: 16px system-ui, sans-serif;
+    /* No scrolling, zooming, text selection or pull-to-refresh. */
+    touch-action: none; overscroll-behavior: none;
+    user-select: none; -webkit-user-select: none; -webkit-touch-callout: none;
+  }
+  #layout { display: flex; height: 100%; }
+  .lever-zone {
+    flex: 0 0 38%; display: flex; align-items: center; justify-content: center;
+    touch-action: none;
+  }
+  .track {
+    position: relative; width: min(120px, 60%); height: 88%;
+    background: var(--track); border: 3px solid var(--track-edge); border-radius: 18px;
+  }
+  .zero-line {
+    position: absolute; left: -12px; right: -12px; top: 50%; height: 4px; margin-top: -2px;
+    background: var(--zero-line);
+  }
+  .thumb {
+    position: absolute; left: -10px; right: -10px; height: 70px; margin-top: -35px; top: 50%;
+    background: var(--thumb); border-radius: 14px; box-shadow: 0 0 0 3px #000 inset;
+  }
+  .lever-value { position: absolute; bottom: -1.6em; width: 100%; text-align: center; font-size: 14px; }
+  #middle {
+    flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: center;
+    gap: 14px; text-align: center; padding: 8px;
+  }
+  #status { padding: 10px 16px; border-radius: 10px; font-weight: bold; font-size: 18px; background: var(--waiting); }
+  #status.driver { background: var(--driver); }
+  #status.spectator { background: var(--spectator); }
+  #status.lost { background: var(--lost); }
+  button {
+    font: inherit; color: var(--text); background: #333; border: 2px solid #777;
+    border-radius: 10px; padding: 8px 14px;
+  }
+  #tip { font-size: 13px; opacity: 0.75; max-width: 22em; }
+  #settings {
+    position: fixed; inset: 0; background: rgba(0, 0, 0, 0.85); display: none;
+    align-items: center; justify-content: center; flex-direction: column; gap: 16px;
+  }
+  #settings.open { display: flex; }
+  #settings label { font-size: 20px; display: flex; align-items: center; gap: 12px; }
+  #settings input[type=checkbox] { width: 28px; height: 28px; }
+  #turn-sideways {
+    position: fixed; inset: 0; background: var(--background); display: none;
+    align-items: center; justify-content: center; font-size: 24px; text-align: center; padding: 20px;
+  }
+  @media (orientation: portrait) { #turn-sideways { display: flex; } }
+</style>
+</head>
+<body>
+<div id="layout">
+  <div class="lever-zone" id="left-zone">
+    <div class="track"><div class="zero-line"></div><div class="thumb" id="left-thumb"></div>
+      <div class="lever-value" id="left-value">0.00</div></div>
+  </div>
+  <div id="middle">
+    <div id="status">Connecting...</div>
+    <div>Left lever = left tread, right lever = right tread</div>
+    <button id="settings-button">Settings</button>
+    <div id="tip"></div>
+  </div>
+  <div class="lever-zone" id="right-zone">
+    <div class="track"><div class="zero-line"></div><div class="thumb" id="right-thumb"></div>
+      <div class="lever-value" id="right-value">0.00</div></div>
+  </div>
+</div>
+
+<div id="settings">
+  <label><input type="checkbox" id="spring-return"> Levers spring back to 0 when let go</label>
+  <label><input type="checkbox" id="vibration"> Vibration</label>
+  <button id="fullscreen-button">Full screen</button>
+  <button id="close-settings">Close</button>
+</div>
+<div id="turn-sideways">Turn your phone sideways to drive.</div>
+
+<script>
+"use strict";
+// --- Settings (remembered on this phone) -----------------------------------
+const SEND_EVERY_MS = 33;        // ~30 times a second while touching
+const HEARTBEAT_MS = 150;        // at least this often when idle (game watchdog: 250 ms)
+const RECONNECT_MS = 1000;
+const DEAD_ZONE = 0.05;          // values this close to 0 count as 0, so 0 is easy to find
+const PORT_TEXT = "{{WEBSOCKET_PORT}}";   // filled in by the game when it serves this page
+const WEBSOCKET_PORT = PORT_TEXT.startsWith("{{") ? 8081 : Number(PORT_TEXT);
+
+function loadSetting(name, fallback) {
+  try { const v = localStorage.getItem(name); return v === null ? fallback : v === "true"; }
+  catch (e) { return fallback; }
+}
+function saveSetting(name, value) { try { localStorage.setItem(name, String(value)); } catch (e) {} }
+
+let springReturn = loadSetting("springReturn", true);
+let vibration = loadSetting("vibration", true);
+
+// --- Levers -----------------------------------------------------------------
+// Each lever follows its own finger, so both thumbs work at once.
+const levers = {
+  left:  { value: 0, pointer: null, zone: document.getElementById("left-zone"),
+           thumb: document.getElementById("left-thumb"), label: document.getElementById("left-value") },
+  right: { value: 0, pointer: null, zone: document.getElementById("right-zone"),
+           thumb: document.getElementById("right-thumb"), label: document.getElementById("right-value") },
+};
+
+function setLever(lever, value) {
+  if (Math.abs(value) < DEAD_ZONE) value = 0;
+  value = Math.max(-1, Math.min(1, value));
+  const crossedZero = (lever.value > 0 && value <= 0) || (lever.value < 0 && value >= 0);
+  const changed = value !== lever.value;
+  lever.value = value;
+  // Draw from the value: thumb at the centre for 0, at the ends for +1 / -1.
+  const track = lever.thumb.parentElement;
+  const travel = (track.clientHeight - lever.thumb.offsetHeight) / 2;
+  lever.thumb.style.top = (track.clientHeight / 2 - value * travel) + "px";
+  lever.label.textContent = value.toFixed(2);
+  if (crossedZero && changed) buzz(15);
+  if (changed) sendSoon();
+}
+
+function valueFromPointer(lever, clientY) {
+  const track = lever.thumb.parentElement.getBoundingClientRect();
+  const travel = (track.height - lever.thumb.offsetHeight) / 2;
+  const centre = track.top + track.height / 2;
+  return (centre - clientY) / travel;
+}
+
+for (const lever of Object.values(levers)) {
+  lever.zone.addEventListener("pointerdown", (e) => {
+    if (lever.pointer !== null) return;
+    e.preventDefault();
+    lever.pointer = e.pointerId;
+    lever.zone.setPointerCapture(e.pointerId);
+    setLever(lever, valueFromPointer(lever, e.clientY));
+  });
+  lever.zone.addEventListener("pointermove", (e) => {
+    if (e.pointerId !== lever.pointer) return;
+    e.preventDefault();
+    setLever(lever, valueFromPointer(lever, e.clientY));
+  });
+  const letGo = (e) => {
+    if (e.pointerId !== lever.pointer) return;
+    lever.pointer = null;
+    if (springReturn) setLever(lever, 0);
+  };
+  lever.zone.addEventListener("pointerup", letGo);
+  lever.zone.addEventListener("pointercancel", letGo);
+}
+document.addEventListener("contextmenu", (e) => e.preventDefault());
+document.addEventListener("touchmove", (e) => e.preventDefault(), { passive: false });
+
+// --- Talking to the game ----------------------------------------------------
+const statusBox = document.getElementById("status");
+let socket = null;
+let role = "";
+let lastSent = 0;
+let sendPending = false;
+
+function setStatus(text, kind) {
+  statusBox.textContent = text;
+  statusBox.className = kind;
+}
+
+function connect() {
+  setStatus("Connecting...", "");
+  role = "";
+  socket = new WebSocket("ws://" + location.hostname + ":" + WEBSOCKET_PORT);
+  socket.onopen = () => {
+    // Never resume driving with old lever positions after a reconnect.
+    setLever(levers.left, 0);
+    setLever(levers.right, 0);
+    socket.send(JSON.stringify({ t: "hello", role: "driver" }));
+    sendNow();
+  };
+  socket.onmessage = (event) => {
+    let message;
+    try { message = JSON.parse(event.data); } catch (e) { return; }
+    if (message.t === "welcome") {
+      role = message.role;
+      if (role === "driver") setStatus("Driving", "driver");
+      else setStatus("Watching (another phone is driving)", "spectator");
+    } else if (message.t === "buzz") {
+      buzz(Number(message.ms) || 40);
+    }
+  };
+  socket.onclose = () => {
+    setStatus("Disconnected - retrying...", "lost");
+    role = "";
+    setTimeout(connect, RECONNECT_MS);
+  };
+  socket.onerror = () => {};  // onclose follows and retries
+}
+
+function sendNow() {
+  if (!socket || socket.readyState !== WebSocket.OPEN) return;
+  socket.send(JSON.stringify({ t: "in", l: round(levers.left.value), r: round(levers.right.value) }));
+  lastSent = performance.now();
+  sendPending = false;
+}
+function sendSoon() { sendPending = true; }
+function round(value) { return Math.round(value * 100) / 100; }
+
+// Send on change (at most ~30 times a second), and a heartbeat when idle,
+// so the game knows the phone is still there.
+setInterval(() => {
+  const touching = levers.left.pointer !== null || levers.right.pointer !== null;
+  const since = performance.now() - lastSent;
+  if ((sendPending || touching) && since >= SEND_EVERY_MS) sendNow();
+  else if (since >= HEARTBEAT_MS) sendNow();
+}, 16);
+
+// --- Vibration (Android; iPhones ignore it) ---------------------------------
+function buzz(ms) {
+  if (!vibration) return;
+  try { if (navigator.vibrate) navigator.vibrate(ms); } catch (e) {}
+}
+
+// --- Keeping the screen awake -----------------------------------------------
+// Needs a secure (https) page, so on the game's plain local page it usually
+// isn't available: then show a tip instead.
+const tip = document.getElementById("tip");
+async function keepAwake() {
+  try {
+    if ("wakeLock" in navigator && window.isSecureContext) {
+      await navigator.wakeLock.request("screen");
+      tip.textContent = "";
+      return;
+    }
+  } catch (e) {}
+  tip.textContent = "Tip: set your phone's auto-lock / screen timeout to a few minutes so the screen stays on.";
+}
+document.addEventListener("visibilitychange", () => { if (document.visibilityState === "visible") keepAwake(); });
+
+// --- Settings menu -------------------------------------------------------------
+const settings = document.getElementById("settings");
+const springBox = document.getElementById("spring-return");
+const vibrationBox = document.getElementById("vibration");
+springBox.checked = springReturn;
+vibrationBox.checked = vibration;
+document.getElementById("settings-button").onclick = () => settings.classList.add("open");
+document.getElementById("close-settings").onclick = () => settings.classList.remove("open");
+springBox.onchange = () => {
+  springReturn = springBox.checked;
+  saveSetting("springReturn", springReturn);
+  for (const lever of Object.values(levers)) if (springReturn && lever.pointer === null) setLever(lever, 0);
+};
+vibrationBox.onchange = () => { vibration = vibrationBox.checked; saveSetting("vibration", vibration); };
+document.getElementById("fullscreen-button").onclick = () => {
+  try { document.documentElement.requestFullscreen(); } catch (e) {}
+};
+
+window.addEventListener("resize", () => { setLever(levers.left, levers.left.value); setLever(levers.right, levers.right.value); });
+setLever(levers.left, 0);
+setLever(levers.right, 0);
+keepAwake();
+connect();
+</script>
+</body>
+</html>
