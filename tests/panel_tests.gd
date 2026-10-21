@@ -98,9 +98,17 @@ func _wheel_and_typing_tests(panel: TuningPanel, tank: Tank) -> void:
 	await _type_into(field, "fast")
 	report.check("Typing something that isn't a number is ignored",
 			is_equal_approx(tank.tuning.max_tread_speed, 12.34) and field.text == "12.34", "box shows '%s'" % field.text)
-	await _type_into(field, "999")
-	report.check("Typed values stay within the slider's range",
-			is_equal_approx(tank.tuning.max_tread_speed, slider.max_value), "value %s" % tank.tuning.max_tread_speed)
+	await _type_into(field, "120")
+	report.check("Typed values can go past the slider's end, and the slider stretches",
+			is_equal_approx(tank.tuning.max_tread_speed, 120.0) and slider.max_value >= 120.0,
+			"value %s, slider now goes to %s" % [tank.tuning.max_tread_speed, slider.max_value])
+	var turn_field: LineEdit = panel.controls_for(&"turn_resistance").field
+	await _type_into(turn_field, "1.5")
+	report.check("Hard limits still apply where the maths needs them (turn resistance at most 1)",
+			is_equal_approx(tank.tuning.turn_resistance, 1.0), "value %s" % tank.tuning.turn_resistance)
+	await _type_into(turn_field, "-3")
+	report.check("...and no negative values where they make no sense",
+			is_equal_approx(tank.tuning.turn_resistance, 0.0), "value %s" % tank.tuning.turn_resistance)
 
 	# While typing, driving keys go to the box, not the tank.
 	var keyboard: KeyboardDriverInput = tank.driver_station.get_node(^"KeyboardDriverInput")

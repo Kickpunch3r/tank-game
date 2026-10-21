@@ -133,6 +133,27 @@ func _starter_level() -> void:
 			Vector2(tank.global_position.x, tank.global_position.z).distance_to(Vector2(start.x, start.z)) < 0.5
 			and tank.global_position.y - level.terrain.height_at(tank.global_position) > -0.3,
 			"tank %s, ground there %.2f m, start %s" % [tank.global_position, level.terrain.height_at(tank.global_position), start])
+	# Bug found by the developer: at max height 60 and 2 m per pixel, driving
+	# straight at the mesa's south cliff made the tank bounce on the spot.
+	panel.set_setting(&"metres_per_pixel", 2.0)
+	await runner.wait_physics_frames(60)
+	var highest_above_ground: float = 0.0
+	var take_offs: int = 0
+	var was_on_floor: bool = true
+	for frame: int in 20 * 60:
+		station.left_tread = 1.0
+		station.right_tread = 1.0
+		await runner.get_tree().physics_frame
+		highest_above_ground = maxf(highest_above_ground,
+				tank.global_position.y - level.terrain.height_at(tank.global_position))
+		if was_on_floor and not tank.is_on_floor():
+			take_offs += 1
+		was_on_floor = tank.is_on_floor()
+	report.check("Driving into a cliff stops the tank: no bouncing, no launching",
+			highest_above_ground < 1.5 and take_offs <= 3,
+			"highest %.2f m above the ground, left the ground %d times in 20 s" % [highest_above_ground, take_offs])
+	station.left_tread = 0.0
+	station.right_tread = 0.0
 	panel._on_reset_to_saved_pressed()
 	await runner.wait_physics_frames(60)
 

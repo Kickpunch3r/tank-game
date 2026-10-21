@@ -72,35 +72,42 @@ func _stop_typing() -> void:
 func _define_settings() -> void:
 	var tuning: TankTuning = tank.tuning
 	var slit: DriverSlitCamera = tank.get_node(^"Visual/Hull/DriverSlitCamera")
-	_add_setting("Speed", tuning, &"max_tread_speed", 2.0, 25.0, 0.5)
-	_add_setting("Speed", tuning, &"max_drive_accel", 0.5, 15.0, 0.1)
-	_add_setting("Speed", tuning, &"rolling_resistance", 0.0, 2.0, 0.05)
-	_add_setting("Engine power", tuning, &"power_falloff_start", 0.0, 1.0, 0.05)
-	_add_setting("Engine power", tuning, &"power_at_top_speed", 0.0, 1.0, 0.05)
-	_add_setting("Grip and gravity", tuning, &"traction_coeff", 0.05, 1.5, 0.01)
-	_add_setting("Grip and gravity", tuning, &"g", 1.0, 30.0, 0.1)
-	_add_setting("Turning", tuning, &"track_width", 1.0, 8.0, 0.1)
-	_add_setting("Turning", tuning, &"turn_resistance", 0.0, 0.95, 0.01)
-	_add_setting("Air and landing", tuning, &"air_gravity_scale", 0.1, 3.0, 0.05)
-	_add_setting("Air and landing", tuning, &"nose_dip", 0.0, 1.0, 0.05)
-	_add_setting("Air and landing", tuning, &"landing_speed_loss", 0.0, 1.0, 0.05)
-	_add_setting("Air and landing", tuning, &"tilt_smoothing", 0.5, 30.0, 0.5)
-	_add_setting("Chase camera", chase_camera, &"follow_distance", 3.0, 40.0, 0.5)
-	_add_setting("Chase camera", chase_camera, &"follow_height", 0.5, 20.0, 0.5)
-	_add_setting("Chase camera", chase_camera, &"look_height", 0.0, 5.0, 0.1)
-	_add_setting("Chase camera", chase_camera, &"follow_smoothing", 0.5, 20.0, 0.5)
-	_add_setting("Driver slit", slit, &"slit_height", 0.05, 0.6, 0.01)
+	# Slider range first (just a comfortable dragging range: typed values can
+	# go past it), then hard limits only where other values break the maths.
+	_add_setting("Speed", tuning, &"max_tread_speed", 0.0, 50.0, 0.5, 0.1)
+	_add_setting("Speed", tuning, &"max_drive_accel", 0.0, 30.0, 0.1)
+	_add_setting("Speed", tuning, &"rolling_resistance", 0.0, 5.0, 0.05)
+	# Fractions of top speed / of full pull: only 0 to 1 make sense.
+	_add_setting("Engine power", tuning, &"power_falloff_start", 0.0, 1.0, 0.05, 0.0, 1.0)
+	_add_setting("Engine power", tuning, &"power_at_top_speed", 0.0, 1.0, 0.05, 0.0, 1.0)
+	_add_setting("Grip and gravity", tuning, &"traction_coeff", 0.0, 3.0, 0.01)
+	_add_setting("Grip and gravity", tuning, &"g", 0.0, 50.0, 0.1)
+	_add_setting("Turning", tuning, &"track_width", 0.1, 15.0, 0.1, 0.1)
+	# Above 1 the tank would turn the wrong way.
+	_add_setting("Turning", tuning, &"turn_resistance", 0.0, 1.0, 0.01, 0.0, 1.0)
+	_add_setting("Air and landing", tuning, &"air_gravity_scale", 0.0, 5.0, 0.05)
+	_add_setting("Air and landing", tuning, &"nose_dip", 0.0, 2.0, 0.05)
+	# Above 1 a landing would reverse the treads.
+	_add_setting("Air and landing", tuning, &"landing_speed_loss", 0.0, 1.0, 0.05, 0.0, 1.0)
+	_add_setting("Air and landing", tuning, &"tilt_smoothing", 0.0, 60.0, 0.5)
+	_add_setting("Chase camera", chase_camera, &"follow_distance", 0.0, 100.0, 0.5)
+	_add_setting("Chase camera", chase_camera, &"follow_height", -10.0, 60.0, 0.5, -INF)
+	_add_setting("Chase camera", chase_camera, &"look_height", -10.0, 20.0, 0.1, -INF)
+	_add_setting("Chase camera", chase_camera, &"follow_smoothing", 0.0, 40.0, 0.5)
+	# A fraction of the screen.
+	_add_setting("Driver slit", slit, &"slit_height", 0.0, 1.0, 0.01, 0.0, 1.0)
 	for node: Node in get_tree().get_nodes_in_group(LevelTerrain.GROUP):
 		var level := node as LevelTerrain
-		_add_setting("Level ground", level, &"metres_per_pixel", 0.25, 8.0, 0.25)
-		_add_setting("Level ground", level, &"max_height", 1.0, 200.0, 0.5)
-		_add_setting("Level ground", level, &"smoothing", 0.0, 10.0, 1.0)
+		_add_setting("Level ground", level, &"metres_per_pixel", 0.25, 10.0, 0.25, 0.05)
+		_add_setting("Level ground", level, &"max_height", 0.0, 300.0, 0.5)
+		# Every pass takes a moment; 50 is already a very soft blur.
+		_add_setting("Level ground", level, &"smoothing", 0.0, 20.0, 1.0, 0.0, 50.0)
 	for terrain: TerrainType in _terrain_types_in_scene():
 		var group: String = "Terrain: %s" % terrain.display_name
-		_add_setting(group, terrain, &"grip", 0.0, 2.0, 0.05)
-		_add_setting(group, terrain, &"drag", 0.0, 10.0, 0.1)
-		_add_setting(group, terrain, &"top_speed", 0.1, 1.5, 0.05)
-		_add_setting(group, terrain, &"sink_depth", 0.0, 1.0, 0.05)
+		_add_setting(group, terrain, &"grip", 0.0, 3.0, 0.05)
+		_add_setting(group, terrain, &"drag", 0.0, 20.0, 0.1)
+		_add_setting(group, terrain, &"top_speed", 0.0, 3.0, 0.05)
+		_add_setting(group, terrain, &"sink_depth", 0.0, 2.0, 0.05)
 
 
 ## Every row of ramps in the scene.
@@ -121,16 +128,23 @@ func _terrain_types_in_scene() -> Array[TerrainType]:
 	return found
 
 
+## slider_min/slider_max: the slider's dragging range. hard_min/hard_max: the
+## only limits on typed values (default: anything 0 or above).
 func _add_setting(group: String, target: Object, property: StringName,
-		min_value: float, max_value: float, step: float) -> void:
+		slider_min: float, slider_max: float, step: float,
+		hard_min: float = 0.0, hard_max: float = INF) -> void:
+	var value: float = target.get(property)
 	_settings.append({
 		"group": group,
 		"target": target,
 		"property": property,
-		"min": min_value,
-		"max": max_value,
+		# If the current value is already outside the slider's range, widen it.
+		"min": minf(slider_min, value),
+		"max": maxf(slider_max, value),
 		"step": step,
-		"saved": target.get(property),
+		"hard_min": hard_min,
+		"hard_max": hard_max,
+		"saved": value,
 	})
 
 
@@ -239,16 +253,20 @@ func _on_setting_changed(index: int, value: float) -> void:
 		target.call(&"on_setting_changed")
 
 
-## A value typed into a box: used exactly (not rounded to the slider's steps),
-## but kept within the slider's range. Anything that isn't a number is ignored.
+## A value typed into a box: used exactly (not rounded to the slider's steps).
+## It may go past the slider's ends (the slider stretches to fit); only the
+## setting's hard limits apply. Anything that isn't a number is ignored.
 func _on_value_typed(index: int, text: String) -> void:
 	var setting: Dictionary = _settings[index]
 	var cleaned: String = text.strip_edges()
 	if not cleaned.is_valid_float():
 		_value_fields[index].text = _format(setting.target.get(setting.property))
 		return
-	var value: float = clampf(cleaned.to_float(), setting.min, setting.max)
-	_sliders[index].set_value_no_signal(value)
+	var value: float = clampf(cleaned.to_float(), setting.hard_min, setting.hard_max)
+	var slider: HSlider = _sliders[index]
+	slider.min_value = minf(slider.min_value, value)
+	slider.max_value = maxf(slider.max_value, value)
+	slider.set_value_no_signal(value)
 	_on_setting_changed(index, value)
 
 

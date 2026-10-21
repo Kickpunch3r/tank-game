@@ -213,7 +213,7 @@ g 9.8 · track_width 3 · turn_resistance 0.75 · tilt_smoothing 8
 | 55° no ledge | fails (5% up) | fails (49% up) | fails / fails |
 
 All targets met. Run-up times are mostly the 70 m approach (about 8 s at full speed). Full
-suite: **92 of 92 checks pass** (input, views and HUD, tuning panel, air and landing levers,
+suite: **95 of 95 checks pass** (input, views and HUD, tuning panel, air and landing levers,
 engine power, terrain, level builder,
 course shape, flat driving, kill-plane,
 slopes, sanity). Flat: 39.9 m straight in 5 s with no drift; left tread only turns right;
@@ -240,7 +240,7 @@ committed). To watch: open `tests/test_runner.tscn` and press F6.
 - **The tank is round to walls.** Its collision shape is a sphere of radius 1.7, so walls and
   ramp sides see a round tank; corners of the hull can poke into things.
 - **No sideways sliding** on slopes that lean left or right.
-- **Treads spin against walls:** hitting a wall stops the tank, but the treads keep their speed.
+- **Walls stall the treads:** driving into a wall slows the treads to the real speed (fixed 2026-10-21; they used to keep spinning at full speed).
 - **Course only visible when running**, not in the editor viewport.
 - **Chase camera** updates in physics frames; it may look juddery on a high-refresh screen
   (possible fix: physics interpolation). It can also end up inside ramps or walls when the tank
@@ -308,3 +308,16 @@ committed). To watch: open `tests/test_runner.tscn` and press F6.
 12. **Level builder, height only:** `LevelTerrain`, `LevelStart`, `LevelRoot`, shared player rig,
     starter level, `docs/making_levels.md`. 92 checks pass (9 new). Found and fixed a test
     clean-up bug the rig move caused (a test tank named "Tank" was never removed).
+13. **Cliff bounce fix, panel limits, full screen** (developer's bug report and requests):
+    - Bug: at max height 60 and 2 m per pixel, driving at the mesa's south cliff made the tank
+      bounce on the spot. Cause: on the 45° base it hit the >60° cliff (a "wall" to Godot);
+      move_and_slide kept the upward part of its velocity, so it popped into the air, landed and
+      pushed again, while the treads stayed at full speed. Fix (`Tank._blocked_by_wall`): when
+      driving into a wall, tread speeds drop to the real speed (they stall), and hitting a wall
+      in the air never keeps upward speed. Crest launches are unaffected. Regression test added.
+    - Tab panel: wider slider ranges; typed values may go past the slider (it stretches); hard
+      limits only where needed (fractions 0–1, no negatives for physical amounts, smoothing ≤ 50).
+    - Full screen at start (`display/window/size/mode=3`), F11 toggles (`WindowControls`
+      autoload, action `toggle_fullscreen`). Checked in a real window: starts 1920 × 1080
+      fullscreen, F11 → windowed. Unconfirmed: whether the editor's embedded "Game" tab honours it.
+    95 checks pass.

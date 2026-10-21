@@ -61,6 +61,28 @@ func _physics_process(delta: float) -> void:
 	else:
 		_fall(delta)
 	move_and_slide()
+	if is_on_wall():
+		_blocked_by_wall()
+
+
+## Something too steep to drive on (a wall, a cliff, a rock) is in the way.
+func _blocked_by_wall() -> void:
+	# The treads can't keep turning at a speed the tank isn't really moving:
+	# slow them to match, so the tank stalls against the wall instead of
+	# pushing at full speed.
+	# Only when driving into the wall: rolling or reversing away from it is free.
+	var forward: Vector3 = -global_basis.z
+	var driving_direction: Vector3 = forward * signf(forward_speed)
+	if absf(forward_speed) > 0.01 and get_wall_normal().dot(driving_direction) < -0.1:
+		var real_forward_speed: float = get_real_velocity().dot(forward)
+		var kept: float = clampf(real_forward_speed / forward_speed, 0.0, 1.0)
+		left_tread.speed *= kept
+		right_tread.speed *= kept
+		forward_speed = (left_tread.speed + right_tread.speed) / 2.0
+	# Sliding up a wall must not throw the tank into the air: keep any
+	# upward speed only while the tank is still on drivable ground.
+	if not is_on_floor():
+		velocity.y = minf(velocity.y, 0.0)
 
 
 func _drive_on_ground(delta: float) -> void:
