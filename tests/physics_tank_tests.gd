@@ -22,6 +22,10 @@ func run() -> void:
 	await _rest_test()
 	await _flat_tests()
 	await _controls_test()
+	await _slope_tests()
+	await _ledge_steps_and_crest()
+	await _stability_tests()
+	await _preset_tests()
 
 
 # --- Swapping tanks (T) ---------------------------------------------------------
@@ -210,3 +214,266 @@ func _sign(value: float, dead: float) -> int:
 	if absf(value) < dead:
 		return 0
 	return 1 if value > 0.0 else -1
+
+
+# --- Slopes -------------------------------------------------------------------
+
+## How many times each slope test runs; the majority result counts.
+const SLOPE_RUNS: int = 3
+
+
+func _slope_tests() -> void:
+	var ladder: SlopeLadder = runner.course.get_node(^"SlopeLadder")
+	var driving := DrivingTests.new(runner)
+	var kinematic_standing: Array[Dictionary] = await driving.climb_all(ladder, false)
+	var kinematic_run_up: Array[Dictionary] = await driving.climb_all(ladder, true)
+	var standing: Array[Dictionary] = await climb_all_majority(ladder, false)
+	var run_up: Array[Dictionary] = await climb_all_majority(ladder, true)
+
+	report.heading("Physics tank: Slope Ladder (full forward, %d runs each, majority result)" % SLOPE_RUNS)
+	report.add_line("       Ramp            Physics: standing     Physics: run-up       Kinematic: standing   Kinematic: run-up")
+	var steep_always_fail: bool = true
+	for index: int in ladder.ramps.size():
+		var ramp: SlopeLadder.RampInfo = ladder.ramps[index]
+		report.add_line("       %2d° %-8s   %-20s  %-20s  %-20s  %s" % [
+				roundi(ramp.angle_degrees), "ledge" if ramp.has_ledge else "no ledge",
+				_describe(standing[index]), _describe(run_up[index]),
+				driving._describe(kinematic_standing[index]), driving._describe(kinematic_run_up[index])])
+		if ramp.angle_degrees >= 44.0 and (standing[index].any_climbed or run_up[index].any_climbed):
+			steep_always_fail = false
+	report.check("Physics tank: 45° and 55° always fail (every run, standing and run-up)", steep_always_fail)
+	var ordering_ok: bool = true
+	for results: Array[Dictionary] in [standing, run_up]:
+		for a: int in ladder.ramps.size():
+			for b: int in ladder.ramps.size():
+				if ladder.ramps[b].angle_degrees > ladder.ramps[a].angle_degrees \
+						and results[b].climbed and not results[a].climbed:
+					ordering_ok = false
+	report.check("Physics tank: steeper ramps are never easier", ordering_ok)
+	var gentle_ok: bool = true
+	for index: int in ladder.ramps.size():
+		if ladder.ramps[index].angle_degrees <= 25.0 and not (standing[index].climbed and run_up[index].climbed):
+			gentle_ok = false
+	report.check("Physics tank: climbs every ramp up to 25°, standing and with a run-up", gentle_ok)
+
+
+## Climbs every ramp SLOPE_RUNS times; per ramp: climbed (majority),
+## any_climbed, seconds (middle of the climbing runs), best_height (highest).
+func climb_all_majority(ladder: SlopeLadder, with_run_up: bool, tuning: PhysicsTankTuning = null) -> Array[Dictionary]:
+	var runs: Array = []
+	for run: int in SLOPE_RUNS:
+		runs.append(await climb_all(ladder, with_run_up, tuning))
+	var results: Array[Dictionary] = []
+	for index: int in ladder.ramps.size():
+		var climbs: int = 0
+		var times: Array[float] = []
+		var best: float = 0.0
+		for run: Array in runs:
+			var result: Dictionary = run[index]
+			best = maxf(best, result.best_height)
+			if result.climbed:
+				climbs += 1
+				times.append(result.seconds)
+		times.sort()
+		results.append({"climbed": climbs * 2 > SLOPE_RUNS, "any_climbed": climbs > 0, "climbs": climbs,
+				"seconds": times[times.size() / 2] if not times.is_empty() else 0.0, "best_height": best})
+	return results
+
+
+## One physics tank at every ramp at once, full forward, like DrivingTests.climb_all().
+func climb_all(ladder: SlopeLadder, with_run_up: bool, tuning: PhysicsTankTuning = null) -> Array[Dictionary]:
+	var tanks: Array[PhysicsTank] = []
+	var results: Array[Dictionary] = []
+	for index: int in ladder.ramps.size():
+		var ramp: SlopeLadder.RampInfo = ladder.ramps[index]
+		var tank: PhysicsTank = runner.spawn_test_physics_tank(ramp.run_up_start + Vector3(0.0, 0.1, 0.0))
+		if not with_run_up:
+			# Standing start: at rest, front probes at the foot of the slope.
+			tank.place_at(Transform3D(Basis.IDENTITY, ladder.start_position_for(index, 0.0, tank)))
+		if tuning != null:
+			tank.tuning = tuning
+		tanks.append(tank)
+		results.append({"climbed": false, "seconds": 0.0, "best_height": 0.0})
+	runner.watch_tank(tanks[tanks.size() / 2])
+	for tank: PhysicsTank in tanks:
+		tank.driver_station.brake = true
+	await runner.wait_physics_frames(90)
+	for tank: PhysicsTank in tanks:
+		tank.driver_station.brake = false
+	for frame: int in roundi(DrivingTests.CLIMB_TIME_LIMIT * FPS):
+		for tank: PhysicsTank in tanks:
+			tank.driver_station.left_tread = 1.0
+			tank.driver_station.right_tread = 1.0
+		await runner.get_tree().physics_frame
+		for index: int in tanks.size():
+			var result: Dictionary = results[index]
+			if result.climbed:
+				continue
+			var ramp: SlopeLadder.RampInfo = ladder.ramps[index]
+			var where: Vector3 = tanks[index].global_position
+			var rise: float = ramp.top_position.y - ramp.base_position.y
+			result.best_height = maxf(result.best_height, clampf(where.y / rise, 0.0, 1.0))
+			if where.z < ramp.top_position.z and where.y > ramp.top_position.y - 1.0:
+				result.climbed = true
+				result.seconds = (frame + 1) / float(FPS)
+	await runner.remove_test_tanks()
+	return results
+
+
+func _describe(result: Dictionary) -> String:
+	if result.climbed:
+		var text: String = "climbs in %.1f s" % result.seconds
+		return text if result.climbs == SLOPE_RUNS else text + " (%d/%d)" % [result.climbs, SLOPE_RUNS]
+	if result.any_climbed:
+		return "fails (%d/%d climbed)" % [result.climbs, SLOPE_RUNS]
+	return "fails (got %d%% up)" % roundi(result.best_height * 100.0)
+
+
+# --- Ledge strip, steps and crest ---------------------------------------------------
+
+func _ledge_steps_and_crest() -> void:
+	report.heading("Physics tank: ledge strip, steps and crest")
+	var features: ComparisonFeatures = runner.course.get_node(^"ComparisonFeatures")
+	# Middle of the tank 0.5 m inside the edge: the right tread's outer probes hang over.
+	var tank: PhysicsTank = runner.spawn_test_physics_tank(features.ledge_edge_transform(-0.5).origin)
+	runner.watch_tank(tank)
+	tank.driver_station.brake = true
+	await runner.wait_physics_frames(2 * FPS)
+	var standing_roll: float = tank.roll_degrees()
+	var hanging: int = 0
+	for index: int in PhysicsTank.PROBE_COUNT:
+		if not tank.probe_grounded[index]:
+			hanging += 1
+	tank.driver_station.brake = false
+	var most_roll: float = absf(standing_roll)
+	var broken: bool = false
+	for frame: int in 4 * FPS:
+		tank.driver_station.left_tread = 0.5
+		tank.driver_station.right_tread = 0.5
+		await runner.get_tree().physics_frame
+		most_roll = maxf(most_roll, absf(tank.roll_degrees()))
+		broken = broken or not tank.global_position.is_finite() or tank.global_position.y < -2.0
+	report.check("Ledge strip, one tread over the edge: the tank leans over the drop",
+			standing_roll > 3.0 and hanging > 0 and not broken,
+			"%d probes over the edge, leaning %.1f° standing, up to %.1f° driving along; no NaN, didn't fall through" % [
+				hanging, standing_roll, most_roll])
+	await runner.remove_test_tanks()
+
+	for point: Dictionary in features.reset_points().slice(1):
+		var drive: Dictionary = await _drive_lane(point.transform)
+		report.check("%s at half speed: over it without flipping" % point.name,
+				drive.travelled > 50.0 and drive.most_tilt < 45.0 and drive.finite,
+				"travelled %.0f m, pitch %.1f° to %.1f°, highest %.2f m" % [
+					drive.travelled, drive.lowest_pitch, drive.highest_pitch, drive.highest])
+
+
+## Drives a physics tank at half speed from `start` toward -Z for 15 s.
+func _drive_lane(start: Transform3D) -> Dictionary:
+	var tank: PhysicsTank = runner.spawn_test_physics_tank(start.origin)
+	runner.watch_tank(tank)
+	await runner.wait_physics_frames(60)
+	var result: Dictionary = {"lowest_pitch": 0.0, "highest_pitch": 0.0, "highest": 0.0, "most_tilt": 0.0, "finite": true}
+	for frame: int in 15 * FPS:
+		tank.driver_station.left_tread = 0.5
+		tank.driver_station.right_tread = 0.5
+		await runner.get_tree().physics_frame
+		result.lowest_pitch = minf(result.lowest_pitch, tank.pitch_degrees())
+		result.highest_pitch = maxf(result.highest_pitch, tank.pitch_degrees())
+		result.highest = maxf(result.highest, tank.global_position.y)
+		result.most_tilt = maxf(result.most_tilt, rad_to_deg(tank.global_basis.y.angle_to(Vector3.UP)))
+		result.finite = result.finite and tank.global_position.is_finite()
+	result.travelled = start.origin.z - tank.global_position.z
+	await runner.remove_test_tanks()
+	return result
+
+
+# --- Stability -------------------------------------------------------------------
+
+func _stability_tests() -> void:
+	report.heading("Physics tank: stability")
+	# Full speed on flat ground, then throw it into a spin.
+	var tank: PhysicsTank = runner.spawn_test_physics_tank(FLAT_AREA + Vector3(0.0, 0.0, -30.0), PI)
+	runner.watch_tank(tank)
+	await runner.wait_physics_frames(60)
+	var most_tilt: float = 0.0
+	for frame: int in 6 * FPS:
+		var spinning: bool = frame >= 3 * FPS
+		tank.driver_station.left_tread = 1.0
+		tank.driver_station.right_tread = -1.0 if spinning else 1.0
+		await runner.get_tree().physics_frame
+		most_tilt = maxf(most_tilt, rad_to_deg(tank.global_basis.y.angle_to(Vector3.UP)))
+	report.check("Flat ground: full speed, then opposite levers: doesn't flip",
+			most_tilt < 20.0 and tank.global_position.is_finite(), "most tilt %.1f°" % most_tilt)
+	await runner.remove_test_tanks()
+
+	# Full speed across the rolling bumps.
+	var bumps: RollingBumps = runner.course.get_node(^"RollingBumps")
+	tank = runner.spawn_test_physics_tank(bumps.global_position + Vector3(0.0, 0.5, bumps.patch_size / 2.0 + 10.0))
+	runner.watch_tank(tank)
+	await runner.wait_physics_frames(60)
+	most_tilt = 0.0
+	var highest_hop: float = 0.0
+	for frame: int in 8 * FPS:
+		tank.driver_station.left_tread = 1.0
+		tank.driver_station.right_tread = 1.0
+		await runner.get_tree().physics_frame
+		most_tilt = maxf(most_tilt, rad_to_deg(tank.global_basis.y.angle_to(Vector3.UP)))
+	var crossed: float = bumps.global_position.z + bumps.patch_size / 2.0 + 10.0 - tank.global_position.z
+	report.check("Gentle bumps at full speed: drives across without flipping",
+			most_tilt < 45.0 and crossed > 60.0 and tank.global_position.is_finite(),
+			"crossed %.0f m, most tilt %.1f°" % [crossed, most_tilt])
+	await runner.remove_test_tanks()
+
+
+# --- Presets ------------------------------------------------------------------------
+
+func _preset_tests() -> void:
+	report.heading("Physics tank: presets (one run each, information)")
+	var ladder: SlopeLadder = runner.course.get_node(^"SlopeLadder")
+	var names: Array[String] = []
+	var tables: Array[Array] = []
+	var spins_ok: bool = true
+	var spin_details: PackedStringArray = []
+	for preset_name: String in ["heavy", "nimble", "slippery"]:
+		var preset: TankFeel = load("res://tuning/presets/%s.tres" % preset_name)
+		var tuning: PhysicsTankTuning = (load("res://tuning/physics_tank_tuning.tres") as PhysicsTankTuning).duplicate()
+		preset.apply_to(tuning)
+		names.append(preset.display_name)
+		tables.append([await climb_all(ladder, false, tuning), await climb_all(ladder, true, tuning)])
+		var tilt: float = await _spin_at_speed(tuning)
+		spins_ok = spins_ok and tilt < 30.0
+		spin_details.append("%s %.1f°" % [preset.display_name, tilt])
+	var header: String = "       Ramp        "
+	for preset_name: String in names:
+		header += "%-26s" % preset_name
+	report.add_line(header)
+	for index: int in ladder.ramps.size():
+		var ramp: SlopeLadder.RampInfo = ladder.ramps[index]
+		var line: String = "       %2d° %-8s " % [roundi(ramp.angle_degrees), "ledge" if ramp.has_ledge else "no ledge"]
+		for table: Array in tables:
+			line += "%-26s" % ("%s / %s" % [_short(table[0][index]), _short(table[1][index])])
+		report.add_line(line)
+	report.check("Every preset: full speed into a spin on flat ground doesn't flip", spins_ok,
+			"most tilt: %s" % ", ".join(spin_details))
+
+
+## Full speed for 3 s, then opposite levers for 3 s. Returns the most tilt in degrees.
+func _spin_at_speed(tuning: PhysicsTankTuning) -> float:
+	var tank: PhysicsTank = runner.spawn_test_physics_tank(FLAT_AREA + Vector3(0.0, 0.0, -30.0), PI)
+	tank.tuning = tuning
+	runner.watch_tank(tank)
+	await runner.wait_physics_frames(60)
+	var most_tilt: float = 0.0
+	for frame: int in 6 * FPS:
+		tank.driver_station.left_tread = 1.0
+		tank.driver_station.right_tread = -1.0 if frame >= 3 * FPS else 1.0
+		await runner.get_tree().physics_frame
+		most_tilt = maxf(most_tilt, rad_to_deg(tank.global_basis.y.angle_to(Vector3.UP)))
+	await runner.remove_test_tanks()
+	return most_tilt
+
+
+func _short(result: Dictionary) -> String:
+	if result.climbed:
+		return "%.1f s" % result.seconds
+	return "fail %d%%" % roundi(result.best_height * 100.0)

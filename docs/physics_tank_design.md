@@ -115,3 +115,36 @@ lists the alternatives and why. Push back on any of them.
   edge it tips and falls off. Steps up to 0.6 m and the crest drive cleanly (pitch −21° to +17°).
 - **Alternatives:** add the features to `levels/slope_ladder.txt` (it only knows ramps); edit
   them into the scene by hand as nodes (bigger scene file, against CLAUDE.md's "keep scenes small").
+
+## 8. Tests and tuning results
+- **No tuning changes were needed for the targets**: 45° and 55° always fail (every one of 3
+  runs, standing and run-up), steeper is never easier, everything up to 25° climbs.
+- **Physics vs kinematic, slope ladder** (physics: majority of 3 runs; all 3 agreed every time):
+
+  | Ramp | Physics standing | Physics run-up | Kinematic standing | Kinematic run-up |
+  |---|---|---|---|---|
+  | 5° | 3.5 s | 10.2 s | 3.2 s | 10.0 s |
+  | 10° | 3.7 s | 10.2 s | 3.5 s | 10.0 s |
+  | 15° | 4.0 s | 10.2 s | 4.0 s | 10.0 s |
+  | 20° | 4.8 s | 10.3 s | 4.8 s | 10.0 s |
+  | 25° | 6.6 s | 10.6 s | 7.0 s | 10.0 s |
+  | 30° | fails (44% up) | 11.3 s | fails (4%) | 10.1 s |
+  | 35° | fails (23%) | **fails (70%)** | fails (3%) | climbs 10.4 s |
+  | 40° | fails (17%) | **fails (41%)** | fails (4%) | climbs 11.2 s |
+  | 45° | fails (12%) | fails (28%) | fails (3%) | fails (78%) |
+  | 55° | fails (7%) | fails (13%) | fails (5%) | fails (49%) |
+
+- **Why the physics tank's run-up is weaker on 35°–40° (needs your call):** both arrive at
+  9.98 m/s, but the physics tank has to lift its 30-tonne nose onto the slope: in the first
+  second on the 35° ramp it drops to 5.4 m/s (40°: 4.2 m/s), while the kinematic tank, which
+  tips onto the slope instantly, only loses what gravity takes (~1.2 m/s). This is the "nose
+  rides up onto an incline" behaviour the plan wanted, and it costs momentum. If 35° should
+  climb with a run-up in the physics tank too, options are: a higher top speed, softer springs
+  (`target_sag` up), or a slanted front probe like a real tank's raised front idler (not built).
+- "Got N% up" on standing starts is higher for the physics tank because it starts with its
+  front probes at the foot of the slope (the kinematic tank's middle is there), so part of it is
+  already on the ramp, and its rear probes push from flat ground for a moment.
+- Stability: flat ground at full speed into a spin: 1.9° tilt; across the bumps at full speed:
+  14° tilt; every preset's spin at speed under 4°. No NaNs, nothing fell through the ground.
+- **Test time:** the full suite now takes about 70 s (was 14 s), mostly the physics slope
+  ladder run 3 times standing and 3 times with a run-up, as the plan asks.
