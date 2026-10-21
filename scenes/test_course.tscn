@@ -3,6 +3,7 @@
 [ext_resource type="Script" path="res://scripts/course_builder.gd" id="1_builder"]
 [ext_resource type="PackedScene" path="res://scenes/tank.tscn" id="2_tank"]
 [ext_resource type="Script" path="res://scripts/chase_camera.gd" id="3_camera"]
+[ext_resource type="Script" path="res://scripts/driver_readout.gd" id="4_readout"]
 
 [sub_resource type="ProceduralSkyMaterial" id="SkyMaterial_main"]
 
@@ -33,3 +34,7 @@ transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 1, 0)
 current = true
 script = ExtResource("3_camera")
 target = NodePath("../Tank")
+
+[node name="DriverReadout" type="CanvasLayer" parent="." node_paths=PackedStringArray("station")]
+script = ExtResource("4_readout")
+station = NodePath("../Tank/DriverStation")

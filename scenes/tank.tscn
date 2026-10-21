@@ -1,6 +1,9 @@
 [gd_scene format=3]
 
 [ext_resource type="Script" path="res://scripts/tank.gd" id="1_tank"]
+[ext_resource type="Script" path="res://scripts/driver_station.gd" id="2_station"]
+[ext_resource type="Script" path="res://scripts/keyboard_driver_input.gd" id="3_keyboard"]
+[ext_resource type="Script" path="res://scripts/gamepad_driver_input.gd" id="4_gamepad"]
 
 [sub_resource type="BoxShape3D" id="BoxShape3D_body"]
 size = Vector3(3.6, 1.3, 5)
@@ -48,6 +51,15 @@ size = Vector3(1.2, 0.15, 0.3)
 [node name="Tank" type="CharacterBody3D"]
 floor_max_angle = 1.0472
 script = ExtResource("1_tank")
+
+[node name="DriverStation" type="Node" parent="."]
+script = ExtResource("2_station")
+
+[node name="KeyboardDriverInput" type="Node" parent="DriverStation"]
+script = ExtResource("3_keyboard")
+
+[node name="GamepadDriverInput" type="Node" parent="DriverStation"]
+script = ExtResource("4_gamepad")
 
 [node name="Collision" type="CollisionShape3D" parent="."]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.65, 0)
