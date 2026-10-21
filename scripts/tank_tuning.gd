@@ -20,6 +20,19 @@ extends Resource
 ## Small. It only matters when nothing else is slowing the tank.
 @export var rolling_resistance: float = 0.1
 
+@export_group("Engine power")
+## Where the engine starts to run out of pull, as a fraction of top speed.
+## Below this speed the treads push at full strength (max_drive_accel); above
+## it the push fades toward power_at_top_speed. 1 = never fades (no limit).
+## Example: 0.5 = full pull up to 5 m/s, then weaker. Only affects speeding up,
+## never braking, and slow climbing below this speed is unchanged.
+@export_range(0.0, 1.0) var power_falloff_start: float = 1.0
+
+## How much pull is left at top speed, as a fraction of full strength.
+## 1 = no fade. 0.3 = only 30% left, so the last stretch to top speed is slow.
+## At 0 the tank creeps toward top speed but never quite reaches it.
+@export_range(0.0, 1.0) var power_at_top_speed: float = 1.0
+
 @export_group("Grip and gravity")
 ## How well the treads grip the ground. 0 = ice, 1 = very grippy.
 ## The tank's push is capped at traction_coeff x g x cos(slope), so grip also

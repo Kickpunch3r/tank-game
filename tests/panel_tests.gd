@@ -61,6 +61,53 @@ func run() -> void:
 			tank.global_position.distance_to(Vector3(0.0, 1.0, 0.0)) < 0.2)
 
 	await _air_and_landing_tests()
+	await _engine_power_tests()
+
+
+func _engine_power_tests() -> void:
+	report.heading("Engine power")
+	var full: Dictionary = await _speed_up_and_brake(1.0, 1.0)
+	var faded: Dictionary = await _speed_up_and_brake(0.5, 0.3)
+	report.check("Fade from half speed: same pull from a standstill",
+			absf(faded.to_40 - full.to_40) < 0.05,
+			"0 to 4 m/s: %.2f s without fade, %.2f s with" % [full.to_40, faded.to_40])
+	report.check("Fade from half speed, 30% left: slower to near top speed",
+			faded.to_95 > full.to_95 + 0.3,
+			"0 to 9.5 m/s: %.2f s without fade, %.2f s with" % [full.to_95, faded.to_95])
+	report.check("Braking is not affected by the fade",
+			absf(faded.stop - full.stop) < 0.05,
+			"stop from top speed: %.2f s without fade, %.2f s with" % [full.stop, faded.stop])
+
+
+## Times to reach 40% and 95% of top speed from rest, and to stop again.
+func _speed_up_and_brake(falloff_start: float, at_top: float) -> Dictionary:
+	var tank: Tank = _tank_with_own_tuning(DROP_AREA + Vector3(0.0, 0.5, 0.0))
+	tank.tuning.power_falloff_start = falloff_start
+	tank.tuning.power_at_top_speed = at_top
+	await runner.wait_physics_frames(30)
+	var result: Dictionary = {"to_40": -1.0, "to_95": -1.0, "stop": -1.0}
+	var top: float = tank.tuning.max_tread_speed
+	var frames: int = 0
+	while result.to_95 < 0.0 and frames < 1200:
+		tank.driver_station.left_tread = 1.0
+		tank.driver_station.right_tread = 1.0
+		await runner.get_tree().physics_frame
+		frames += 1
+		if result.to_40 < 0.0 and tank.left_tread.speed >= 0.4 * top:
+			result.to_40 = frames / float(DrivingTests.FPS)
+		if tank.left_tread.speed >= 0.95 * top:
+			result.to_95 = frames / float(DrivingTests.FPS)
+	# Let it reach top speed, then let go and time the stop.
+	await runner.wait_physics_frames(600)
+	frames = 0
+	while tank.left_tread.speed > 0.01 and frames < 600:
+		tank.driver_station.left_tread = 0.0
+		tank.driver_station.right_tread = 0.0
+		await runner.get_tree().physics_frame
+		frames += 1
+	result.stop = frames / float(DrivingTests.FPS)
+	await runner.remove_test_tanks()
+	return result
 
 
 func _air_and_landing_tests() -> void:

@@ -57,6 +57,8 @@ func _define_settings() -> void:
 	_add_setting("Speed", tuning, &"max_tread_speed", 2.0, 25.0, 0.5)
 	_add_setting("Speed", tuning, &"max_drive_accel", 0.5, 15.0, 0.1)
 	_add_setting("Speed", tuning, &"rolling_resistance", 0.0, 2.0, 0.05)
+	_add_setting("Engine power", tuning, &"power_falloff_start", 0.0, 1.0, 0.05)
+	_add_setting("Engine power", tuning, &"power_at_top_speed", 0.0, 1.0, 0.05)
 	_add_setting("Grip and gravity", tuning, &"traction_coeff", 0.05, 1.5, 0.01)
 	_add_setting("Grip and gravity", tuning, &"g", 1.0, 30.0, 0.1)
 	_add_setting("Turning", tuning, &"track_width", 1.0, 8.0, 0.1)

@@ -216,3 +216,19 @@ committed). To watch: open `tests/test_runner.tscn` and press F6.
 7. **Docs:** README.md and this file.
 8. **Tuning panel** (after the plan): Tab panel with live sliders, Copy values, Reset to saved,
    reset point (ramp + distance), and three new air/landing levers. 65 checks pass.
+9. **Engine power** (developer's request): `power_falloff_start` and `power_at_top_speed` in
+   `TankTuning` (group "Engine power", also in the Tab panel). Full push up to the falloff
+   speed, then fading in a straight line to the "at top speed" fraction. Only limits speeding
+   up, never braking; slow climbing below the falloff speed is unchanged. Defaults (1, 1) = no
+   fade. Time from rest on flat (top speed 10 m/s, max_drive_accel 5):
+
+   | falloff start | at top speed | 0→5 m/s | 0→9 m/s | 0→9.5 m/s | 0→9.9 m/s |
+   |---|---|---|---|---|---|
+   | 1.0 | 1.0 (off) | 1.0 s | 1.9 s | 2.0 s | 2.0 s |
+   | 0.5 | 0.5 | 1.0 s | 2.1 s | 2.3 s | 2.4 s |
+   | 0.5 | 0.3 | 1.0 s | 2.2 s | 2.5 s | 2.7 s |
+   | 0.3 | 0.3 | 1.1 s | 2.5 s | 2.8 s | 3.0 s |
+   | 0.3 | 0.15 | 1.1 s | 2.9 s | 3.3 s | 3.8 s |
+   | 0.2 | 0.1 | 1.2 s | 3.3 s | 3.9 s | 4.6 s |
+
+   68 checks pass (3 new: same pull from rest, slower near top speed, braking unchanged).
