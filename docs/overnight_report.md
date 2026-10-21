@@ -10,7 +10,7 @@ and `docs/physics_tank_design.md` (each ends with a longer hand-test checklist).
   degrees, sideways grip, tippiness); every old value is kept under "Advanced".
 - **With the default knobs nothing changes:** the whole test report is identical to `main`.
 - Weight, a hull sway picture (tippiness, never moves the slit camera), a sideways slide in
-  turns, three presets on keys 1/2/3, new HUD lines. 159 checks pass (was 138), ~15 s.
+  turns, three presets on keys 1/2/3, new HUD lines. 159 checks pass (was 138), ~35 s (was ~14 s).
 
 **`physics-tank`** (from `kinematic-tuning`), all 6 milestones of `PHYSICS_COMPARISON_PLAN.md`:
 - A physics tank on 8 spring probes, with the same six knobs and the same preset files.
