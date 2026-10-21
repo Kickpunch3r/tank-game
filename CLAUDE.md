@@ -51,6 +51,12 @@ While **OFF**: the "How to work with me" rules apply, and commits happen at the 
 - **Windows library laptop: no admin/install rights.** Godot runs without installing.
 - No addons, no downloaded assets.
 
+## Where things are
+- `README.md`: how to run, controls, how to run tests. `NOTES.md`: architecture, decisions,
+  test results, known issues, hand-check list. Keep both up to date when things change.
+- Tests (run before handing over; all must pass):
+  `C:\Users\Laptop\Documents\Godot_v4.6.3-stable_win64_console.exe --headless --fixed-fps 60 --path . res://tests/test_runner.tscn`
+
 ## Project facts
 - 3D, GDScript with static typing.
 - The tank never reads `Input` directly: input sources write into a `DriverStation`, the tank reads

@@ -1,0 +1,69 @@
+# Tank Game
+
+The first playable foundation of a co-operative tank crew game, for a large physical
+installation where several players run different stations of one tank (driver, gunner,
+engineer). This build covers **driving only**: steering by two independent treads, on a test
+course of slopes where steep ones can only be climbed with a run-up.
+
+Built with **Godot 4.6.3** (GDScript). No addons or downloaded assets.
+
+## Running the game
+1. Start Godot: `C:\Users\Laptop\Documents\Godot_v4.6.3-stable_win64.exe`.
+2. Open (or Import) this folder's `project.godot`.
+3. Press **Play** (F5). The test course is the main scene.
+
+The ground, ramps and hills are built when the game starts, so they only appear after
+pressing Play, not in the editor viewport.
+
+## Controls
+
+| Key | What it does |
+|---|---|
+| `W` / `S` | Left tread one level up / down (levels −3 to +3, stays set) |
+| `Up` / `Down` | Right tread one level up / down |
+| `Space` | All stop: both treads to level 0 (the tank glides to a halt) |
+| `R` | Reset the tank to the start |
+| `V` | Switch view: chase camera / driver's vision slit |
+| `F3` | Hide / show the debug display |
+
+- Driving: both treads forward = straight ahead. Left tread only = turn right. Opposite
+  treads = spin on the spot.
+- **Hold-to-drive instead of levels:** in `scenes/tank.tscn`, select
+  `DriverStation/KeyboardDriverInput` and untick **Use Tread Levels**.
+- **Gamepad** (untested on real hardware): left stick up/down = left tread, right stick
+  up/down = right tread, Back/Select = reset.
+- All keys can be changed in **Project > Project Settings > Input Map** (actions starting
+  with `driver_`, plus `view_toggle` and `debug_hud_toggle`).
+
+## Changing things
+- **How the tank drives:** click `tuning/tank_tuning.tres` and change values in the
+  Inspector. Each value is explained in plain language there (from `scripts/tank_tuning.gd`).
+- **The ramps:** edit `levels/slope_ladder.txt` (any text editor), one line per ramp, like
+  `25  ledge` or `30  no ledge`. Save and press Play.
+- **Ramp size and spacing:** select the `SlopeLadder` node in `scenes/test_course.tscn`.
+- **The slit:** select `Visual/Hull/DriverSlitCamera` in `scenes/tank.tscn` for slit height,
+  edge thickness and colours.
+
+## Running the tests
+```bash
+"C:\Users\Laptop\Documents\Godot_v4.6.3-stable_win64_console.exe" --headless --fixed-fps 60 --path . res://tests/test_runner.tscn
+```
+- Takes a few seconds. Prints a results table, including every ramp from a standing start and
+  with a run-up, and saves it to `tests/last_results.txt`.
+- Exit code 0 = everything passed, 1 = something failed.
+- **To watch the tests:** open `tests/test_runner.tscn` in the editor and press **F6**.
+
+## Folders
+
+| Folder | Contents |
+|---|---|
+| `scenes/` | `test_course.tscn` (main scene) and `tank.tscn` |
+| `scripts/` | Game scripts: tank, treads, stations, inputs, cameras, course builders, HUD |
+| `tuning/` | `tank_tuning.tres`: all driving numbers |
+| `levels/` | `slope_ladder.txt`: the ramp list |
+| `art/` | Shaders and (later) models and sprites |
+| `tests/` | Automated test runner and test suites |
+| `docs/` | Design documents |
+
+More detail (architecture, decisions, test results, known issues, things to check by hand) is
+in [NOTES.md](NOTES.md). The original build plan is [TANK_PLAN.md](TANK_PLAN.md).
