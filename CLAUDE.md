@@ -54,6 +54,10 @@ While **OFF**: the "How to work with me" rules apply, and commits happen at the 
 ## Where things are
 - `README.md`: how to run, controls, how to run tests. `NOTES.md`: architecture, decisions,
   test results, known issues, hand-check list. Keep both up to date when things change.
+- `docs/tuning_settings.csv`: a spreadsheet explaining every tuning setting (what it does,
+  raise/lower, default, where it's saved). **Keep it up to date** whenever a setting is added,
+  moved between "Feel knob" and "Advanced", renamed or its saved default changes; the tests
+  check it.
 - Tests (run before handing over; all must pass):
   `C:\Users\Laptop\Documents\Godot_v4.6.3-stable_win64_console.exe --headless --fixed-fps 60 --path . res://tests/test_runner.tscn`
 

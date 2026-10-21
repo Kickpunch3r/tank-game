@@ -625,3 +625,13 @@ committed). To watch: open `tests/test_runner.tscn` and press F6.
   (2.08 without); same 10 m/s after 3 s; brake from full speed 2.45 s either way. The physics
   tank still has no engine power fade (only throttle_response easing in the last ~1 m/s).
   207 checks pass.
+- **Physics feel knobs grew** (2026-10-22, developer agreed): `throttle_response`, `idle_drag` and
+  `max_sideways_rate` moved from Advanced into `PhysicsTankTuning`'s feel knobs (after
+  `warm_up_time`), with clearer descriptions; names and values unchanged. They were Advanced only
+  because the plan said "six knobs"; all three are tuned by feel. Presets still set only the
+  shared six (`TankFeel`).
+- **Settings spreadsheet:** `docs/tuning_settings.csv` explains every setting (thing, section,
+  Tab panel name, code name, default, unit, what it does, raise it, lower it, saved in), plain
+  ASCII. `tests/settings_sheet_tests.gd` fails if a physics setting or Tab panel setting is
+  missing, in the wrong section, or its default doesn't match the saved file (loaded by path in
+  the runner, so it works before Godot registers the class). 211 checks pass.

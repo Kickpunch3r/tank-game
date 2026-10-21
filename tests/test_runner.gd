@@ -41,6 +41,8 @@ func _ready() -> void:
 	await wait_physics_frames(5)
 
 	report.add_line("Tank game tests  (%s)" % Time.get_datetime_string_from_system(false, true))
+	# Loaded by path, so it runs even before Godot has registered the class.
+	preload("res://tests/settings_sheet_tests.gd").new(self).run()
 	await InputTests.new(self).run()
 	await ViewTests.new(self).run()
 	await PanelTests.new(self).run()

@@ -82,6 +82,9 @@ pressing Play, not in the editor viewport.
   tank's meshes are under `Visual/Hull` in `scenes/physics_tank.tscn` (its whole body tilts).
 
 ## How to tune (the six feel knobs)
+Every setting, with what it does and what raising or lowering it does, is in the spreadsheet
+[docs/tuning_settings.csv](docs/tuning_settings.csv) (opens in Excel, Google Sheets or LibreOffice).
+
 | Knob | What it does |
 |---|---|
 | `weight` | How heavy it feels (1 = normal, 2 = twice as heavy): slower to speed up, brake and turn, coasts further, hull follows the ground more lazily |

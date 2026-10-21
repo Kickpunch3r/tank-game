@@ -3,9 +3,10 @@ extends Resource
 ## Every number that changes how the physics tank drives, in one place.
 ## Edit them by clicking tuning/physics_tank_tuning.tres.
 ##
-## The first six are the feel knobs, with the same names and meanings as the
-## kinematic tank's (TankTuning), so a preset like "heavy" means the same in
-## both. Everything under "Advanced" is worked out once and usually stays.
+## The feel knobs come first: the six shared with the kinematic tank (same
+## names and meanings, so a preset like "heavy" means the same in both), then
+## the other settings the developer finds most important (warm-up, throttle
+## response, idle drag, turning heaviness). Presets only set the shared six.
 ## The springs' stiffness and damping are not values at all: they are worked
 ## out from weight (see spring_stiffness() and spring_damping()).
 
@@ -43,6 +44,27 @@ extends Resource
 ## Braking is never delayed. (Presets 1/2/3 don't change it.)
 @export_range(0.0, 2.0, 0.05, "or_greater") var warm_up_time: float = 0.0
 
+## How snappily the treads chase the speed the levers ask for, per second.
+## The push is (lever's speed - tread's speed) x this, capped by pulling power,
+## so it decides how gently the push fades as the tank nears the lever's speed,
+## and how gently the brake eases in near a stop. Higher = snappier, harsher.
+@export var throttle_response: float = 5.0
+
+## How hard a tread at level 0 resists rolling, in metres per second lost each
+## second, for a tank of weight 1 (divided by weight): the idling engine
+## holding it back. Decides how a lever at 0 swings the tank round that tread
+## and how quickly the tank rolls to a stop with both levers at 0. Can't hold
+## the tank on slopes steeper than about atan(idle_drag / 9.8). Same as the
+## kinematic tank's.
+@export var idle_drag: float = 3.0
+
+## How strongly the treads resist being dragged sideways (at sideways_grip 1),
+## per second. This is what makes turning heavy: a turning tank drags the front
+## and back of its treads sideways. Lower = spins and turns faster but drifts
+## more; higher = heavier turning. (Above about 30 the force overshoots in one
+## physics frame.)
+@export var max_sideways_rate: float = 6.0
+
 @export_group("Advanced (do not usually touch)")
 ## Mass of a tank of weight 1, in kilograms.
 @export var base_mass: float = 30000.0
@@ -58,26 +80,12 @@ extends Resource
 ## Length of each spring with no weight on it, in metres.
 @export var spring_length: float = 1.0
 
-## How quickly the treads chase the speed the levers ask for, per second.
-## Higher = snappier throttle. The push is still capped by pulling_power.
-@export var throttle_response: float = 5.0
-
 ## Speed each tread loses to friction, in metres per second, per second.
 @export var rolling_resistance: float = 0.1
-
-## How hard a tread at level 0 resists rolling, in metres per second lost each
-## second, for a tank of weight 1 (divided by weight). Same as the kinematic tank's.
-@export var idle_drag: float = 3.0
 
 ## How strongly the contact points resist sideways sliding at sideways_grip 1,
 ## per second. Sideways grip scales it (see TankFeel.slide_decay_rate).
 @export var slide_decay_scale: float = 3.0
-
-## How strongly the treads resist being dragged sideways at sideways_grip 1,
-## per second. It is also what makes turning heavy: a turning tank drags the
-## front and back of its treads sideways. Lower = spins faster but drifts
-## more in turns. (Above about 30 the force overshoots in one physics frame.)
-@export var max_sideways_rate: float = 6.0
 
 ## Height of the centre of mass above the tread bottoms, in metres, at
 ## tippiness 0 and at tippiness 1.
@@ -151,15 +159,15 @@ func panel_settings() -> Array[Dictionary]:
 		TankFeel.panel_row(knobs, &"sideways_grip", 0.0, 1.0, 0.01, 0.0, 1.0),
 		TankFeel.panel_row(knobs, &"tippiness", 0.0, 1.0, 0.01, 0.0, 1.5),
 		TankFeel.panel_row(knobs, &"warm_up_time", 0.0, 2.0, 0.05),
+		TankFeel.panel_row(knobs, &"throttle_response", 0.5, 20.0, 0.5),
+		TankFeel.panel_row(knobs, &"idle_drag", 0.0, 10.0, 0.1),
+		TankFeel.panel_row(knobs, &"max_sideways_rate", 0.0, 40.0, 0.5),
 		TankFeel.panel_row(advanced, &"base_mass", 1000.0, 100000.0, 500.0, 1.0),
 		# Fractions of the spring: 0 would be infinitely stiff.
 		TankFeel.panel_row(advanced, &"target_sag", 0.02, 0.6, 0.01, 0.01, 0.9),
 		TankFeel.panel_row(advanced, &"damping_ratio", 0.05, 2.0, 0.05, 0.0),
-		TankFeel.panel_row(advanced, &"throttle_response", 0.5, 20.0, 0.5),
 		TankFeel.panel_row(advanced, &"rolling_resistance", 0.0, 5.0, 0.05),
-		TankFeel.panel_row(advanced, &"idle_drag", 0.0, 10.0, 0.1),
 		TankFeel.panel_row(advanced, &"slide_decay_scale", 0.0, 20.0, 0.1),
-		TankFeel.panel_row(advanced, &"max_sideways_rate", 0.0, 40.0, 0.5),
 		TankFeel.panel_row(advanced, &"low_centre_of_mass", -1.0, 3.0, 0.05, -INF),
 		TankFeel.panel_row(advanced, &"high_centre_of_mass", -1.0, 4.0, 0.05, -INF),
 		TankFeel.panel_row(advanced, &"linear_damping", 0.0, 2.0, 0.01),
