@@ -28,7 +28,7 @@ func run() -> void:
 	await _tap_key(KEY_TAB)
 	report.check("Tab again closes it", not panel.visible)
 
-	panel.set_setting(&"max_tread_speed", 15.0)
+	panel.set_setting(&"top_speed", 15.0)
 	report.check("Moving a slider changes the tank's tuning", is_equal_approx(tank.tuning.max_tread_speed, 15.0))
 	var slit: DriverSlitCamera = tank.get_node(^"Visual/Hull/DriverSlitCamera")
 	panel.set_setting(&"slit_height", 0.3)
@@ -38,7 +38,7 @@ func run() -> void:
 			"mask top ends at %.2f of the screen" % mask_top.anchor_bottom)
 	var text: String = panel.values_text()
 	report.check("Copy values text lists current numbers and where they go",
-			text.contains("# tuning/tank_tuning.tres") and text.contains("max_tread_speed = 15")
+			text.contains("# tuning/tank_tuning.tres") and text.contains("top_speed = 15")
 			and text.contains("slit_height = 0.3"))
 	panel._on_reset_to_saved_pressed()
 	report.check("Reset to saved puts values back",
@@ -69,7 +69,7 @@ func run() -> void:
 func _wheel_and_typing_tests(panel: TuningPanel, tank: Tank) -> void:
 	panel.visible = true
 	await runner.wait_physics_frames(2)
-	var controls: Dictionary = panel.controls_for(&"max_tread_speed")
+	var controls: Dictionary = panel.controls_for(&"top_speed")
 	var slider: HSlider = controls.slider
 	var field: LineEdit = controls.field
 	var scroll: ScrollContainer = panel.find_children("*", "ScrollContainer", true, false)[0]

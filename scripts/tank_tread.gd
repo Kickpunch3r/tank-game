@@ -5,7 +5,7 @@ extends RefCounted
 ##
 ## Each physics frame the tread is in one of three states:
 ## - Braking (brake held): pushes against its motion to stop and hold still,
-##   even on slopes, as hard as max_drive_accel and its grip allow.
+##   even on slopes, as hard as max_drive_accel (pulling_power / weight) and its grip allow.
 ## - Idling (lever at 0): the engine doesn't push, and the tread is held back
 ##   by idle_drag (plus rolling resistance and terrain drag), so it slows by
 ##   itself. Slopes steeper than the drag can resist still pull it.
@@ -33,13 +33,13 @@ var engine_output: float = 0.0
 ## the tank is turning (1 = driving straight; see Tank, turn scrub).
 func update(input: float, slope: float, tuning: TankTuning, delta: float,
 		terrain: TerrainType = null, braking: bool = false, turn_hold: float = 1.0) -> void:
-	var grip: float = 1.0
+	var terrain_grip: float = 1.0
 	var drag: float = 0.0
-	var top_speed: float = 1.0
+	var terrain_top_speed: float = 1.0
 	if terrain != null:
-		grip = terrain.grip
+		terrain_grip = terrain.grip
 		drag = terrain.drag
-		top_speed = terrain.top_speed
+		terrain_top_speed = terrain.top_speed
 
 	# Gravity pulls the tread back down the slope.
 	var gravity_accel: float = -tuning.g * sin(slope)
@@ -47,7 +47,7 @@ func update(input: float, slope: float, tuning: TankTuning, delta: float,
 	traction_capped = false
 
 	if braking or input != 0.0:
-		var target_speed: float = 0.0 if braking else input * tuning.max_tread_speed * top_speed * turn_hold
+		var target_speed: float = 0.0 if braking else input * tuning.top_speed * terrain_top_speed * turn_hold
 		# The push needed to reach the target speed this frame, including
 		# holding against gravity (so the brake holds the tank on slopes).
 		var wanted_accel: float = (target_speed - speed) / delta - gravity_accel
@@ -62,7 +62,9 @@ func update(input: float, slope: float, tuning: TankTuning, delta: float,
 			drive_accel = _apply_warm_up(drive_accel, input, tuning, delta)
 
 		# Grip cap: on steeper ground the treads press down less, so they grip less.
-		var grip_limit: float = tuning.traction_coeff * grip * tuning.g * cos(slope)
+		# traction_coeff is tan(grip angle), so the cap equals gravity's pull
+		# exactly on a slope as steep as the grip angle.
+		var grip_limit: float = tuning.traction_coeff * terrain_grip * tuning.g * cos(slope)
 		traction_capped = absf(drive_accel) > grip_limit
 		if traction_capped:
 			drive_accel = signf(drive_accel) * grip_limit
@@ -103,9 +105,9 @@ func _apply_warm_up(drive_accel: float, input: float, tuning: TankTuning, delta:
 ## Full up to power_falloff_start of top speed, then fading in a straight line
 ## to power_at_top_speed at top speed.
 static func engine_pull(current_speed: float, tuning: TankTuning) -> float:
-	if tuning.power_falloff_start >= 1.0 or tuning.max_tread_speed <= 0.0:
+	if tuning.power_falloff_start >= 1.0 or tuning.top_speed <= 0.0:
 		return 1.0
-	var fraction_of_top: float = current_speed / tuning.max_tread_speed
+	var fraction_of_top: float = current_speed / tuning.top_speed
 	if fraction_of_top <= tuning.power_falloff_start:
 		return 1.0
 	var fade: float = (fraction_of_top - tuning.power_falloff_start) / (1.0 - tuning.power_falloff_start)

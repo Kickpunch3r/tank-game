@@ -34,6 +34,9 @@ var _reset_choices: Array[Dictionary] = []
 var _distance_slider: HSlider
 var _distance_field: LineEdit
 var _copy_button: Button
+var _panel: PanelContainer
+# Value at the start of the game, by target and property (see _saved_key).
+var _saved_values: Dictionary = {}
 
 
 func _ready() -> void:
@@ -41,6 +44,31 @@ func _ready() -> void:
 	visible = false
 	_define_settings()
 	_build_panel()
+
+
+## Build the panel again from the current values, e.g. after a preset switch
+## or after changing tank. Keeps it open or closed, scrolled and with the same
+## reset point.
+func rebuild() -> void:
+	_stop_typing()
+	var scroll_position: int = 0
+	var scrolls: Array[Node] = _panel.find_children("*", "ScrollContainer", true, false)
+	if not scrolls.is_empty():
+		scroll_position = (scrolls[0] as ScrollContainer).scroll_vertical
+	var ramp_item: int = _ramp_choice.selected
+	var distance: float = _distance_slider.value
+	remove_child(_panel)
+	_panel.queue_free()
+	_sliders.clear()
+	_value_fields.clear()
+	_reset_choices.clear()
+	_define_settings()
+	_build_panel()
+	_ramp_choice.select(ramp_item)
+	_distance_slider.set_value_no_signal(distance)
+	_apply_reset_point()
+	var new_scroll := _panel.find_children("*", "ScrollContainer", true, false)[0] as ScrollContainer
+	new_scroll.set_deferred(&"scroll_vertical", scroll_position)
 
 
 ## Runs before the panel's own controls see the event, so Tab always opens and
@@ -70,29 +98,13 @@ func _stop_typing() -> void:
 # --- What can be changed ---------------------------------------------------
 
 func _define_settings() -> void:
-	var tuning: TankTuning = tank.tuning
+	_settings.clear()
+	# The tank's own tuning lists its rows (feel knobs first, then advanced).
+	for row: Dictionary in tank.tuning.panel_settings():
+		_add_setting(row.group, tank.tuning, row.property, row.min, row.max, row.step, row.hard_min, row.hard_max)
 	var slit: DriverSlitCamera = tank.get_node(^"Visual/Hull/DriverSlitCamera")
 	# Slider range first (just a comfortable dragging range: typed values can
 	# go past it), then hard limits only where other values break the maths.
-	_add_setting("Speed", tuning, &"max_tread_speed", 0.0, 50.0, 0.5, 0.1)
-	_add_setting("Speed", tuning, &"max_drive_accel", 0.0, 30.0, 0.1)
-	_add_setting("Speed", tuning, &"rolling_resistance", 0.0, 5.0, 0.05)
-	_add_setting("Speed", tuning, &"idle_drag", 0.0, 10.0, 0.1)
-	# Fractions of top speed / of full pull: only 0 to 1 make sense.
-	_add_setting("Engine power", tuning, &"power_falloff_start", 0.0, 1.0, 0.05, 0.0, 1.0)
-	_add_setting("Engine power", tuning, &"power_at_top_speed", 0.0, 1.0, 0.05, 0.0, 1.0)
-	_add_setting("Engine power", tuning, &"warm_up_time", 0.0, 2.0, 0.05)
-	_add_setting("Grip and gravity", tuning, &"traction_coeff", 0.0, 3.0, 0.01)
-	_add_setting("Grip and gravity", tuning, &"g", 0.0, 50.0, 0.1)
-	_add_setting("Turning", tuning, &"track_width", 0.1, 15.0, 0.1, 0.1)
-	# Above 1 the tank would turn the wrong way.
-	_add_setting("Turning", tuning, &"turn_resistance", 0.0, 1.0, 0.01, 0.0, 1.0)
-	_add_setting("Turning", tuning, &"turn_scrub", 0.0, 6.0, 0.1)
-	_add_setting("Air and landing", tuning, &"air_gravity_scale", 0.0, 5.0, 0.05)
-	_add_setting("Air and landing", tuning, &"nose_dip", 0.0, 2.0, 0.05)
-	# Above 1 a landing would reverse the treads.
-	_add_setting("Air and landing", tuning, &"landing_speed_loss", 0.0, 1.0, 0.05, 0.0, 1.0)
-	_add_setting("Air and landing", tuning, &"tilt_smoothing", 0.0, 60.0, 0.5)
 	_add_setting("Chase camera", chase_camera, &"follow_distance", 0.0, 100.0, 0.5)
 	_add_setting("Chase camera", chase_camera, &"follow_height", -10.0, 60.0, 0.5, -INF)
 	_add_setting("Chase camera", chase_camera, &"look_height", -10.0, 20.0, 0.1, -INF)
@@ -137,6 +149,11 @@ func _add_setting(group: String, target: Object, property: StringName,
 		slider_min: float, slider_max: float, step: float,
 		hard_min: float = 0.0, hard_max: float = INF) -> void:
 	var value: float = target.get(property)
+	# "Reset to saved" goes back to the value at the very start, even after
+	# the panel was rebuilt (e.g. after a preset switch).
+	var key: String = _saved_key(target, property)
+	if not _saved_values.has(key):
+		_saved_values[key] = value
 	_settings.append({
 		"group": group,
 		"target": target,
@@ -147,14 +164,19 @@ func _add_setting(group: String, target: Object, property: StringName,
 		"step": step,
 		"hard_min": hard_min,
 		"hard_max": hard_max,
-		"saved": value,
+		"saved": _saved_values[key],
 	})
+
+
+func _saved_key(target: Object, property: StringName) -> String:
+	return "%d/%s" % [target.get_instance_id(), property]
 
 
 # --- Building the panel ----------------------------------------------------
 
 func _build_panel() -> void:
 	var panel := PanelContainer.new()
+	_panel = panel
 	panel.name = "Panel"
 	panel.anchor_left = 1.0
 	panel.anchor_right = 1.0
@@ -366,7 +388,8 @@ func values_text() -> String:
 
 func _place_name(target: Object) -> String:
 	if target is TankTuning:
-		return "tuning/tank_tuning.tres"
+		var path: String = (target as Resource).resource_path
+		return path.trim_prefix("res://") if not path.is_empty() else "tuning/tank_tuning.tres"
 	if target is ChaseCamera:
 		return "ChaseCamera node in scenes/test_course.tscn"
 	if target is DriverSlitCamera:
