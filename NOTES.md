@@ -44,7 +44,9 @@ check by hand. For how to run and play, see [README.md](README.md).
      ("traction capped").
   3. speed += (push − g·sin(slope))·delta, then a little rolling resistance toward zero.
 - Forward speed = average of the treads. Turn rate = (right − left) ÷ `track_width` ×
-  (1 − `turn_resistance`). Left tread only turns right.
+  (1 − `turn_resistance`) ÷ `weight`. Left tread only turns right.
+- `max_drive_accel` = `pulling_power` ÷ `weight`, `traction_coeff` = tan(`grip`), and
+  `max_tread_speed` = `top_speed` (see "Feel knobs" below).
 - Slope = angle of the ground along the tank's facing, from Godot's floor normal.
 - In the air: keeps its horizontal speed, falls, treads do nothing.
 - **Collision shape is a capsule** (radius 1.7, a sphere in practice), so it touches slopes
@@ -68,7 +70,9 @@ check by hand. For how to run and play, see [README.md](README.md).
 ### Tuning panel and air/landing levers (added 2026-10-21, after milestone 7)
 - `TuningPanel` (CanvasLayer 20, in the course, Tab = `tuning_panel_toggle`): sliders for every
   `TankTuning` value, the `ChaseCamera` follow settings and `DriverSlitCamera.slit_height`.
-  Built in code from a list in `_define_settings()`; add a line there to expose a new value.
+  Built in code: the tank rows come from `TankTuning.panel_settings()` (feel knobs first, then
+  Advanced), the camera/slit/level/terrain rows from `_define_settings()`; add a line there to
+  expose a new value. `rebuild()` builds it again from the current values (after a preset switch).
 - **Changes are session-only** (developer's choice, over saving into the .tres). "Copy values"
   gives the numbers as text, grouped by the file or node they belong in.
 - Sliders and buttons have no keyboard focus, so arrows and Space keep driving. Sliders have
@@ -125,6 +129,62 @@ check by hand. For how to run and play, see [README.md](README.md).
 - Ice, road, shallow water: planned as mostly visual for now (not built).
 - Placeholder colours: mud is very dark under the lighting, and sand is close to the ground
   colour.
+
+### Feel knobs and presets (branch `kinematic-tuning`, from KINEMATIC_TUNING_PLAN.md)
+Decisions, alternatives and reasons: [docs/kinematic_tuning_design.md](docs/kinematic_tuning_design.md).
+- `TankTuning` starts with six **feel knobs**, the same names and meanings as the physics tank's;
+  everything else is in "Advanced (do not usually touch)", unchanged.
+
+  | Knob | Default | How the kinematic tank uses it |
+  |---|---|---|
+  | `weight` | 1 | Divides the push and brake, idle drag, turn rate and tilt smoothing |
+  | `top_speed` | 10 m/s | Each tread's top speed (was `max_tread_speed`) |
+  | `pulling_power` | 5 | Push = pulling_power ÷ weight (was `max_drive_accel`); also the brake |
+  | `grip` | 28.8108° | Push capped at tan(grip) × g × cos(slope) (tan = the old `traction_coeff` 0.55) |
+  | `sideways_grip` | 1 | Slide in turns: 1 = none; lower = longer drift |
+  | `tippiness` | 0 | Hull picture rocks on its suspension (looks only) |
+
+- **Derived and fixed values** (all give today's numbers at the defaults):
+  - Push and brake = `pulling_power / weight`. Idle drag = `idle_drag / weight` (heavier coasts
+    further). Turn = × `(1 − turn_resistance) / weight`. Tilt smoothing = `tilt_smoothing / weight`.
+  - Rolling resistance, gravity, track width, turn scrub: fixed (advanced).
+  - Slide fade rate = 0.3 + `slide_decay_scale` (3) × s / (1 − s), s = `sideways_grip`
+    (`TankFeel.slide_decay_rate`, shared with the physics tank). 1 → no slide at all.
+  - Sway: target angle = tippiness × `sway_degrees_per_accel` (1.5°) per m/s² of speeding up,
+    braking or turning (speed × turn rate), max 12°, followed by a slightly bouncy spring
+    (`HullSway` on `Visual/Hull/Sway`, which holds the meshes; the slit camera is outside it).
+- **Old names still work in code**: `max_tread_speed`, `max_drive_accel` and `traction_coeff`
+  read and write the knobs they came from.
+- **Presets** (`TankFeel`, six knobs only): `tuning/presets/heavy.tres`, `nimble.tres`,
+  `slippery.tres`. Keys 1/2/3 (`PresetSwitcher` in the player rig) set them on the tank in memory
+  and rebuild the Tab panel. The HUD names the preset whose six values match the tank's.
+- **Grip is "steepest slope it can hold / climb from a standstill"**, not "ever": a run-up still
+  carries the tank about 10° past its grip (the approved targets need that). The plan said
+  "whatever the momentum"; see the design doc (needs your OK).
+- **Default parity** (checked by a test against main's table): every slope result, flat
+  driving 39.9 m in 5 s, brake 1.97 s, idle stop 3.23 s, spin 40°/s, pivot 25°/s are unchanged.
+  The whole test report is identical to main's apart from the new sections.
+- Grip limit (pulling power 20 so the engine isn't the limit), steepest ramp climbed:
+  grip 25° → 20° standing / 35° run-up; 35° → 30° / 45°; 45° → 40° / 55°.
+- Weight 2: 0 → 9.5 m/s in 3.97 s (1.95 s at weight 1); coasts 28.2 m after letting go (14.6 m).
+- Sideways grip 0.3, hard turn at 10 m/s: slides up to 0.73 m/s outward (0 at sideways grip 1).
+- Slope ladder per preset (standing start / run-up, seconds to the top or how far up it got):
+
+  | Ramp | Saved tuning | Heavy | Nimble | Slippery |
+  |---|---|---|---|---|
+  | 5° ledge | 3.2 / 10.0 | 3.8 / 12.3 | 2.8 / 8.5 | 4.2 / 10.6 |
+  | 10° no ledge | 3.5 / 10.0 | 4.2 / 12.3 | 3.0 / 8.5 | 5.3 / 10.6 |
+  | 15° ledge | 4.0 / 10.0 | 5.2 / 12.3 | 3.4 / 8.5 | 8.6 / 10.6 |
+  | 20° no ledge | 4.8 / 10.0 | 7.7 / 12.3 | 4.0 / 8.5 | fail 2% / 10.7 |
+  | 25° ledge | 7.0 / 10.0 | fail 4% / 12.4 | 5.1 / 8.5 | fail 2% / 11.0 |
+  | 30° no ledge | fail 4% / 10.1 | fail 3% / 12.9 | 9.4 / 8.5 | fail 2% / 11.7 |
+  | 35° ledge | fail 3% / 10.4 | fail 3% / fail 93% | fail 4% / 8.6 | fail 2% / fail 80% |
+  | 40° no ledge | fail 4% / 11.2 | fail 3% / fail 67% | fail 4% / 8.8 | fail 3% / fail 63% |
+  | 45° ledge | fail 3% / fail 78% | fail 4% / fail 53% | fail 5% / 9.1 | fail 2% / fail 52% |
+  | 55° no ledge | fail 5% / fail 49% | fail 5% / fail 33% | fail 6% / fail 78% | fail 4% / fail 39% |
+
+  Heavy fails 25° standing because its push (4 m/s²) only climbs 24°; Nimble's 12 m/s top
+  speed carries it up 45° with a run-up.
 
 ### Phone controller (branch `phone-controller`, from PHONE_CONTROLLER_PLAN.md)
 - `ControllerServer` (`scripts/net/controller_server.gd`, a node in `scenes/player_rig.tscn`, so
@@ -231,8 +291,9 @@ check by hand. For how to run and play, see [README.md](README.md).
 ## Tuning and test results
 
 ### Final tuning (`tuning/tank_tuning.tres`)
-max_tread_speed 10 · max_drive_accel 5 · rolling_resistance 0.1 · traction_coeff 0.55 ·
-g 9.8 · track_width 3 · turn_resistance 0.75 · tilt_smoothing 8
+Feel knobs: weight 1 · top_speed 10 · pulling_power 5 · grip 28.8108° (= traction 0.55) ·
+sideways_grip 1 · tippiness 0. Advanced: rolling_resistance 0.1 · idle_drag 3 · g 9.8 ·
+track_width 3 · turn_resistance 0.75 · turn_scrub 2 · tilt_smoothing 8 (rest at their defaults)
 
 ### Slope Ladder results (full forward, 15 s limit)
 
@@ -250,18 +311,19 @@ g 9.8 · track_width 3 · turn_resistance 0.75 · tilt_smoothing 8
 | 55° no ledge | fails (5% up) | fails (49% up) | fails / fails |
 
 All targets met. Run-up times are mostly the 70 m approach (about 8 s at full speed). Full
-suite: **138 of 138 checks pass** (input, views and HUD, tuning panel, air and landing levers,
+suite: **159 of 159 checks pass** (input, views and HUD, tuning panel, feel knobs and presets, air and landing levers,
 engine power, terrain, level builder, phone controller,
 course shape, flat driving, kill-plane,
 slopes, sanity). Flat: 39.9 m straight in 5 s with no drift; left tread only turns right;
 opposite treads spin with 0.00 m of travel. From full speed, all stop takes ~2.0 s and ~9.7 m.
 
 ### Which numbers change slope difficulty
-- **Steepest slope climbable from a standstill:** about atan(`traction_coeff`); 0.55 gives
-  ~29°. It also needs `max_drive_accel` ≥ g·sin(angle), which 5.0 meets up to ~30°.
+- **Steepest slope climbable from a standstill:** the `grip` angle (28.8°). It also needs
+  `pulling_power / weight` ≥ g·sin(angle), which 5.0 meets up to ~30.7°. The F3 display shows
+  both and the lower one.
 - **How much a run-up helps:** `max_tread_speed`. Faster arrival = coasts further up. Steeper
   ramps slow the tank faster, so some angle always beats any run-up.
-- Lowering `traction_coeff` makes every steep ramp harder at once.
+- Lowering `grip` makes every steep ramp harder at once.
 - Change a value, run the tests, read the table.
 
 ### Running the tests
@@ -276,7 +338,10 @@ committed). To watch: open `tests/test_runner.tscn` and press F6.
 - **Gamepad untested on real hardware.** Checked only with simulated stick and button events.
 - **The tank is round to walls.** Its collision shape is a sphere of radius 1.7, so walls and
   ramp sides see a round tank; corners of the hull can poke into things.
-- **No sideways sliding** on slopes that lean left or right.
+- **No sideways sliding** on slopes that lean left or right (the `sideways_grip` slide only
+  comes from turning).
+- **One-frame turning lag:** the tank moves along the heading it had at the start of each frame,
+  so in a hard turn its real motion is ~2 cm/s sideways even with no slide. Was already so.
 - **Walls stall the treads:** driving into a wall slows the treads to the real speed (fixed 2026-10-21; they used to keep spinning at full speed).
 - **Course only visible when running**, not in the editor viewport.
 - **Chase camera** updates in physics frames; it may look juddery on a high-refresh screen
@@ -300,6 +365,8 @@ committed). To watch: open `tests/test_runner.tscn` and press F6.
 - **Hull tilt:** smooth or floaty on ramps and the bumps (`tilt_smoothing`).
 - **Slit view:** slit height, readability, and how the view tips on slopes.
 - **Chase camera:** distance, height and smoothing (on the `ChaseCamera` node).
+- **Feel knobs and presets** (1/2/3): does Heavy feel heavy, Nimble nimble, Slippery slippery?
+  Is the tippiness rocking pleasant or sickening? Is the sideways slide visible enough?
 
 ## Ideas for later (from play-testing)
 - Tweak how hard the slopes are to climb (see "Which numbers change slope difficulty").
@@ -410,3 +477,8 @@ committed). To watch: open `tests/test_runner.tscn` and press F6.
       browser check with simulated touches showed an uncaught failure there stopped the brake).
     - Debug display: brake state and each tread's available engine push.
     138 checks pass.
+18. **Feel knobs and presets** (branch `kinematic-tuning`, from KINEMATIC_TUNING_PLAN.md, built
+    overnight by Claude working alone; decisions in `docs/kinematic_tuning_design.md`):
+    six knobs in `TankTuning` (rest under Advanced), weight effects, tippiness sway
+    (`Visual/Hull/Sway`), sideways slide, grip in degrees, presets on keys 1/2/3, HUD lines,
+    new `FeelTests` suite. Default parity checked: identical results. 159 checks pass.

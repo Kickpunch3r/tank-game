@@ -241,6 +241,23 @@ func _preset_slope_tables() -> void:
 						ordering_ok = false
 	report.check("Every preset: steeper ramps are never easier", ordering_ok)
 
+	# Default parity: the default knobs give exactly the slope table from
+	# before the knobs existed (main, 2026-10-21), in the same short form.
+	var before: Array[String] = [
+		"3.2 s / 10.0 s", "3.5 s / 10.0 s", "4.0 s / 10.0 s", "4.8 s / 10.0 s", "7.0 s / 10.0 s",
+		"fail 4% / 10.1 s", "fail 3% / 10.4 s", "fail 4% / 11.2 s", "fail 3% / fail 78%", "fail 5% / fail 49%",
+	]
+	var differences: PackedStringArray = []
+	if ladder.ramps.size() == before.size():
+		for index: int in ladder.ramps.size():
+			var now: String = "%s / %s" % [_short(tables[0][0][index]), _short(tables[0][1][index])]
+			if now != before[index]:
+				differences.append("%d°: %s, was %s" % [roundi(ladder.ramps[index].angle_degrees), now, before[index]])
+	else:
+		differences.append("the ramp list changed, so there is nothing to compare")
+	report.check("Default parity: default knobs give the same slope table as before the knobs",
+			differences.is_empty(), "; ".join(differences) if not differences.is_empty() else "all 10 ramps identical")
+
 
 func _short(result: Dictionary) -> String:
 	if result.climbed:

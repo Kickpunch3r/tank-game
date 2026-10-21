@@ -26,6 +26,7 @@ pressing Play, not in the editor viewport.
 | `V` | Switch view: chase camera / driver's vision slit |
 | `F3` | Hide / show the debug display |
 | `Tab` | Open / close the tuning panel (use the mouse on it) |
+| `1` / `2` / `3` | Feel preset: heavy / nimble / slippery (until you quit; Tab panel "Reset to saved" goes back) |
 | `F11` | Full screen / window (the game starts full screen) |
 
 - **Levels:** each tread has 3 levels forward and 3 back: **0.25, 0.5 and full** (the phone's
@@ -65,11 +66,34 @@ pressing Play, not in the editor viewport.
   (`levels/terrain_ramps.txt`).
 - **How the tank drives:** click `tuning/tank_tuning.tres` and change values in the
   Inspector. Each value is explained in plain language there (from `scripts/tank_tuning.gd`).
+  The first six are the **feel knobs** (below); the rest are "Advanced".
+- **Feel presets:** `tuning/presets/heavy.tres`, `nimble.tres`, `slippery.tres` hold just the
+  six knobs. Click one to change it; keys 1/2/3 put it on the tank while driving.
 - **The ramps:** edit `levels/slope_ladder.txt` (any text editor), one line per ramp, like
   `25  ledge` or `30  no ledge`. Save and press Play.
 - **Ramp size and spacing:** select the `SlopeLadder` node in `scenes/test_course.tscn`.
 - **The slit:** select `Visual/Hull/DriverSlitCamera` in `scenes/tank.tscn` for slit height,
   edge thickness and colours.
+- **Tank art:** the tank's meshes are under `Visual/Hull/Sway` in `scenes/tank.tscn` (that node
+  does the tippiness rocking; the slit camera is outside it so it never rocks).
+
+## How to tune (the six feel knobs)
+| Knob | What it does |
+|---|---|
+| `weight` | How heavy it feels (1 = normal, 2 = twice as heavy): slower to speed up, brake and turn, coasts further, hull follows the ground more lazily |
+| `top_speed` | Top speed in m/s (10 = 36 km/h). Also how far a run-up carries it up a steep slope |
+| `pulling_power` | How hard the treads push (and brake). The real push is pulling power ÷ weight |
+| `grip` | The steepest slope (degrees) it can hold, or climb from a standstill |
+| `sideways_grip` | 1 = no sliding in turns; lower = it drifts outward in turns at speed |
+| `tippiness` | 0 = rigid hull, 1 = the hull rocks back, dips and leans a lot (looks only) |
+
+1. Change **one knob at a time** (Tab panel, or the Inspector to keep it).
+2. Watch the **F3 display**: it shows the six knobs, the preset they match, the slope you can
+   climb from a standstill (grip, or the engine if that's weaker) and the sideways slide.
+3. Try it on the **ramps** (Tab panel "Reset point" puts you at any ramp, with or without a
+   run-up), then run the tests: the report has the slope table for the saved tuning and for
+   each preset.
+4. Happy with it? **Copy values** and type them into `tuning/tank_tuning.tres` (or a preset).
 
 ## Phone controller
 Drive the tank from a phone with two on-screen tread levers. The game hosts the page itself.
@@ -156,7 +180,7 @@ Using it:
 | `scripts/net/` | Phone controller: servers, station registry, phone input |
 | `web/` | `controller.html`: the page phones open (one self-contained file) |
 | `scripts/` | Game scripts: tank, treads, stations, inputs, cameras, course builders, HUD |
-| `tuning/` | `tank_tuning.tres`: all driving numbers |
+| `tuning/` | `tank_tuning.tres`: all driving numbers; `presets/`: heavy, nimble, slippery |
 | `levels/` | Ramp lists: `slope_ladder.txt` (firm ramps), `terrain_ramps.txt` (sand and mud ramps) |
 | `terrain/` | Terrain types: `mud.tres`, `sand.tres` |
 | `art/` | Shaders and (later) models and sprites |

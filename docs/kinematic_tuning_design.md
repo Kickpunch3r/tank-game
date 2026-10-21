@@ -138,3 +138,19 @@ Push back on any of them.
 - New lines: sideways slide speed; the active preset; the six knob values; "climbable from a
   standstill" = the lower of the grip angle and the engine's limit (asin(push / g)), shown with
   both, e.g. "28.8° (grip 28.8°, engine 30.7°)".
+
+## Hand-test checklist (kinematic branch)
+Nothing below could be tried in the cloud (no window, no screen, no phone). Start the game (F5).
+1. **Nothing changed by default:** drive around, climb 25° from a standstill, 30°–40° with a
+   run-up, brake with Space, let go to idle. Should feel exactly as before.
+2. **Press 1 (Heavy):** F3 shows "Preset: Heavy". Slower start, longer coast when you put both
+   levers to 0, slower turns. 25° from a standstill now fails (the engine is too weak).
+3. **Press 2 (Nimble):** quick, the hull rocks back on take-off and dips on braking. Open Tab:
+   the knobs show Nimble's values.
+4. **Press 3 (Slippery):** at full speed, put one lever to 0.25: the tank drifts outward in the
+   turn (F3 "Sideways slide" goes up), then the drift fades.
+5. **Tippiness and the slit:** press 2, switch to the slit view (V), speed up and brake. The
+   *chase view* hull should rock; the *slit view* must not rock (it only tilts with the ground).
+6. **Tab panel:** after pressing 1/2/3, the six knobs at the top show the new values; "Reset to
+   saved" puts everything back and F3 says "Preset: none".
+7. **Phone:** the presets are keyboard-only; the phone drives as before (not affected).
