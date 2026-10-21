@@ -170,6 +170,37 @@ Using it:
   from web pages).
 - The phone screen may lock while driving: raise the phone's auto-lock time.
 
+## Ableton Push 3 controller
+Drive with the Push 3's pads, laid out like the phone: two lit levers and a red brake square.
+No Ableton Live or drivers needed; plug the Push in by USB and switch it on.
+
+```
+row 7   .  .  .  .  .  .  .  .     (free, for later)
+row 6   L  L  .  .  .  .  R  R     full forward
+row 5   L  L  B  B  B  B  R  R     0.5 forward
+row 4   L  L  B  B  B  B  R  R     0.25 forward
+row 3   L  L  B  B  B  B  R  R     0 (stop)
+row 2   L  L  B  B  B  B  R  R     0.25 back
+row 1   L  L  .  .  .  .  R  R     0.5 back
+row 0   L  L  .  .  .  .  R  R     full back
+```
+
+- **Levers** (two columns each side): press a pad to put the lever there; it stays when you let
+  go. Each lever's lit pad is where it is (green forward, blue backwards, white at 0); the other
+  notches are dim, the middle (0) a little brighter.
+- **Brake** (the red square): hold any pad to brake; pressing it also puts both levers to 0. The
+  square lights white while braking.
+- The lights show what the tank is actually being told, so they also follow the keyboard and
+  the phone. They work with both tanks (T).
+- **Lights need the relay page:** Godot can't send MIDI, so open `web/push_relay.html` in
+  **Chrome or Edge**, press **Start** and allow MIDI. Keep it open while you play. (Same page as
+  the finger-walking game; if that game is running too, close it, as both use port 9080.)
+- If the Push is unplugged while driving, its levers go to 0 and the game brakes for 3 s.
+- F3 shows the Push's status: connected or not, its lever levels, and whether the relay page is
+  connected.
+- **Colours** are Push palette numbers on the `PlayerRig/PushLightSender` node (Inspector). The
+  relay page's "Show colours" buttons light every palette colour so you can pick.
+
 ## Levels
 - **Starter level:** open `levels/starter/starter.tscn` and press **F6** (Run Current Scene).
   It is built from `levels/starter/height.png` and has mountains round the edge, a flat start

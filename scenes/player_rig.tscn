@@ -14,6 +14,8 @@
 [ext_resource type="Resource" path="res://tuning/presets/slippery.tres" id="12_slippery"]
 [ext_resource type="PackedScene" path="res://scenes/physics_tank.tscn" id="13_physics_tank"]
 [ext_resource type="Script" path="res://scripts/player_rig.gd" id="14_rig"]
+[ext_resource type="Script" path="res://scripts/push/push_controller.gd" id="15_push_controller"]
+[ext_resource type="Script" path="res://scripts/push/push_light_sender.gd" id="16_push_lights"]
 
 [node name="PlayerRig" type="Node3D" node_paths=PackedStringArray("tanks", "chase_camera", "view_switcher", "debug_hud", "tuning_panel", "controller_server")]
 script = ExtResource("14_rig")
@@ -69,3 +71,10 @@ server = NodePath("../ControllerServer")
 script = ExtResource("7_phone_label")
 server = NodePath("../ControllerServer")
 usb_link = NodePath("../UsbPhoneLink")
+
+[node name="PushController" type="Node" parent="."]
+script = ExtResource("15_push_controller")
+
+[node name="PushLightSender" type="Node" parent="." node_paths=PackedStringArray("rig")]
+script = ExtResource("16_push_lights")
+rig = NodePath("..")

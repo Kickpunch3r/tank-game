@@ -7,6 +7,7 @@
 [ext_resource type="Resource" path="res://tuning/physics_tank_tuning.tres" id="5_tuning"]
 [ext_resource type="Script" path="res://scripts/driver_slit_camera.gd" id="7_slit_camera"]
 [ext_resource type="Script" path="res://scripts/net/phone_driver_input.gd" id="8_phone"]
+[ext_resource type="Script" path="res://scripts/push/push_driver_input.gd" id="9_push"]
 
 [sub_resource type="ConvexPolygonShape3D" id="Shape_hull"]
 points = PackedVector3Array(-1.8, 0.35, -1.9, -1.8, 0.35, 1.9, -1.8, 0.8, -2.5, -1.8, 0.8, 2.5, -1.8, 1.3, -2.5, -1.8, 1.3, 2.5, 1.8, 0.35, -1.9, 1.8, 0.35, 1.9, 1.8, 0.8, -2.5, 1.8, 0.8, 2.5, 1.8, 1.3, -2.5, 1.8, 1.3, 2.5)
@@ -70,6 +71,9 @@ script = ExtResource("4_gamepad")
 
 [node name="PhoneDriverInput" type="Node" parent="DriverStation"]
 script = ExtResource("8_phone")
+
+[node name="PushDriverInput" type="Node" parent="DriverStation"]
+script = ExtResource("9_push")
 
 [node name="Collision" type="CollisionShape3D" parent="."]
 shape = SubResource("Shape_hull")

@@ -8,6 +8,7 @@
 [ext_resource type="Script" path="res://scripts/hull_tilt.gd" id="6_hull_tilt"]
 [ext_resource type="Script" path="res://scripts/driver_slit_camera.gd" id="7_slit_camera"]
 [ext_resource type="Script" path="res://scripts/net/phone_driver_input.gd" id="8_phone"]
+[ext_resource type="Script" path="res://scripts/push/push_driver_input.gd" id="9_push"]
 [ext_resource type="Script" path="res://scripts/hull_sway.gd" id="9_hull_sway"]
 
 [sub_resource type="CapsuleShape3D" id="CapsuleShape3D_body"]
@@ -71,6 +72,9 @@ script = ExtResource("4_gamepad")
 
 [node name="PhoneDriverInput" type="Node" parent="DriverStation"]
 script = ExtResource("8_phone")
+
+[node name="PushDriverInput" type="Node" parent="DriverStation"]
+script = ExtResource("9_push")
 
 [node name="Collision" type="CollisionShape3D" parent="."]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 1.7, 0)

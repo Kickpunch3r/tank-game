@@ -1,0 +1,337 @@
+<!DOCTYPE html>
+<!-- Copied from the finger-walking game (tools/push_relay.html); same message format, port 9080. -->
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Push light relay</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Atkinson+Hyperlegible:wght@400;700&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --bg: #d3d6d8;
+    --panel: #e7e9ea;
+    --ink: #1e2a33;
+    --muted: #55616a;
+    --pad: #4a5056;
+    --lit: #e8a317;
+    --ok: #2e6b3a;
+    --error: #a3341f;
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0; background: var(--bg); color: var(--ink);
+    font: 16px/1.5 "Atkinson Hyperlegible", system-ui, -apple-system, "Segoe UI", sans-serif;
+  }
+  main {
+    max-width: 920px; margin: 0 auto; padding: 32px 20px 48px;
+    display: grid; grid-template-columns: minmax(0, 320px) minmax(0, 1fr);
+    gap: 32px; align-items: start;
+  }
+  h1 { font-size: 1.75rem; line-height: 1.15; margin: 0 0 8px; }
+  p { margin: 0 0 12px; max-width: 60ch; }
+  .controls { display: flex; flex-direction: column; gap: 16px; }
+  .group { background: var(--panel); border-radius: 10px; padding: 16px; display: flex; flex-direction: column; gap: 10px; }
+  label { display: flex; flex-direction: column; gap: 4px; font-weight: 700; font-size: 0.9rem; }
+  label.inline { flex-direction: row; align-items: center; gap: 8px; font-weight: 400; }
+  select, input {
+    font: inherit; padding: 6px 8px; border: 1px solid var(--muted);
+    border-radius: 6px; background: #fff; color: var(--ink);
+  }
+  button {
+    font: inherit; font-weight: 700; padding: 8px 14px; border-radius: 6px;
+    border: 2px solid var(--ink); background: var(--ink); color: #fff; cursor: pointer;
+  }
+  button.secondary { background: transparent; color: var(--ink); }
+  button:focus-visible, select:focus-visible, input:focus-visible { outline: 3px solid var(--lit); outline-offset: 2px; }
+  .status { font-weight: 700; }
+  .status.ok { color: var(--ok); }
+  .status.error { color: var(--error); }
+  .hint { color: var(--muted); font-size: 0.9rem; }
+  .row { display: flex; gap: 8px; flex-wrap: wrap; }
+  button[hidden] { display: none; }
+  .grid {
+    display: grid; grid-template-columns: repeat(8, 1fr); gap: 6px;
+    background: #2b3035; padding: 12px; border-radius: 12px;
+    aspect-ratio: 1; max-width: 480px;
+  }
+  .cell {
+    border-radius: 6px; background: var(--pad); color: #c4c9cd;
+    font-size: 0.7rem; display: flex; flex-direction: column;
+    justify-content: flex-end; padding: 3px 5px; line-height: 1.2;
+  }
+  .cell.on { background: var(--lit); color: var(--ink); font-weight: 700; }
+  .cell.anim { outline: 2px dashed var(--ink); outline-offset: -4px; }
+  @media (max-width: 720px) { main { grid-template-columns: 1fr; } }
+</style>
+</head>
+<body>
+<main>
+  <section class="controls">
+    <div>
+      <h1>Push light relay</h1>
+      <p>Keep this page open while the game runs. It passes the game's pad lights to the Push.</p>
+    </div>
+
+    <div class="group">
+      <button id="start">Start</button>
+      <div class="status" id="midiStatus" role="status">Press Start to connect to the Push.</div>
+      <label>Send lights to
+        <select id="outputSelect" disabled></select>
+      </label>
+    </div>
+
+    <div class="group">
+      <label>Game port
+        <input id="port" type="number" value="9080" min="1" max="65535">
+      </label>
+      <div class="status" id="gameStatus" role="status">Waiting for the game…</div>
+      <p class="hint">Run the game from Godot. This page reconnects by itself whenever the game restarts.</p>
+    </div>
+
+    <div class="group">
+      <label class="inline"><input id="clock" type="checkbox" checked> Send MIDI clock (needed for pulsing and blinking)</label>
+      <label>Clock tempo (bpm)
+        <input id="bpm" type="number" value="120" min="20" max="300">
+      </label>
+      <div class="status" id="clockStatus" role="status">Clock: made by this page.</div>
+      <p class="hint">Effect speeds follow this tempo (only needed for pulsing or blinking lights; the tank game uses steady lights).</p>
+      <button class="secondary" id="allOff">All lights off</button>
+    </div>
+
+    <div class="group">
+      <p class="hint">Light every pad with its colour number to see the Push's palette (bottom-left first). The game's lights pause until you go back.</p>
+      <div class="row">
+        <button class="secondary" id="sweepLow">Show colours 1–64</button>
+        <button class="secondary" id="sweepHigh">Show colours 65–127</button>
+      </div>
+      <button id="backToGame" hidden>Back to game lights</button>
+      <div class="status" id="paletteStatus" role="status"></div>
+    </div>
+  </section>
+
+  <section>
+    <div class="grid" id="grid" aria-label="Pad lights, bottom-left is note 36"></div>
+    <p class="hint">Each pad shows the colour number it was sent. A dashed outline means it's animated.</p>
+  </section>
+</main>
+
+<script>
+  const $ = (id) => document.getElementById(id);
+  const outputSelect = $("outputSelect");
+  let midi = null;
+  let socket = null;
+  let reconnectTimer = null;
+  let last = new Array(64).fill(null);   // last light sent per pad: "c,ch,c2"
+  let currentBoard = null;               // latest board received from the game
+  let paletteStart = null;               // first colour shown while the palette is up, null = game lights
+  let gameClock = false;                 // true while the game sends the MIDI clock (it sent a tempo)
+  const cells = [];
+
+  // Grid display: top row first, note 36 is bottom-left.
+  for (let row = 7; row >= 0; row--) {
+    for (let col = 0; col < 8; col++) {
+      const el = document.createElement("div");
+      el.className = "cell";
+      el.textContent = 36 + row * 8 + col;
+      $("grid").appendChild(el);
+      cells[row * 8 + col] = el;
+    }
+  }
+
+  // ---------- MIDI ----------
+  $("start").addEventListener("click", async () => {
+    if (!navigator.requestMIDIAccess) {
+      setStatus("midiStatus", "This browser can't use MIDI. Open this file in Chrome or Edge.", "error");
+      return;
+    }
+    try {
+      midi = await navigator.requestMIDIAccess();
+    } catch (e) {
+      setStatus("midiStatus", "MIDI access was blocked (" + e.message + "). Allow MIDI, then press Start again.", "error");
+      return;
+    }
+    midi.onstatechange = fillOutputs;
+    fillOutputs();
+    connectGame();
+  });
+
+  function fillOutputs() {
+    const prev = outputSelect.value;
+    const outputs = [...midi.outputs.values()];
+    outputSelect.innerHTML = "";
+    outputSelect.add(new Option("All outputs", "all"));
+    for (const o of outputs) outputSelect.add(new Option(o.name, o.id));
+    outputSelect.value = [...outputSelect.options].some((o) => o.value === prev) ? prev : "all";
+    outputSelect.disabled = outputs.length === 0;
+    if (outputs.length === 0) {
+      setStatus("midiStatus", "No MIDI outputs found. Check the Push is plugged in and on.", "error");
+    } else {
+      setStatus("midiStatus", "Push connected (" + outputs.length + " output(s)).", "ok");
+      sendStart();
+      resendAll();
+    }
+  }
+  outputSelect.addEventListener("change", () => { sendStart(); resendAll(); });
+
+  function targets() {
+    if (!midi) return [];
+    return outputSelect.value === "all"
+      ? [...midi.outputs.values()]
+      : [midi.outputs.get(outputSelect.value)].filter(Boolean);
+  }
+  function send(bytes) {
+    for (const o of targets()) { try { o.send(bytes); } catch (e) { /* port busy */ } }
+  }
+  // Animations are timed by MIDI clock: a Start message, then 24 ticks per beat.
+  // While the game is connected it sends the clock (see "Game connection");
+  // otherwise this page makes its own with a timer.
+  let clockTimer = null;
+  function sendStart() {
+    if (gameClock) {
+      // The game sends Start on its next beat, so the Push stays in step with it.
+      if (socket && socket.readyState === WebSocket.OPEN) socket.send(JSON.stringify({ request: "start" }));
+    } else {
+      send([0xFA]);
+    }
+    restartClock();
+  }
+  function restartClock() {
+    clearInterval(clockTimer);
+    clockTimer = null;
+    if (!midi || !$("clock").checked || gameClock) return;
+    const bpm = Math.min(300, Math.max(20, Number($("bpm").value) || 120));
+    const tickMs = 60000 / (bpm * 24);
+    clockTimer = setInterval(() => send([0xF8]), tickMs);
+  }
+  $("clock").addEventListener("change", () => { if ($("clock").checked) sendStart(); else restartClock(); });
+
+  // Switches between the game's clock and this page's own.
+  function useGameClock(on) {
+    gameClock = on;
+    $("bpm").disabled = on;
+    showClockStatus();
+    if (!on) sendStart();   // back to our own clock: restart the Push's beat with it
+    else restartClock();    // stops our timer
+  }
+  function showClockStatus() {
+    setStatus("clockStatus", gameClock
+      ? "Clock: from the game, " + $("bpm").value + " bpm."
+      : "Clock: made by this page.", gameClock ? "ok" : undefined);
+  }
+  $("bpm").addEventListener("change", restartClock);
+
+  // ---------- Game connection ----------
+  function connectGame() {
+    clearTimeout(reconnectTimer);
+    if (socket) { socket.onclose = null; socket.close(); }
+    const port = Number($("port").value) || 9080;
+    try {
+      socket = new WebSocket("ws://localhost:" + port);
+    } catch (e) {
+      setStatus("gameStatus", "Couldn't open a connection: " + e.message, "error");
+      return;
+    }
+    socket.onopen = () => {
+      setStatus("gameStatus", "Connected to the game.", "ok");
+      resendAll();
+    };
+    socket.onmessage = (e) => {
+      let data;
+      try { data = JSON.parse(e.data); } catch { return; }
+      if (Array.isArray(data.pads)) { currentBoard = data.pads; applyBoard(currentBoard); }
+      if (typeof data.tempo === "number") {
+        $("bpm").value = Math.round(data.tempo);
+        if (!gameClock) useGameClock(true); else showClockStatus();
+      }
+      // Clock bytes from the game, in order: 0xF8 tick, 0xFA start (0xFC stop).
+      if (Array.isArray(data.clock) && $("clock").checked) {
+        for (const b of data.clock) {
+          if (b === 0xF8 || b === 0xFA || b === 0xFC) send([b]);
+        }
+      }
+    };
+    socket.onclose = () => {
+      setStatus("gameStatus", "Waiting for the game…");
+      if (gameClock) useGameClock(false);
+      currentBoard = null;
+      if (paletteStart === null) allOff();   // leave the palette up if it's showing
+      reconnectTimer = setTimeout(connectGame, 1000);
+    };
+  }
+  $("port").addEventListener("change", () => { if (midi) connectGame(); });
+
+  // ---------- Lights ----------
+  function applyBoard(pads) {
+    if (paletteStart !== null) return;   // palette showing: game lights wait
+    for (let i = 0; i < 64 && i < pads.length; i++) {
+      const [c, ch, c2] = pads[i].map((n) => Math.max(0, Math.min(127, Math.round(n))));
+      const key = c + "," + ch + "," + c2;
+      if (last[i] === key) continue;
+      last[i] = key;
+      setPad(36 + i, c, ch & 0x0f, c2);
+    }
+  }
+
+  function setPad(note, colour, channel, second) {
+    send([0x90, note, colour]);                       // steady colour (channel 0)
+    if (channel > 0) send([0x90 | channel, note, second]);   // animation
+    const el = cells[note - 36];
+    el.classList.toggle("on", colour > 0);
+    el.classList.toggle("anim", channel > 0);
+    el.textContent = colour > 0 ? (channel > 0 ? colour + "→" + second : colour) : note;
+  }
+
+  // Forget what was sent and send the latest board (or the palette) again in full.
+  function resendAll() {
+    last = new Array(64).fill(null);
+    if (paletteStart !== null) showPalette(paletteStart);
+    else if (currentBoard) applyBoard(currentBoard);
+  }
+
+  function allOff() {
+    for (let note = 36; note <= 99; note++) setPad(note, 0, 0, 0);
+    last = new Array(64).fill(null);
+  }
+  $("allOff").addEventListener("click", () => { closePalette(); allOff(); });
+
+  // ---------- Colour palette ----------
+  // Lights pad 36 (bottom-left) with colour `start`, the next pad start+1, and so on.
+  function showPalette(start) {
+    if (!midi) {
+      setStatus("paletteStatus", "Press Start first.", "error");
+      return;
+    }
+    paletteStart = start;
+    for (let i = 0; i < 64; i++) {
+      const colour = start + i <= 127 ? start + i : 0;
+      setPad(36 + i, colour, 0, 0);
+    }
+    last = new Array(64).fill(null);   // so the game's board is sent in full afterwards
+    $("backToGame").hidden = false;
+    setStatus("paletteStatus", "Showing colours " + start + "–" + Math.min(127, start + 63) + ". Game lights paused.");
+  }
+
+  function closePalette() {
+    paletteStart = null;
+    $("backToGame").hidden = true;
+    setStatus("paletteStatus", "");
+  }
+
+  $("sweepLow").addEventListener("click", () => showPalette(1));
+  $("sweepHigh").addEventListener("click", () => showPalette(65));
+  $("backToGame").addEventListener("click", () => {
+    closePalette();
+    allOff();          // clear the palette (also resets what was sent)
+    resendAll();       // then the game's current board, if connected
+  });
+
+  function setStatus(id, text, kind) {
+    const el = $(id);
+    el.textContent = text;
+    el.classList.toggle("ok", kind === "ok");
+    el.classList.toggle("error", kind === "error");
+  }
+</script>
+</body>
+</html>

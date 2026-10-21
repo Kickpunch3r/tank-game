@@ -32,6 +32,9 @@ func _ready() -> void:
 	ControllerServer.websocket_port_override = 18081
 	# Never run the real adb during tests (UsbLinkTests uses a pretend one).
 	UsbPhoneLink.enabled_in_scenes = false
+	# Never open real MIDI or the usual light port during tests (PushTests pretends).
+	PushController.open_midi_in_scenes = false
+	PushLightSender.port_override = 19080
 	course = COURSE_SCENE.instantiate()
 	add_child(course)
 	# Let the course builders run and physics settle.
@@ -45,6 +48,7 @@ func _ready() -> void:
 	await PhysicsTankTests.new(self).run_swap()
 	await PhoneTests.new(self).run()
 	UsbLinkTests.new(self).run()
+	await PushTests.new(self).run()
 	CourseTests.new(self).run()
 	await DrivingTests.new(self).run()
 	await BrakeTests.new(self).run()

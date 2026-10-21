@@ -56,7 +56,24 @@ func _physics_process(_delta: float) -> void:
 	if is_instance_valid(view_switcher):
 		lines.append("View: %s   (V = switch, F3 = hide this)" % view_switcher.current_view_name())
 	lines.append_array(_phone_lines())
+	lines.append_array(_push_lines())
 	_label.text = "\n".join(lines)
+
+
+## Ableton Push 3 status, if the scene has a PushController.
+func _push_lines() -> PackedStringArray:
+	var push := get_tree().get_first_node_in_group(PushController.GROUP) as PushController
+	if push == null:
+		return []
+	var lights := get_tree().get_first_node_in_group(PushLightSender.GROUP) as PushLightSender
+	var pages: String = "no light sender"
+	if lights != null:
+		pages = ("%d relay page(s) connected" % lights.page_count()) if lights.page_count() > 0 \
+				else "open web/push_relay.html in Chrome or Edge for the lights"
+	if not push.is_connected_to_push():
+		return ["Push 3: not found (plug it in and switch it on)   Lights: %s" % pages]
+	return ["Push 3: connected   levers L %+d  R %+d   brake %s   Lights: %s" % [
+			push.left_level, push.right_level, "ON" if push.is_brake_held() else "off", pages]]
 
 
 ## The feel knobs, the preset they match, and the slope limit they give.

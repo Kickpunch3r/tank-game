@@ -585,3 +585,33 @@ committed). To watch: open `tests/test_runner.tscn` and press F6.
     same six knobs, shared presets, T to swap (also in levels), ledge strip / steps / crest,
     physics HUD, new `PhysicsTankTests`. Fixed: Tab panel's Reset to saved missed the hidden
     tank. Kinematic results unchanged. 190 checks pass (~70 s).
+
+## Ableton Push 3 controller (branch `push-controller`, from `physics-tank`, 2026-10-22)
+- Developer's design: the phone's layout on the Push pads. `PushLayout` (`scripts/push/`): left
+  lever columns 0–1, right lever columns 6–7, rows 0–6 = levels −3..+3 (row 3 = 0), brake square
+  columns 2–5 × rows 2–5, top row free. Levers two columns wide so they're easy to hit without
+  looking (developer said "7 lights either side"; two columns chosen, recommended and agreed).
+- `PushController` (in the player rig, like the phone's server): opens MIDI, reads only the port
+  named "Ableton Push 3 MIDI" (the Push shows each press on two ports; same as the finger-walking
+  game), keeps the Push's lever levels and brake. Pressing a lever pad jumps the lever there; it
+  stays. Holding a brake pad brakes and sets both levers to 0.
+- `PushDriverInput` on **both** tanks' DriverStations reads the controller, so T keeps the Push's
+  levers. Merging as for every source: hardest push wins per tread, brake from any source.
+- Safety: every second it checks the Push's port is still in `OS.get_connected_midi_inputs()`;
+  if it disappeared, levers go to 0 and it brakes for 3 s. **Unconfirmed:** whether Godot's port
+  list updates on Windows when the Push is unplugged while the game runs (it may only update when
+  MIDI is reopened). Try unplugging it while driving slowly.
+- Lights: `PushLightSender` (in the rig) builds all 64 pad colours from the **active tank's
+  DriverStation** (so the keyboard and phone show on the Push too) and sends
+  `{"pads": [64 x [colour, 0, 0]]}` to the relay page over a WebSocket on 127.0.0.1:9080. The page
+  (`web/push_relay.html`) is a copy of the finger-walking game's `tools/push_relay.html`, one hint
+  reworded. Steady colours only, so no MIDI clock is needed.
+- Default colours (Inspector, Push palette numbers): notch 124 (dark grey), zero notch 123 (light
+  grey), forward 32 (bright green, found in the finger-walking game), reverse 125 (blue), stopped
+  122 (white), brake 127 (red), brake held 122 (white). **Not seen on the Push yet:** pick better
+  ones with the relay page's palette view.
+- Tests (`tests/push_tests.gd`, pretend MIDI and a pretend relay page; real MIDI is never opened
+  and the light port is 19080 in tests): layout, levers, duplicate port ignored, lights (position,
+  notches, reverse, brake, follows the keyboard), brake hold/release, unplug -> 3 s brake, the
+  page receiving all 64 pads, and the Push driving the physics tank after T. 204 checks pass.
+- **Not tested:** a real Push (pads, lights, colours, unplugging), the relay page with this game.
