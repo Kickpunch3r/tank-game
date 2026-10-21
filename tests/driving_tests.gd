@@ -113,13 +113,16 @@ func _ramp_tests() -> void:
 
 ## Puts one tank at every ramp at once, drives them all at full forward, and
 ## records whether and when each reached the top of its slope.
-func climb_all(ladder: SlopeLadder, with_run_up: bool) -> Array[Dictionary]:
+## tuning: optional tuning for every tank (default: the saved tuning).
+func climb_all(ladder: SlopeLadder, with_run_up: bool, tuning: TankTuning = null) -> Array[Dictionary]:
 	var tanks: Array[Tank] = []
 	var results: Array[Dictionary] = []
 	for index: int in ladder.ramps.size():
 		var ramp: SlopeLadder.RampInfo = ladder.ramps[index]
 		var start: Vector3 = ramp.run_up_start + Vector3(0.0, 0.05, 0.0)
 		var tank: Tank = runner.spawn_test_tank(start)
+		if tuning != null:
+			tank.tuning = tuning
 		if not with_run_up:
 			# Standing start: at rest, already touching the slope.
 			tank.position = ladder.start_position(index, 0.0, tank.contact_radius())

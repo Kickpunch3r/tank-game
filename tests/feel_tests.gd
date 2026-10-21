@@ -19,6 +19,7 @@ func run() -> void:
 	report.heading("Feel knobs")
 	await _weight_tests()
 	await _slide_tests()
+	await _grip_tests()
 	await _tippiness_tests()
 
 
@@ -103,6 +104,43 @@ func _sideways_speed_in_sharp_turn(sideways_grip: float) -> Dictionary:
 			result.outward = tank.slide_velocity.dot(tank.global_basis.x) < 0.0
 	await runner.remove_test_tanks()
 	return result
+
+
+# --- Grip as an angle -----------------------------------------------------------
+
+func _grip_tests() -> void:
+	var ladder: SlopeLadder = runner.course.get_node(^"SlopeLadder")
+	var driving := DrivingTests.new(runner)
+	var defaults := TankTuning.new()
+	report.check("Default grip 28.8° is the old grip (traction 0.55)",
+			absf(defaults.traction_coeff - 0.55) < 0.00001, "tan(%.4f°) = %.6f" % [defaults.grip, defaults.traction_coeff])
+	report.add_line("  Grip limit (pulling power 20, so the engine is never the limit):")
+	report.add_line("       Grip   Standing start: steepest climbed     With run-up: steepest climbed (information)")
+	for grip_angle: float in [25.0, 35.0, 45.0]:
+		var tuning := TankTuning.new()
+		tuning.grip = grip_angle
+		tuning.pulling_power = 20.0
+		var standing: Array[Dictionary] = await driving.climb_all(ladder, false, tuning)
+		var run_up: Array[Dictionary] = await driving.climb_all(ladder, true, tuning)
+		var steepest_standing: float = _steepest_climbed(ladder, standing)
+		var steepest_run_up: float = _steepest_climbed(ladder, run_up)
+		var ok: bool = steepest_standing < grip_angle
+		# Every ramp at least 5° gentler than the grip should climb.
+		for index: int in ladder.ramps.size():
+			if ladder.ramps[index].angle_degrees <= grip_angle - 5.0 and not standing[index].climbed:
+				ok = false
+		report.check("       %2d°    %-36s %s" % [roundi(grip_angle),
+				"%d° (never steeper than the grip)" % roundi(steepest_standing),
+				"%d°" % roundi(steepest_run_up)], ok)
+
+
+## The steepest ramp that was climbed (0 if none).
+func _steepest_climbed(ladder: SlopeLadder, results: Array[Dictionary]) -> float:
+	var steepest: float = 0.0
+	for index: int in ladder.ramps.size():
+		if results[index].climbed:
+			steepest = maxf(steepest, ladder.ramps[index].angle_degrees)
+	return steepest
 
 
 # --- Tippiness (looks only) ----------------------------------------------------

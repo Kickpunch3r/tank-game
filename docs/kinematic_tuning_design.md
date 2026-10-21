@@ -85,3 +85,24 @@ Push back on any of them.
 - **Alternatives:** slide only on the tread speeds (can't express sideways motion); a
   grip-limited sideways friction force like the physics tank (more realistic, but more values
   and it would change the default feel).
+
+## 8. Grip as an angle: "steepest slope it can *hold*", not "ever climb" (needs your OK)
+- **How it works now:** `grip` is in degrees; the tank's push is capped at
+  tan(grip) × g × cos(slope), so on a slope steeper than `grip` it can't hold or climb under
+  power. A run-up can still carry it further up by momentum, exactly as before.
+- **The plan says** steeper slopes than `grip` should be unclimbable "whatever the momentum".
+  That contradicts the approved targets (30–40° climbable only with a run-up, at 28.8° grip)
+  and the hand-off says the current project wins. So I kept the momentum behaviour, and the
+  grip test checks the standing start only.
+- Measured (pulling power raised to 20 so the engine isn't the limit):
+
+  | Grip | Steepest climbed, standing | Steepest climbed, run-up (info) |
+  |---|---|---|
+  | 25° | 20° | 35° |
+  | 35° | 30° | 45° |
+  | 45° | 40° | 55° |
+
+- **If you want "never, whatever the momentum":** add a hard cut-off (e.g. the treads stop
+  pushing and gravity wins above grip + N degrees). Not built.
+- The physics tank doesn't exist on this branch; its `grip` will use the same degrees and
+  `tan()` (noted for the physics branch).
