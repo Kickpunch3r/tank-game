@@ -42,7 +42,8 @@ func _target_transform() -> Transform3D:
 	# Point where the round bottom touches the ground.
 	var sphere_centre := Vector3(0.0, contact_radius, 0.0)
 	var contact_point: Vector3 = sphere_centre - up * contact_radius
-	return Transform3D(tilted, contact_point)
+	# Soft ground (mud, sand) lets the hull sink in a little.
+	return Transform3D(tilted, contact_point - up * _tank.sink_depth())
 
 
 ## Angle of the tank's flight path, in radians: positive = climbing, negative

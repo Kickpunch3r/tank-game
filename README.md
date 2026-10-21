@@ -47,6 +47,12 @@ pressing Play, not in the editor viewport.
   - **Reset point** chooses where `R` puts you: "Start field", or in front of any ramp, with a
     **Distance back** slider from 0 m (touching the ramp, at rest) to 70 m (full run-up).
     **Reset now** goes there straight away.
+- **Terrain (mud, sand):** each terrain is a file in `terrain/` (`mud.tres`, `sand.tres`) with
+  grip, drag, top speed and sink depth; click it to edit, or use the Tab panel. To add a patch
+  of terrain to a scene, add a `TerrainPatch` node, give it a terrain and a size, and move,
+  turn or tilt it into place (it shows in the editor). Ramps can have terrain too: add the
+  terrain name at the end of a line in a ramp list, e.g. `20  no ledge  mud`
+  (`levels/terrain_ramps.txt`).
 - **How the tank drives:** click `tuning/tank_tuning.tres` and change values in the
   Inspector. Each value is explained in plain language there (from `scripts/tank_tuning.gd`).
 - **The ramps:** edit `levels/slope_ladder.txt` (any text editor), one line per ramp, like
@@ -71,7 +77,8 @@ pressing Play, not in the editor viewport.
 | `scenes/` | `test_course.tscn` (main scene) and `tank.tscn` |
 | `scripts/` | Game scripts: tank, treads, stations, inputs, cameras, course builders, HUD |
 | `tuning/` | `tank_tuning.tres`: all driving numbers |
-| `levels/` | `slope_ladder.txt`: the ramp list |
+| `levels/` | Ramp lists: `slope_ladder.txt` (firm ramps), `terrain_ramps.txt` (sand and mud ramps) |
+| `terrain/` | Terrain types: `mud.tres`, `sand.tres` |
 | `art/` | Shaders and (later) models and sprites |
 | `tests/` | Automated test runner and test suites |
 | `docs/` | Design documents |

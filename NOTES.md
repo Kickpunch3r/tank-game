@@ -89,6 +89,32 @@ check by hand. For how to run and play, see [README.md](README.md).
 - Side result from a broken test run: with `max_tread_speed` 15, the 45° and 55° ramps become
   climbable with a run-up (7.8 s and 8.3 s). Top speed strongly sets what a run-up can beat.
 
+### Terrain (added 2026-10-21, level plan step 1)
+- `TerrainType` (`scripts/terrain_type.gd`, files in `terrain/`): `grip` (× traction_coeff),
+  `drag` (m/s² added to rolling resistance), `top_speed` (× max_tread_speed), `sink_depth`
+  (hull picture only), `colour`. No terrain = ordinary firm ground.
+- `TerrainPatch` (`scripts/terrain_patch.gd`, **tool script**, so it shows in the editor): a
+  rectangle of terrain; can be moved, turned and tilted. Counts as "on" the patch from 1 m below
+  to 3 m above its surface. Patches shouldn't overlap (the first one found wins).
+- **Each tread looks up the terrain under itself** (`TerrainPatch.terrain_at`), so one tread in
+  mud drags that side and the tank pulls toward the mud.
+- Ramp lists take an optional terrain name: `20  no ledge  mud` loads `terrain/mud.tres`, colours
+  the ramp, and lays patches along the slope and ledge. `levels/terrain_ramps.txt` is a second
+  `SlopeLadder` (`TerrainRamps`, at x −100) with sand 10–25° and mud 10–20°.
+- Course: `MudPatch` (x −25, z 35) and `SandPatch` (x 25, z 35), 24 × 24 m, behind the start.
+- Tab panel: a "Terrain: Mud" and "Terrain: Sand" section; reset point list includes the
+  terrain ramps.
+- Starting values. Mud: grip 0.7, drag 1.5, top speed 0.5, sink 0.3 (first tried grip 0.6,
+  drag 3, but drag nearly matched the grip limit, so the tank crawled even on flat mud).
+  Sand: grip 0.75, drag 1.0, top speed 0.8, sink 0.1.
+- Results (headless): top speed firm 10 / sand 8 / mud 5 m/s. From 4 m/s, stops in 0.78 s on
+  firm vs 0.75 s in mud (mud braking is limited by its low grip). One tread in mud: 14.8° pull
+  in 1.5 s. Terrain ramps, standing / run-up: sand 10° and 15° climb / climb, sand 20° and 25°
+  fail / climb; mud 10° climbs / climbs, mud 15° fails / climbs, mud 20° fails / fails.
+- Ice, road, shallow water: planned as mostly visual for now (not built).
+- Placeholder colours: mud is very dark under the lighting, and sand is close to the ground
+  colour.
+
 ### Test course
 - Built when the scene starts, by three nodes in `scenes/test_course.tscn`:
   - `CourseBuilder`: 300 × 300 m flat ground (world-space checker shader), 3 m walls,
@@ -147,7 +173,8 @@ g 9.8 · track_width 3 · turn_resistance 0.75 · tilt_smoothing 8
 | 55° no ledge | fails (5% up) | fails (49% up) | fails / fails |
 
 All targets met. Run-up times are mostly the 70 m approach (about 8 s at full speed). Full
-suite: **65 of 65 checks pass** (input, views and HUD, tuning panel, air and landing levers,
+suite: **74 of 74 checks pass** (input, views and HUD, tuning panel, air and landing levers,
+engine power, terrain,
 course shape, flat driving, kill-plane,
 slopes, sanity). Flat: 39.9 m straight in 5 s with no drift; left tread only turns right;
 opposite treads spin with 0.00 m of travel. From full speed, all stop takes ~2.0 s and ~9.7 m.
@@ -232,3 +259,7 @@ committed). To watch: open `tests/test_runner.tscn` and press F6.
    | 0.2 | 0.1 | 1.2 s | 3.3 s | 3.9 s | 4.6 s |
 
    68 checks pass (3 new: same pull from rest, slower near top speed, braking unchanged).
+10. **Terrain step 1:** `TerrainType` + `TerrainPatch`, per-tread terrain, mud and sand patches
+    and terrain ramps on the test course, terrain in the HUD and Tab panel. 74 checks pass
+    (6 new terrain checks; terrain checks compare terrains rather than fix numbers, so they
+    survive tuning). Fixed a test that started driving into the new terrain ramps.

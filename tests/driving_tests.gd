@@ -97,8 +97,8 @@ func _kill_plane_test() -> void:
 
 func _ramp_tests() -> void:
 	var ladder: SlopeLadder = runner.course.get_node(^"SlopeLadder")
-	var standing: Array[Dictionary] = await _climb_all(ladder, false)
-	var run_up: Array[Dictionary] = await _climb_all(ladder, true)
+	var standing: Array[Dictionary] = await climb_all(ladder, false)
+	var run_up: Array[Dictionary] = await climb_all(ladder, true)
 
 	report.heading("Slope Ladder (full forward, up to %d s each)" % CLIMB_TIME_LIMIT)
 	report.add_line("       Ramp            Standing start        With run-up           Target (standing / run-up)")
@@ -113,7 +113,7 @@ func _ramp_tests() -> void:
 
 ## Puts one tank at every ramp at once, drives them all at full forward, and
 ## records whether and when each reached the top of its slope.
-func _climb_all(ladder: SlopeLadder, with_run_up: bool) -> Array[Dictionary]:
+func climb_all(ladder: SlopeLadder, with_run_up: bool) -> Array[Dictionary]:
 	var tanks: Array[Tank] = []
 	var results: Array[Dictionary] = []
 	for index: int in ladder.ramps.size():

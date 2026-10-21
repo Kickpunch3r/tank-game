@@ -13,9 +13,19 @@ var traction_capped: bool = false
 
 ## Move the tread's speed one frame toward what the driver asks for.
 ## input: driver's push, -1 to 1. slope: ground angle along the tank, in
-## radians, positive when nose-up.
-func update(input: float, slope: float, tuning: TankTuning, delta: float) -> void:
-	var target_speed: float = input * tuning.max_tread_speed
+## radians, positive when nose-up. terrain: the ground under this tread, or
+## null for ordinary firm ground.
+func update(input: float, slope: float, tuning: TankTuning, delta: float,
+		terrain: TerrainType = null) -> void:
+	var grip: float = 1.0
+	var drag: float = 0.0
+	var top_speed: float = 1.0
+	if terrain != null:
+		grip = terrain.grip
+		drag = terrain.drag
+		top_speed = terrain.top_speed
+
+	var target_speed: float = input * tuning.max_tread_speed * top_speed
 	# Gravity pulls the tread back down the slope.
 	var gravity_accel: float = -tuning.g * sin(slope)
 
@@ -31,15 +41,16 @@ func update(input: float, slope: float, tuning: TankTuning, delta: float) -> voi
 		drive_accel = signf(drive_accel) * minf(absf(drive_accel), limit)
 
 	# Grip cap: on steeper ground the treads press down less, so they grip less.
-	var grip_limit: float = tuning.traction_coeff * tuning.g * cos(slope)
+	var grip_limit: float = tuning.traction_coeff * grip * tuning.g * cos(slope)
 	traction_capped = absf(drive_accel) > grip_limit
 	if traction_capped:
 		drive_accel = signf(drive_accel) * grip_limit
 
 	speed += (drive_accel + gravity_accel) * delta
 
-	# Rolling resistance: a small pull toward zero that never overshoots it.
-	speed = move_toward(speed, 0.0, tuning.rolling_resistance * delta)
+	# Rolling resistance (plus the terrain's drag): a pull toward zero that
+	# never overshoots it.
+	speed = move_toward(speed, 0.0, (tuning.rolling_resistance + drag) * delta)
 
 
 ## Fraction of full push available at this speed (1 = full strength).

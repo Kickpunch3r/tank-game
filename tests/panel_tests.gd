@@ -46,16 +46,16 @@ func run() -> void:
 
 	# Reset point.
 	var index_30: int = _ramp_index(ladder, 30.0)
-	panel.choose_reset_point(index_30, 0.0)
+	panel.choose_reset_point(ladder, index_30, 0.0)
 	await _tap_key(KEY_R)
 	var want: Vector3 = ladder.start_position(index_30, 0.0, tank.contact_radius())
 	report.check("Reset point: R puts the tank touching the chosen ramp",
 			tank.global_position.distance_to(want) < 0.2, "at %s, wanted %s" % [tank.global_position, want])
-	panel.choose_reset_point(index_30, 20.0)
+	panel.choose_reset_point(ladder, index_30, 20.0)
 	await _tap_key(KEY_R)
 	report.check("Reset point: distance moves the tank back from the ramp",
 			absf(tank.global_position.z - (want.z + 20.0)) < 0.2, "z %.2f, wanted %.2f" % [tank.global_position.z, want.z + 20.0])
-	panel.choose_reset_point(-1, 0.0)
+	panel.choose_reset_point(ladder, -1, 0.0)
 	await _tap_key(KEY_R)
 	report.check("Reset point: Start field puts the tank back at the start",
 			tank.global_position.distance_to(Vector3(0.0, 1.0, 0.0)) < 0.2)
@@ -81,7 +81,8 @@ func _engine_power_tests() -> void:
 
 ## Times to reach 40% and 95% of top speed from rest, and to stop again.
 func _speed_up_and_brake(falloff_start: float, at_top: float) -> Dictionary:
-	var tank: Tank = _tank_with_own_tuning(DROP_AREA + Vector3(0.0, 0.5, 0.0))
+	# Facing +Z (away from the ramps), so the long drive stays on flat open ground.
+	var tank: Tank = _tank_with_own_tuning(DROP_AREA + Vector3(0.0, 0.5, 0.0), PI)
 	tank.tuning.power_falloff_start = falloff_start
 	tank.tuning.power_at_top_speed = at_top
 	await runner.wait_physics_frames(30)
@@ -132,8 +133,8 @@ func _air_and_landing_tests() -> void:
 
 
 ## A tank with its own copy of the tuning, so changes don't leak into other tests.
-func _tank_with_own_tuning(where: Vector3) -> Tank:
-	var tank: Tank = runner.spawn_test_tank(where)
+func _tank_with_own_tuning(where: Vector3, yaw_radians: float = 0.0) -> Tank:
+	var tank: Tank = runner.spawn_test_tank(where, yaw_radians)
 	tank.tuning = tank.tuning.duplicate()
 	runner.watch_tank(tank)
 	return tank

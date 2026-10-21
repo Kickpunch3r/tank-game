@@ -52,8 +52,13 @@ func _physics_process(_delta: float) -> void:
 		"Forward speed: %+5.1f m/s" % tank.forward_speed,
 		"Slope: %+5.1f deg   On floor: %s" % [tank.slope_degrees, "yes" if tank.is_on_floor() else "no"],
 		"Traction capped: %s" % ("YES" if tank.is_traction_capped() else "no"),
+		"Ground: left %s, right %s" % [_terrain_name(tank.left_terrain), _terrain_name(tank.right_terrain)],
 		"Resets: %d" % _reset_count,
 	])
 	if is_instance_valid(view_switcher):
 		lines.append("View: %s   (V = switch, F3 = hide this)" % view_switcher.current_view_name())
 	_label.text = "\n".join(lines)
+
+
+func _terrain_name(terrain: TerrainType) -> String:
+	return terrain.display_name if terrain != null else "firm"

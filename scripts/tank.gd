@@ -27,6 +27,9 @@ var forward_speed: float = 0.0
 var slope_degrees: float = 0.0
 ## The ground's "up" direction under the tank (straight up when airborne).
 var ground_normal: Vector3 = Vector3.UP
+## The terrain under each tread (null = ordinary firm ground, or in the air).
+var left_terrain: TerrainType = null
+var right_terrain: TerrainType = null
 
 ## Where reset puts the tank. Starts as where the tank was placed.
 var _spawn_transform: Transform3D
@@ -66,8 +69,12 @@ func _drive_on_ground(delta: float) -> void:
 	var slope: float = asin(clampf(ground_forward.y, -1.0, 1.0))
 	slope_degrees = rad_to_deg(slope)
 
-	left_tread.update(driver_station.left_tread, slope, tuning, delta)
-	right_tread.update(driver_station.right_tread, slope, tuning, delta)
+	# Each tread checks the ground under itself, so one tread in mud drags
+	# that side and pulls the tank toward the mud.
+	left_terrain = TerrainPatch.terrain_at(get_tree(), _tread_position(-1.0))
+	right_terrain = TerrainPatch.terrain_at(get_tree(), _tread_position(1.0))
+	left_tread.update(driver_station.left_tread, slope, tuning, delta, left_terrain)
+	right_tread.update(driver_station.right_tread, slope, tuning, delta, right_terrain)
 
 	forward_speed = (left_tread.speed + right_tread.speed) / 2.0
 	# Right tread faster than left = turn left (positive yaw), and the reverse.
@@ -80,10 +87,24 @@ func _drive_on_ground(delta: float) -> void:
 	velocity = ground_forward * forward_speed - ground_normal * GROUND_PRESS_SPEED
 
 
+## Where a tread touches the ground: side = -1 for left, 1 for right.
+func _tread_position(side: float) -> Vector3:
+	return global_transform * Vector3(side * tuning.track_width / 2.0, 0.0, 0.0)
+
+
+## How far the hull picture sinks into soft ground: the average of both treads.
+func sink_depth() -> float:
+	var left_sink: float = left_terrain.sink_depth if left_terrain != null else 0.0
+	var right_sink: float = right_terrain.sink_depth if right_terrain != null else 0.0
+	return (left_sink + right_sink) / 2.0
+
+
 ## In the air: keep moving the way we were going, fall, and don't drive.
 func _fall(delta: float) -> void:
 	_airborne = true
 	ground_normal = Vector3.UP
+	left_terrain = null
+	right_terrain = null
 	velocity.y -= tuning.g * tuning.air_gravity_scale * delta
 	_fall_speed = maxf(-velocity.y, 0.0)
 
@@ -131,3 +152,5 @@ func reset_to_spawn() -> void:
 	ground_normal = Vector3.UP
 	_airborne = false
 	_fall_speed = 0.0
+	left_terrain = null
+	right_terrain = null

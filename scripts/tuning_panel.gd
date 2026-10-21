@@ -16,8 +16,8 @@ extends CanvasLayer
 ## The chase camera whose follow settings are being changed.
 @export var chase_camera: ChaseCamera
 
-## The ramps, for choosing where reset puts the tank.
-@export var slope_ladder: SlopeLadder
+## The rows of ramps, for choosing where reset puts the tank.
+@export var slope_ladders: Array[SlopeLadder] = []
 
 ## Distance back from the chosen ramp when the panel starts, in metres.
 @export var start_distance: float = 0.0
@@ -29,6 +29,8 @@ var _sliders: Array[HSlider] = []
 var _value_labels: Array[Label] = []
 
 var _ramp_choice: OptionButton
+# One entry per dropdown item after "Start field": {"ladder": SlopeLadder, "index": int}.
+var _reset_choices: Array[Dictionary] = []
 var _distance_slider: HSlider
 var _distance_label: Label
 var _copy_button: Button
@@ -72,6 +74,22 @@ func _define_settings() -> void:
 	_add_setting("Chase camera", chase_camera, &"look_height", 0.0, 5.0, 0.1)
 	_add_setting("Chase camera", chase_camera, &"follow_smoothing", 0.5, 20.0, 0.5)
 	_add_setting("Driver slit", slit, &"slit_height", 0.05, 0.6, 0.01)
+	for terrain: TerrainType in _terrain_types_in_scene():
+		var group: String = "Terrain: %s" % terrain.display_name
+		_add_setting(group, terrain, &"grip", 0.0, 2.0, 0.05)
+		_add_setting(group, terrain, &"drag", 0.0, 10.0, 0.1)
+		_add_setting(group, terrain, &"top_speed", 0.1, 1.5, 0.05)
+		_add_setting(group, terrain, &"sink_depth", 0.0, 1.0, 0.05)
+
+
+## Every different terrain used by a patch in the scene, in the order found.
+func _terrain_types_in_scene() -> Array[TerrainType]:
+	var found: Array[TerrainType] = []
+	for node: Node in get_tree().get_nodes_in_group(TerrainPatch.GROUP):
+		var patch := node as TerrainPatch
+		if patch != null and patch.terrain != null and not found.has(patch.terrain):
+			found.append(patch.terrain)
+	return found
 
 
 func _add_setting(group: String, target: Object, property: StringName,
@@ -136,14 +154,22 @@ func _build_reset_point(list: VBoxContainer) -> void:
 	_ramp_choice = OptionButton.new()
 	_ramp_choice.focus_mode = Control.FOCUS_NONE
 	_ramp_choice.add_item("Start field")
-	for ramp: SlopeLadder.RampInfo in slope_ladder.ramps:
-		_ramp_choice.add_item("%d° %s" % [roundi(ramp.angle_degrees), "ledge" if ramp.has_ledge else "no ledge"])
+	var longest_run_up: float = 0.0
+	for ladder: SlopeLadder in slope_ladders:
+		longest_run_up = maxf(longest_run_up, ladder.run_up_length)
+		for index: int in ladder.ramps.size():
+			var ramp: SlopeLadder.RampInfo = ladder.ramps[index]
+			var text: String = "%d° %s" % [roundi(ramp.angle_degrees), "ledge" if ramp.has_ledge else "no ledge"]
+			if ramp.terrain != null:
+				text += ", " + ramp.terrain.display_name.to_lower()
+			_ramp_choice.add_item(text)
+			_reset_choices.append({"ladder": ladder, "index": index})
 	_ramp_choice.item_selected.connect(func(_index: int) -> void: _apply_reset_point())
 	list.add_child(_ramp_choice)
 
 	var row := HBoxContainer.new()
 	row.add_child(_name_label("Distance back (m)"))
-	_distance_slider = _slider(0.0, slope_ladder.run_up_length, 1.0, start_distance)
+	_distance_slider = _slider(0.0, longest_run_up, 1.0, start_distance)
 	_distance_slider.value_changed.connect(func(_value: float) -> void: _apply_reset_point())
 	row.add_child(_distance_slider)
 	_distance_label = _number_label()
@@ -208,14 +234,22 @@ func _apply_reset_point() -> void:
 	if choice <= 0:
 		tank.set_spawn(_start_field_spawn)
 		return
-	var where: Vector3 = slope_ladder.start_position(choice - 1, _distance_slider.value, tank.contact_radius())
+	var reset_choice: Dictionary = _reset_choices[choice - 1]
+	var ladder: SlopeLadder = reset_choice.ladder
+	var where: Vector3 = ladder.start_position(reset_choice.index, _distance_slider.value, tank.contact_radius())
 	# Facing the ramp (the ramps rise toward -Z, the way an unturned tank faces).
 	tank.set_spawn(Transform3D(Basis.IDENTITY, where))
 
 
-## Choose the reset point from code (used by the tests). ramp_index -1 = start field.
-func choose_reset_point(ramp_index: int, distance: float) -> void:
-	_ramp_choice.select(ramp_index + 1)
+## Choose the reset point from code (used by the tests): ramp number
+## `ramp_index` of `ladder`. ramp_index -1 = start field.
+func choose_reset_point(ladder: SlopeLadder, ramp_index: int, distance: float) -> void:
+	var item: int = 0
+	for choice_number: int in _reset_choices.size():
+		var reset_choice: Dictionary = _reset_choices[choice_number]
+		if reset_choice.ladder == ladder and reset_choice.index == ramp_index:
+			item = choice_number + 1
+	_ramp_choice.select(item)
 	_distance_slider.set_value_no_signal(distance)
 	_apply_reset_point()
 
@@ -254,6 +288,8 @@ func _place_name(target: Object) -> String:
 		return "ChaseCamera node in scenes/test_course.tscn"
 	if target is DriverSlitCamera:
 		return "Visual/Hull/DriverSlitCamera node in scenes/tank.tscn"
+	if target is TerrainType:
+		return (target as TerrainType).resource_path
 	return str(target)
 
 

@@ -8,6 +8,9 @@
 [ext_resource type="Script" uid="uid://ch0ib75cdkdwc" path="res://scripts/rolling_bumps.gd" id="6_bumps"]
 [ext_resource type="Script" uid="uid://c8ynq4pgxm1t7" path="res://scripts/view_switcher.gd" id="7_switcher"]
 [ext_resource type="Script" uid="uid://cpck8w1ewwgnn" path="res://scripts/tuning_panel.gd" id="8_tuning_panel"]
+[ext_resource type="Script" path="res://scripts/terrain_patch.gd" id="9_terrain_patch"]
+[ext_resource type="Resource" path="res://terrain/mud.tres" id="10_mud"]
+[ext_resource type="Resource" path="res://terrain/sand.tres" id="11_sand"]
 
 [sub_resource type="ProceduralSkyMaterial" id="SkyMaterial_main"]
 
@@ -39,6 +42,23 @@ script = ExtResource("5_ladder")
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 100, 0, 0)
 script = ExtResource("6_bumps")
 
+[node name="TerrainRamps" type="Node3D" parent="."]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -100, 0, -70)
+script = ExtResource("5_ladder")
+ramp_list_path = "res://levels/terrain_ramps.txt"
+
+[node name="MudPatch" type="Node3D" parent="."]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -25, 0, 35)
+script = ExtResource("9_terrain_patch")
+terrain = ExtResource("10_mud")
+size = Vector2(24, 24)
+
+[node name="SandPatch" type="Node3D" parent="."]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 25, 0, 35)
+script = ExtResource("9_terrain_patch")
+terrain = ExtResource("11_sand")
+size = Vector2(24, 24)
+
 [node name="Tank" parent="." unique_id=1684898439 instance=ExtResource("2_tank")]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 1, 0)
 
@@ -57,8 +77,8 @@ station = NodePath("../Tank/DriverStation")
 tank = NodePath("../Tank")
 view_switcher = NodePath("../ViewSwitcher")
 
-[node name="TuningPanel" type="CanvasLayer" parent="." unique_id=1152466917 node_paths=PackedStringArray("tank", "chase_camera", "slope_ladder")]
+[node name="TuningPanel" type="CanvasLayer" parent="." unique_id=1152466917 node_paths=PackedStringArray("tank", "chase_camera", "slope_ladders")]
 script = ExtResource("8_tuning_panel")
 tank = NodePath("../Tank")
 chase_camera = NodePath("../ChaseCamera")
-slope_ladder = NodePath("../SlopeLadder")
+slope_ladders = [NodePath("../SlopeLadder"), NodePath("../TerrainRamps")]

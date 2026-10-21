@@ -32,6 +32,8 @@ class RampInfo:
 	var angle_degrees: float
 	## True if there is a flat platform on top.
 	var has_ledge: bool
+	## What the ramp's surface is made of (null = ordinary firm ground).
+	var terrain: TerrainType
 	## Middle of the ramp's bottom edge, on the ground.
 	var base_position: Vector3
 	## Middle of the ramp's top edge (where the slope ends).
@@ -50,7 +52,9 @@ func _ready() -> void:
 		_build_ramp(ramps[index], index)
 
 
-## Reads lines like "25  ledge" or "30  no ledge". Skips blank lines and # notes.
+## Reads lines like "25  ledge" or "30  no ledge", optionally followed by a
+## terrain name ("20  no ledge  mud" uses terrain/mud.tres).
+## Skips blank lines and # notes.
 func _read_ramp_list() -> Array[RampInfo]:
 	var result: Array[RampInfo] = []
 	var file := FileAccess.open(ramp_list_path, FileAccess.READ)
@@ -70,15 +74,28 @@ func _read_ramp_list() -> Array[RampInfo]:
 		var ramp := RampInfo.new()
 		ramp.angle_degrees = words[0].to_float()
 		var rest: String = " ".join(words.slice(1)).to_lower()
-		if rest == "ledge":
-			ramp.has_ledge = true
-		elif rest == "no ledge":
+		var terrain_name: String = ""
+		if rest.begins_with("no ledge"):
 			ramp.has_ledge = false
+			terrain_name = rest.trim_prefix("no ledge").strip_edges()
+		elif rest.begins_with("ledge"):
+			ramp.has_ledge = true
+			terrain_name = rest.trim_prefix("ledge").strip_edges()
 		else:
 			push_warning("SlopeLadder: line %d: expected 'ledge' or 'no ledge', got '%s'; using ledge" % [line_number, rest])
 			ramp.has_ledge = true
+		if not terrain_name.is_empty():
+			ramp.terrain = _load_terrain(terrain_name, line_number)
 		result.append(ramp)
 	return result
+
+
+func _load_terrain(terrain_name: String, line_number: int) -> TerrainType:
+	var path: String = "res://terrain/%s.tres" % terrain_name
+	if not ResourceLoader.exists(path):
+		push_error("SlopeLadder: line %d: no terrain file %s" % [line_number, path])
+		return null
+	return load(path) as TerrainType
 
 
 ## Where a tank should stand to face ramp `index`, `distance` metres back from
@@ -112,7 +129,7 @@ func _build_ramp(ramp: RampInfo, index: int) -> void:
 	body.name = "Ramp%02d_%ddeg" % [index + 1, roundi(ramp.angle_degrees)]
 	add_child(body)
 	var material := StandardMaterial3D.new()
-	material.albedo_color = _ramp_colour(index)
+	material.albedo_color = ramp.terrain.colour if ramp.terrain != null else _ramp_colour(index)
 	material.roughness = 0.85
 
 	# The slope: a right-angled wedge. PrismMesh with left_to_right = 0 puts the
@@ -134,15 +151,36 @@ func _build_ramp(ramp: RampInfo, index: int) -> void:
 				local_base + Vector3(0.0, rise / 2.0, -run - ledge_length / 2.0))
 		_add_solid(body, ledge, ledge_transform, "Ledge")
 
+	if ramp.terrain != null:
+		# Terrain patches lying along the slope (and on the ledge), so treads
+		# on the ramp use its terrain. The ramp is already coloured.
+		_add_terrain_patch(body, ramp.terrain, Vector2(ramp_width, ramp_length),
+				Transform3D(Basis(Vector3.RIGHT, angle), local_base + Vector3(0.0, rise / 2.0, -run / 2.0)))
+		if ramp.has_ledge:
+			_add_terrain_patch(body, ramp.terrain, Vector2(ramp_width, ledge_length),
+					Transform3D(Basis.IDENTITY, local_base + Vector3(0.0, rise, -run - ledge_length / 2.0)))
+
 	var label := Label3D.new()
 	label.name = "AngleLabel"
 	label.text = "%d°\n%s" % [roundi(ramp.angle_degrees), "ledge" if ramp.has_ledge else "no ledge"]
+	if ramp.terrain != null:
+		label.text += "\n" + ramp.terrain.display_name.to_lower()
 	label.billboard = BaseMaterial3D.BILLBOARD_ENABLED
 	label.font_size = 160
 	label.outline_size = 24
 	label.pixel_size = 0.015
 	label.position = local_base + Vector3(0.0, 4.0, 3.0)
 	body.add_child(label)
+
+
+func _add_terrain_patch(body: StaticBody3D, terrain: TerrainType, patch_size: Vector2, where: Transform3D) -> void:
+	var patch := TerrainPatch.new()
+	patch.name = "TerrainPatch"
+	patch.terrain = terrain
+	patch.size = patch_size
+	patch.show_visual = false
+	patch.transform = where
+	body.add_child(patch)
 
 
 ## Adds a mesh you can see and a matching collision shape, both at `where`.

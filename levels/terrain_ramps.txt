@@ -1,0 +1,14 @@
+# Terrain ramps: same format as slope_ladder.txt, with the terrain name at the end.
+#
+#   <angle in degrees>   ledge | no ledge   [terrain]
+#
+# The terrain name is a file in terrain/ (sand = terrain/sand.tres).
+# Leave it off for ordinary firm ground.
+
+10   ledge      sand
+15   ledge      sand
+20   no ledge   sand
+25   no ledge   sand
+10   ledge      mud
+15   ledge      mud
+20   no ledge   mud

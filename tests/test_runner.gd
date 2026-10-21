@@ -34,6 +34,7 @@ func _ready() -> void:
 	await PanelTests.new(self).run()
 	CourseTests.new(self).run()
 	await DrivingTests.new(self).run()
+	await TerrainTests.new(self).run()
 
 	report.heading("Sanity")
 	report.check("No NaN or infinite positions", not sanity_broken_position)
