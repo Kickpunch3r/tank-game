@@ -1,8 +1,8 @@
-[gd_scene format=3]
+[gd_scene format=3 uid="uid://clk0mbanvpaal"]
 
-[ext_resource type="Script" path="res://scripts/level_root.gd" id="1_level_root"]
-[ext_resource type="Script" path="res://scripts/level_terrain.gd" id="2_level_terrain"]
-[ext_resource type="Script" path="res://scripts/level_start.gd" id="3_level_start"]
+[ext_resource type="Script" uid="uid://fmgh50ivpc7d" path="res://scripts/level_root.gd" id="1_level_root"]
+[ext_resource type="Script" uid="uid://djaocshjqv45b" path="res://scripts/level_terrain.gd" id="2_level_terrain"]
+[ext_resource type="Script" uid="uid://bw6jhoy8o3te5" path="res://scripts/level_start.gd" id="3_level_start"]
 
 [sub_resource type="ProceduralSkyMaterial" id="SkyMaterial_main"]
 
@@ -14,21 +14,21 @@ background_mode = 2
 sky = SubResource("Sky_main")
 tonemap_mode = 2
 
-[node name="Starter" type="Node3D"]
+[node name="Starter" type="Node3D" unique_id=53519085]
 script = ExtResource("1_level_root")
 
-[node name="WorldEnvironment" type="WorldEnvironment" parent="."]
+[node name="WorldEnvironment" type="WorldEnvironment" parent="." unique_id=961925494]
 environment = SubResource("Environment_main")
 
-[node name="Sun" type="DirectionalLight3D" parent="."]
+[node name="Sun" type="DirectionalLight3D" parent="." unique_id=782179788]
 transform = Transform3D(0.866, 0, -0.5, -0.383, 0.6428, -0.6634, 0.3214, 0.766, 0.5567, 0, 40, 0)
 shadow_enabled = true
 directional_shadow_max_distance = 250.0
 
-[node name="LevelTerrain" type="Node3D" parent="."]
+[node name="LevelTerrain" type="Node3D" parent="." unique_id=1240548292]
 script = ExtResource("2_level_terrain")
 height_image_path = "res://levels/starter/height.png"
 
-[node name="LevelStart" type="Marker3D" parent="."]
+[node name="LevelStart" type="Marker3D" parent="." unique_id=1525072264]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 2, 94)
 script = ExtResource("3_level_start")

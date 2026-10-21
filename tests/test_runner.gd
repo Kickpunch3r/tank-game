@@ -28,6 +28,8 @@ func _ready() -> void:
 	ControllerServer.bind_address_override = "127.0.0.1"
 	ControllerServer.http_port_override = 18080
 	ControllerServer.websocket_port_override = 18081
+	# Never run the real adb during tests (UsbLinkTests uses a pretend one).
+	UsbPhoneLink.enabled_in_scenes = false
 	course = COURSE_SCENE.instantiate()
 	add_child(course)
 	# Let the course builders run and physics settle.
@@ -38,6 +40,7 @@ func _ready() -> void:
 	await ViewTests.new(self).run()
 	await PanelTests.new(self).run()
 	await PhoneTests.new(self).run()
+	UsbLinkTests.new(self).run()
 	CourseTests.new(self).run()
 	await DrivingTests.new(self).run()
 	await TerrainTests.new(self).run()

@@ -250,7 +250,7 @@ g 9.8 · track_width 3 · turn_resistance 0.75 · tilt_smoothing 8
 | 55° no ledge | fails (5% up) | fails (49% up) | fails / fails |
 
 All targets met. Run-up times are mostly the 70 m approach (about 8 s at full speed). Full
-suite: **111 of 111 checks pass** (input, views and HUD, tuning panel, air and landing levers,
+suite: **119 of 119 checks pass** (input, views and HUD, tuning panel, air and landing levers,
 engine power, terrain, level builder, phone controller,
 course shape, flat driving, kill-plane,
 slopes, sanity). Flat: 39.9 m straight in 5 s with no drift; left tread only turns right;
@@ -361,3 +361,18 @@ committed). To watch: open `tests/test_runner.tscn` and press F6.
 14. **Phone controller** (branch `phone-controller`): servers, protocol, station registry,
     phone input with takeover and watchdog, controller page, HUD and README. 111 checks pass
     (16 new). Browser-checked; not yet tried on a real phone.
+15. **Phone over USB** (developer's choice, because Windows Firewall needs admin rights to let
+    Godot onto the network on this laptop):
+    - `ControllerServer.allow_wifi_phones` (default **off**): off = listen on 127.0.0.1 only, so
+      Windows shouldn't ask for network access (unconfirmed until the developer runs it).
+    - `UsbPhoneLink` (in the player rig): every 3 s on a background thread, finds `adb.exe`
+      (Adb Path setting, then `Documents/platform-tools`, next to the project folder, or the
+      Android SDK), runs `adb devices`, and for an allowed phone runs
+      `adb -s <phone> reverse tcp:<port> tcp:<port>` for both server ports. The phone then opens
+      `http://localhost:8080`. Status shown bottom-left and in F3. Tests use a pretend adb
+      (`UsbPhoneLink.run_adb`); the real one is switched off in test runs.
+    - Checked: game runs with no adb present and reports "adb not found" without errors.
+      **Not tested with a real phone or real adb** (none here). Unknowns: whether the laptop lets
+      adb.exe run, and whether Windows needs a USB driver for the phone (needs admin).
+    - adb leaves its own background server running after the game closes (normal for adb).
+    119 checks pass (8 new).

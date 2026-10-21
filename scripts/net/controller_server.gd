@@ -28,8 +28,12 @@ static var websocket_port_override: int = 0
 @export var http_port: int = 8080
 ## Port the page's WebSocket connects to.
 @export var websocket_port: int = 8081
-## Which network addresses to listen on. "*" = all (needed for phones).
-@export var bind_address: String = "*"
+## Off: listen on this computer only. Phones then connect through a USB cable
+## (see UsbPhoneLink), and Windows doesn't ask for network access, which
+## needs admin rights on some computers.
+## On: listen on the network too, so phones on the same Wi-Fi can connect
+## (Windows Firewall must allow Godot).
+@export var allow_wifi_phones: bool = false
 ## The controller page served to phones.
 @export_file("*.html") var page_path: String = "res://web/controller.html"
 ## If the driver phone sends nothing for this long (seconds), its input counts
@@ -58,7 +62,9 @@ var _websocket_error: Error = OK
 
 func _ready() -> void:
 	add_to_group(GROUP)
-	var address: String = bind_address_override if not bind_address_override.is_empty() else bind_address
+	var address: String = "*" if allow_wifi_phones else "127.0.0.1"
+	if not bind_address_override.is_empty():
+		address = bind_address_override
 	if http_port_override != 0:
 		http_port = http_port_override
 	if websocket_port_override != 0:
@@ -127,9 +133,17 @@ func seconds_since_driver_message() -> float:
 	return _time - _last_driver_message_time
 
 
+## The address a phone connected by USB cable opens.
+func usb_url() -> String:
+	return "http://localhost:%d" % http_port
+
+
 ## Web addresses to type into a phone, one per network this computer is on.
+## Empty when Wi-Fi phones are switched off.
 func controller_urls() -> PackedStringArray:
 	var urls := PackedStringArray()
+	if not allow_wifi_phones:
+		return urls
 	for address: String in IP.get_local_addresses():
 		# IPv4 only; skip "this computer only" and "no network found" addresses.
 		if address.contains(":") or address.begins_with("127.") or address.begins_with("169.254."):

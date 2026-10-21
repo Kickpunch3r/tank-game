@@ -7,6 +7,7 @@
 [ext_resource type="Script" path="res://scripts/tuning_panel.gd" id="5_tuning_panel"]
 [ext_resource type="Script" path="res://scripts/net/controller_server.gd" id="6_controller_server"]
 [ext_resource type="Script" path="res://scripts/net/phone_status_label.gd" id="7_phone_label"]
+[ext_resource type="Script" path="res://scripts/net/usb_phone_link.gd" id="8_usb_link"]
 
 [node name="PlayerRig" type="Node3D"]
 
@@ -37,6 +38,11 @@ chase_camera = NodePath("../ChaseCamera")
 script = ExtResource("6_controller_server")
 tank = NodePath("../Tank")
 
-[node name="PhoneStatusLabel" type="CanvasLayer" parent="." node_paths=PackedStringArray("server")]
+[node name="UsbPhoneLink" type="Node" parent="." node_paths=PackedStringArray("server")]
+script = ExtResource("8_usb_link")
+server = NodePath("../ControllerServer")
+
+[node name="PhoneStatusLabel" type="CanvasLayer" parent="." node_paths=PackedStringArray("server", "usb_link")]
 script = ExtResource("7_phone_label")
 server = NodePath("../ControllerServer")
+usb_link = NodePath("../UsbPhoneLink")

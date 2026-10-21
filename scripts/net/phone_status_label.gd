@@ -1,11 +1,14 @@
 class_name PhoneStatusLabel
 extends CanvasLayer
-## A small line at the bottom-left of the screen with the web address to open
-## on a phone, and whether a phone is connected. Rebuilt from the server's
-## state twice a second.
+## A few lines at the bottom-left of the screen: how to connect a phone (by
+## USB cable, and by Wi-Fi if switched on) and whether one is connected.
+## Rebuilt from the server's and USB link's state twice a second.
 
 ## The server to describe.
 @export var server: ControllerServer
+
+## The USB phone link to describe (optional).
+@export var usb_link: UsbPhoneLink
 
 var _label: Label
 var _seconds_since_update: float = 1.0
@@ -15,8 +18,9 @@ func _ready() -> void:
 	_label = Label.new()
 	_label.anchor_top = 1.0
 	_label.anchor_bottom = 1.0
+	_label.grow_vertical = Control.GROW_DIRECTION_BEGIN
 	_label.offset_left = 12.0
-	_label.offset_top = -36.0
+	_label.offset_bottom = -10.0
 	_label.add_theme_color_override(&"font_outline_color", Color.BLACK)
 	_label.add_theme_constant_override(&"outline_size", 6)
 	add_child(_label)
@@ -27,22 +31,24 @@ func _process(delta: float) -> void:
 	if _seconds_since_update < 0.5:
 		return
 	_seconds_since_update = 0.0
-	_label.text = describe(server)
+	_label.text = "\n".join(describe(server, usb_link))
 
 
-## The line of text for a server's current state.
-static func describe(controller_server: ControllerServer) -> String:
+## The lines of text for the current state.
+static func describe(controller_server: ControllerServer, link: UsbPhoneLink) -> PackedStringArray:
+	var lines := PackedStringArray()
 	if controller_server == null:
-		return ""
+		return lines
 	if not controller_server.problem().is_empty():
-		return "Phone controller off: %s" % controller_server.problem()
-	var urls: PackedStringArray = controller_server.controller_urls()
-	var address: String = "  or  ".join(urls) if not urls.is_empty() else "no network found (join a hotspot or router)"
-	var phones: String
+		lines.append("Phone controller off: %s" % controller_server.problem())
+		return lines
+	if controller_server.allow_wifi_phones:
+		var urls: PackedStringArray = controller_server.controller_urls()
+		lines.append("Wi-Fi phone: open %s" % ("  or  ".join(urls) if not urls.is_empty() else "(no network found)"))
+	if link != null:
+		lines.append(link.describe())
 	if controller_server.driver_id() != 0:
-		phones = "driver phone connected"
+		lines.append("Phone: driver connected")
 	elif controller_server.phone_count() > 0:
-		phones = "%d phone(s) connected, no driver" % controller_server.phone_count()
-	else:
-		phones = "no phone connected"
-	return "Phone controller: open %s on your phone  (%s)" % [address, phones]
+		lines.append("Phone: %d connected, none driving" % controller_server.phone_count())
+	return lines

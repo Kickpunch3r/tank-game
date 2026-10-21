@@ -69,8 +69,10 @@ func _phone_lines() -> PackedStringArray:
 	if not server.problem().is_empty():
 		return ["Phone: off (%s)" % server.problem()]
 	var urls: PackedStringArray = server.controller_urls()
+	var link := get_tree().get_first_node_in_group(UsbPhoneLink.GROUP) as UsbPhoneLink
 	var lines: PackedStringArray = [
-		"Phone URL: %s" % ("  ".join(urls) if not urls.is_empty() else "no network found"),
+		"Wi-Fi phones: %s" % (("  ".join(urls) if not urls.is_empty() else "no network found") if server.allow_wifi_phones else "off (this computer only)"),
+		link.describe() if link != null else "USB phone: no USB link in this scene",
 		"Phones connected: %d   Driver phone: %s" % [server.phone_count(),
 				("#%d" % server.driver_id()) if server.driver_id() != 0 else "none"],
 	]

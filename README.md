@@ -66,19 +66,44 @@ pressing Play, not in the editor viewport.
   edge thickness and colours.
 
 ## Phone controller
-Drive the tank from a phone with two on-screen tread levers. The game hosts the page itself:
-no apps or other software needed.
+Drive the tank from a phone with two on-screen tread levers. The game hosts the page itself.
+The bottom-left of the screen always says how to connect and what's happening.
 
-1. **Phone and computer on the same network.** eduroam, library and most public Wi-Fi block
-   devices from talking to each other, so use the laptop's **Windows Mobile Hotspot** (Settings >
-   Network > Mobile hotspot, if allowed on this laptop), a **phone hotspot** (connect the laptop
-   to the phone), or a private router.
-2. Start the game. The web address to open is shown at the bottom-left of the screen (and in the
-   F3 debug display), e.g. `http://192.168.137.1:8080`.
-3. Open that address in the phone's browser and turn the phone sideways.
-4. **First time only:** Windows Firewall may ask whether Godot may use the network. Allow it on
-   **private** networks. If the phone can't load the page, the firewall is the first thing to
-   check (this laptop has no admin rights, so the prompt may need a staff member).
+### By USB cable (Android, works on this laptop)
+On this laptop Windows won't let Godot onto the network (that needs admin rights), so the phone
+connects through a USB cable instead, using Google's `adb` tool. The game runs adb for you.
+
+**One-time setup (about 15 minutes):**
+1. **Phone:** Settings > About phone > tap **Build number** 7 times (unlocks Developer options).
+   Then Settings > (System >) **Developer options** > turn on **USB debugging**.
+2. **Laptop:** download "SDK Platform-Tools for Windows" from
+   `developer.android.com/tools/releases/platform-tools` and unzip it into **Documents**, so
+   you have `Documents\platform-tools\adb.exe`. Nothing is installed.
+3. Plug the phone in with a USB cable that carries data (some cables only charge). The phone
+   asks **"Allow USB debugging?"**: tick "Always allow from this computer" and tap **Allow**.
+
+**Each time:** start the game, plug the phone in, wait until the bottom-left says
+**"USB phone: ready"**, then open **`http://localhost:8080`** in the phone's browser (Chrome)
+and turn the phone sideways. Re-plugging is fine; the game notices within a few seconds.
+
+What the bottom-left line means:
+- *adb not found*: platform-tools isn't in Documents (or set **Adb Path** on the
+  `PlayerRig/UsbPhoneLink` node to wherever `adb.exe` is).
+- *plug in an Android phone*: no phone found. Check the cable carries data and USB debugging is on.
+  If the phone is plugged in and it still says this, Windows may need a USB driver for that phone
+  (which needs admin rights): try another phone if you can.
+- *tap "Allow" on the phone*: the phone is waiting for you to allow USB debugging.
+- *ready*: open `http://localhost:8080` on the phone.
+
+iPhones can't connect by USB this way.
+
+### By Wi-Fi (on a computer where Godot is allowed onto the network)
+1. Select `PlayerRig/ControllerServer` (in `scenes/player_rig.tscn`) and tick **Allow Wifi Phones**.
+2. Phone and computer on the same network. eduroam, library and most public Wi-Fi block devices
+   from talking to each other: use a private router or a hotspot.
+3. Start the game; the bottom-left shows the address to open on the phone (e.g.
+   `http://192.168.137.1:8080`).
+4. First time: allow Godot through Windows Firewall on **private** networks (needs admin rights).
 
 Using it:
 - Left lever = left tread, right lever = right tread. Both thumbs work at once.
@@ -86,7 +111,8 @@ Using it:
   left", turns vibration off, or goes full screen.
 - The first phone to connect drives; other phones watch until the driver leaves.
 - While a phone is driving, it overrides the keyboard and gamepad. If the phone goes quiet for a
-  quarter of a second (Wi-Fi drops, phone locks), the tank stops and the keyboard works again.
+  quarter of a second (cable pulled, Wi-Fi drops, phone locks), the tank stops and the keyboard
+  works again.
 - Android phones buzz when a lever crosses 0 and when the tank hits a wall (iPhones don't vibrate
   from web pages).
 - The phone screen may lock while driving: raise the phone's auto-lock time.
