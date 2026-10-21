@@ -21,7 +21,7 @@ func _init(test_runner: TestRunner) -> void:
 
 func run() -> void:
 	# The course's own tank is only needed for the input tests.
-	var course_tank: Tank = runner.course.get_node(^"Tank")
+	var course_tank: Tank = runner.course.get_node(^"PlayerRig/Tank")
 	course_tank.queue_free()
 	await _flat_tests()
 	await _kill_plane_test()

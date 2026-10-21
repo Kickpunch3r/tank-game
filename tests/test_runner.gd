@@ -35,6 +35,7 @@ func _ready() -> void:
 	CourseTests.new(self).run()
 	await DrivingTests.new(self).run()
 	await TerrainTests.new(self).run()
+	await LevelTests.new(self).run()
 
 	report.heading("Sanity")
 	report.check("No NaN or infinite positions", not sanity_broken_position)
@@ -59,6 +60,9 @@ func _physics_process(_delta: float) -> void:
 
 
 func _is_over_ground(where: Vector3) -> bool:
+	# The course is removed for the last (level) tests.
+	if not is_instance_valid(course):
+		return false
 	var builder := course.get_node(^"CourseBuilder") as CourseBuilder
 	return absf(where.x) < builder.ground_size.x / 2.0 and absf(where.z) < builder.ground_size.y / 2.0
 
@@ -85,10 +89,10 @@ func spawn_test_tank(where: Vector3, yaw_radians: float = 0.0) -> Tank:
 
 ## Point the chase camera and readout at a tank, so the tests can be watched.
 func watch_tank(tank: Tank) -> void:
-	var camera := course.get_node_or_null(^"ChaseCamera") as ChaseCamera
+	var camera := course.get_node_or_null(^"PlayerRig/ChaseCamera") as ChaseCamera
 	if camera != null:
 		camera.target = tank
-	var hud := course.get_node_or_null(^"DebugHud") as DebugHud
+	var hud := course.get_node_or_null(^"PlayerRig/DebugHud") as DebugHud
 	if hud != null:
 		hud.tank = tank
 		hud.station = tank.driver_station
@@ -96,7 +100,8 @@ func watch_tank(tank: Tank) -> void:
 
 func remove_test_tanks() -> void:
 	for tank: Tank in _watched_tanks:
-		if is_instance_valid(tank) and tank.get_parent() == course and tank.name != "Tank":
+		# Only tanks the tests added straight to the course (the player's tank is in PlayerRig).
+		if is_instance_valid(tank) and tank.get_parent() == course:
 			tank.queue_free()
 	_watched_tanks.clear()
 	await wait_physics_frames(2)

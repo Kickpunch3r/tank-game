@@ -1,13 +1,9 @@
 [gd_scene format=3 uid="uid://bsylgg74hxt3w"]
 
 [ext_resource type="Script" uid="uid://ds3exxj4nvhrn" path="res://scripts/course_builder.gd" id="1_builder"]
-[ext_resource type="PackedScene" path="res://scenes/tank.tscn" id="2_tank"]
-[ext_resource type="Script" uid="uid://bda0qeonruxbq" path="res://scripts/chase_camera.gd" id="3_camera"]
-[ext_resource type="Script" uid="uid://bcy4xptm0wcuk" path="res://scripts/debug_hud.gd" id="4_hud"]
+[ext_resource type="PackedScene" path="res://scenes/player_rig.tscn" id="2_player_rig"]
 [ext_resource type="Script" uid="uid://disbr778sui33" path="res://scripts/slope_ladder.gd" id="5_ladder"]
 [ext_resource type="Script" uid="uid://ch0ib75cdkdwc" path="res://scripts/rolling_bumps.gd" id="6_bumps"]
-[ext_resource type="Script" uid="uid://c8ynq4pgxm1t7" path="res://scripts/view_switcher.gd" id="7_switcher"]
-[ext_resource type="Script" uid="uid://cpck8w1ewwgnn" path="res://scripts/tuning_panel.gd" id="8_tuning_panel"]
 [ext_resource type="Script" path="res://scripts/terrain_patch.gd" id="9_terrain_patch"]
 [ext_resource type="Resource" path="res://terrain/mud.tres" id="10_mud"]
 [ext_resource type="Resource" path="res://terrain/sand.tres" id="11_sand"]
@@ -59,26 +55,4 @@ script = ExtResource("9_terrain_patch")
 terrain = ExtResource("11_sand")
 size = Vector2(24, 24)
 
-[node name="Tank" parent="." unique_id=1684898439 instance=ExtResource("2_tank")]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 1, 0)
-
-[node name="ChaseCamera" type="Camera3D" parent="." unique_id=486293434 node_paths=PackedStringArray("target")]
-current = true
-script = ExtResource("3_camera")
-target = NodePath("../Tank")
-
-[node name="ViewSwitcher" type="Node" parent="." unique_id=1115326084 node_paths=PackedStringArray("views")]
-script = ExtResource("7_switcher")
-views = [NodePath("../ChaseCamera"), NodePath("../Tank/Visual/Hull/DriverSlitCamera")]
-
-[node name="DebugHud" type="CanvasLayer" parent="." unique_id=1730550041 node_paths=PackedStringArray("station", "tank", "view_switcher")]
-script = ExtResource("4_hud")
-station = NodePath("../Tank/DriverStation")
-tank = NodePath("../Tank")
-view_switcher = NodePath("../ViewSwitcher")
-
-[node name="TuningPanel" type="CanvasLayer" parent="." unique_id=1152466917 node_paths=PackedStringArray("tank", "chase_camera", "slope_ladders")]
-script = ExtResource("8_tuning_panel")
-tank = NodePath("../Tank")
-chase_camera = NodePath("../ChaseCamera")
-slope_ladders = [NodePath("../SlopeLadder"), NodePath("../TerrainRamps")]
+[node name="PlayerRig" parent="." instance=ExtResource("2_player_rig")]

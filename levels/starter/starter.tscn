@@ -1,0 +1,34 @@
+[gd_scene format=3]
+
+[ext_resource type="Script" path="res://scripts/level_root.gd" id="1_level_root"]
+[ext_resource type="Script" path="res://scripts/level_terrain.gd" id="2_level_terrain"]
+[ext_resource type="Script" path="res://scripts/level_start.gd" id="3_level_start"]
+
+[sub_resource type="ProceduralSkyMaterial" id="SkyMaterial_main"]
+
+[sub_resource type="Sky" id="Sky_main"]
+sky_material = SubResource("SkyMaterial_main")
+
+[sub_resource type="Environment" id="Environment_main"]
+background_mode = 2
+sky = SubResource("Sky_main")
+tonemap_mode = 2
+
+[node name="Starter" type="Node3D"]
+script = ExtResource("1_level_root")
+
+[node name="WorldEnvironment" type="WorldEnvironment" parent="."]
+environment = SubResource("Environment_main")
+
+[node name="Sun" type="DirectionalLight3D" parent="."]
+transform = Transform3D(0.866, 0, -0.5, -0.383, 0.6428, -0.6634, 0.3214, 0.766, 0.5567, 0, 40, 0)
+shadow_enabled = true
+directional_shadow_max_distance = 250.0
+
+[node name="LevelTerrain" type="Node3D" parent="."]
+script = ExtResource("2_level_terrain")
+height_image_path = "res://levels/starter/height.png"
+
+[node name="LevelStart" type="Marker3D" parent="."]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 2, 94)
+script = ExtResource("3_level_start")

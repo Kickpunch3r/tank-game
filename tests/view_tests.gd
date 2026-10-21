@@ -14,10 +14,10 @@ func run() -> void:
 	var report: TestReport = runner.report
 	report.heading("Views and debug display")
 	var course: Node3D = runner.course
-	var tank: Tank = course.get_node(^"Tank")
-	var chase: ChaseCamera = course.get_node(^"ChaseCamera")
+	var tank: Tank = course.get_node(^"PlayerRig/Tank")
+	var chase: ChaseCamera = course.get_node(^"PlayerRig/ChaseCamera")
 	var slit: DriverSlitCamera = tank.get_node(^"Visual/Hull/DriverSlitCamera")
-	var hud: DebugHud = course.get_node(^"DebugHud")
+	var hud: DebugHud = course.get_node(^"PlayerRig/DebugHud")
 
 	report.check("Starts in the chase view, no slit mask", chase.current and not slit.is_slit_visible())
 	await _tap_key(KEY_V)

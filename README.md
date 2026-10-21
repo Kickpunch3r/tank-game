@@ -64,6 +64,16 @@ pressing Play, not in the editor viewport.
 - **The slit:** select `Visual/Hull/DriverSlitCamera` in `scenes/tank.tscn` for slit height,
   edge thickness and colours.
 
+## Levels
+- **Starter level:** open `levels/starter/starter.tscn` and press **F6** (Run Current Scene).
+  It is built from `levels/starter/height.png` and has mountains round the edge, a flat start
+  with a strip running north, a ridge with a pass, rolling hills, a mesa with 15°/25°/35°/cliff
+  sides, a shallow basin and dunes.
+- **Making your own:** paint a greyscale height image in Photoshop and point a level scene at
+  it. Step-by-step guide: [docs/making_levels.md](docs/making_levels.md).
+- In a level, the Tab panel has a **Level ground** section (size, max height, smoothing) that
+  rebuilds the ground live.
+
 ## Running the tests
 ```bash
 "C:\Users\Laptop\Documents\Godot_v4.6.3-stable_win64_console.exe" --headless --fixed-fps 60 --path . res://tests/test_runner.tscn
@@ -77,7 +87,9 @@ pressing Play, not in the editor viewport.
 
 | Folder | Contents |
 |---|---|
-| `scenes/` | `test_course.tscn` (main scene) and `tank.tscn` |
+| `scenes/` | `test_course.tscn` (main scene), `tank.tscn`, `player_rig.tscn` (tank + cameras + debug display + Tab panel, shared by every level) |
+| `levels/<name>/` | A level: `height.png` and its scene (e.g. `levels/starter/`) |
+| `tools/` | Helper scripts, e.g. the one that generated the starter height map |
 | `scripts/` | Game scripts: tank, treads, stations, inputs, cameras, course builders, HUD |
 | `tuning/` | `tank_tuning.tres`: all driving numbers |
 | `levels/` | Ramp lists: `slope_ladder.txt` (firm ramps), `terrain_ramps.txt` (sand and mud ramps) |

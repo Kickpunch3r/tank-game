@@ -16,8 +16,8 @@ extends CanvasLayer
 ## The chase camera whose follow settings are being changed.
 @export var chase_camera: ChaseCamera
 
-## The rows of ramps, for choosing where reset puts the tank.
-@export var slope_ladders: Array[SlopeLadder] = []
+## Rows of ramps (SlopeLadder nodes) are found in the scene automatically, for
+## choosing where reset puts the tank.
 
 ## Distance back from the chosen ramp when the panel starts, in metres.
 @export var start_distance: float = 0.0
@@ -34,13 +34,11 @@ var _reset_choices: Array[Dictionary] = []
 var _distance_slider: HSlider
 var _distance_field: LineEdit
 var _copy_button: Button
-var _start_field_spawn: Transform3D
 
 
 func _ready() -> void:
 	layer = 20
 	visible = false
-	_start_field_spawn = tank.get_spawn()
 	_define_settings()
 	_build_panel()
 
@@ -92,12 +90,25 @@ func _define_settings() -> void:
 	_add_setting("Chase camera", chase_camera, &"look_height", 0.0, 5.0, 0.1)
 	_add_setting("Chase camera", chase_camera, &"follow_smoothing", 0.5, 20.0, 0.5)
 	_add_setting("Driver slit", slit, &"slit_height", 0.05, 0.6, 0.01)
+	for node: Node in get_tree().get_nodes_in_group(LevelTerrain.GROUP):
+		var level := node as LevelTerrain
+		_add_setting("Level ground", level, &"metres_per_pixel", 0.25, 8.0, 0.25)
+		_add_setting("Level ground", level, &"max_height", 1.0, 200.0, 0.5)
+		_add_setting("Level ground", level, &"smoothing", 0.0, 10.0, 1.0)
 	for terrain: TerrainType in _terrain_types_in_scene():
 		var group: String = "Terrain: %s" % terrain.display_name
 		_add_setting(group, terrain, &"grip", 0.0, 2.0, 0.05)
 		_add_setting(group, terrain, &"drag", 0.0, 10.0, 0.1)
 		_add_setting(group, terrain, &"top_speed", 0.1, 1.5, 0.05)
 		_add_setting(group, terrain, &"sink_depth", 0.0, 1.0, 0.05)
+
+
+## Every row of ramps in the scene.
+func _slope_ladders_in_scene() -> Array[SlopeLadder]:
+	var found: Array[SlopeLadder] = []
+	for node: Node in get_tree().get_nodes_in_group(SlopeLadder.GROUP):
+		found.append(node as SlopeLadder)
+	return found
 
 
 ## Every different terrain used by a patch in the scene, in the order found.
@@ -171,9 +182,9 @@ func _build_reset_point(list: VBoxContainer) -> void:
 	list.add_child(_heading("Reset point (where R puts you)"))
 	_ramp_choice = OptionButton.new()
 	_ramp_choice.focus_mode = Control.FOCUS_NONE
-	_ramp_choice.add_item("Start field")
+	_ramp_choice.add_item("Level start")
 	var longest_run_up: float = 0.0
-	for ladder: SlopeLadder in slope_ladders:
+	for ladder: SlopeLadder in _slope_ladders_in_scene():
 		longest_run_up = maxf(longest_run_up, ladder.run_up_length)
 		for index: int in ladder.ramps.size():
 			var ramp: SlopeLadder.RampInfo = ladder.ramps[index]
@@ -217,7 +228,12 @@ func _setting_row(index: int) -> HBoxContainer:
 func _on_setting_changed(index: int, value: float) -> void:
 	var setting: Dictionary = _settings[index]
 	var target: Object = setting.target
-	target.set(setting.property, value)
+	# Whole-number settings (like smoothing passes) get whole numbers.
+	if typeof(target.get(setting.property)) == TYPE_INT:
+		value = roundf(value)
+		target.set(setting.property, int(value))
+	else:
+		target.set(setting.property, value)
 	_value_fields[index].text = _format(value)
 	if target.has_method(&"on_setting_changed"):
 		target.call(&"on_setting_changed")
@@ -270,7 +286,7 @@ func _apply_reset_point() -> void:
 	_distance_field.text = _format(_distance_slider.value)
 	var choice: int = _ramp_choice.selected
 	if choice <= 0:
-		tank.set_spawn(_start_field_spawn)
+		tank.set_spawn(tank.get_home())
 		return
 	var reset_choice: Dictionary = _reset_choices[choice - 1]
 	var ladder: SlopeLadder = reset_choice.ladder
@@ -336,6 +352,8 @@ func _place_name(target: Object) -> String:
 		return "Visual/Hull/DriverSlitCamera node in scenes/tank.tscn"
 	if target is TerrainType:
 		return (target as TerrainType).resource_path
+	if target is LevelTerrain:
+		return "LevelTerrain node in %s" % (target as Node).owner.scene_file_path
 	return str(target)
 
 

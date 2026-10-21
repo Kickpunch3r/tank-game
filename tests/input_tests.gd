@@ -16,7 +16,7 @@ func _init(test_runner: TestRunner) -> void:
 func run() -> void:
 	var report: TestReport = runner.report
 	report.heading("Driver input")
-	tank = runner.course.get_node(^"Tank")
+	tank = runner.course.get_node(^"PlayerRig/Tank")
 	station = tank.driver_station
 	keyboard = station.get_node(^"KeyboardDriverInput")
 

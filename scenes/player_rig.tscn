@@ -1,0 +1,32 @@
+[gd_scene format=3]
+
+[ext_resource type="PackedScene" path="res://scenes/tank.tscn" id="1_tank"]
+[ext_resource type="Script" path="res://scripts/chase_camera.gd" id="2_camera"]
+[ext_resource type="Script" path="res://scripts/view_switcher.gd" id="3_switcher"]
+[ext_resource type="Script" path="res://scripts/debug_hud.gd" id="4_hud"]
+[ext_resource type="Script" path="res://scripts/tuning_panel.gd" id="5_tuning_panel"]
+
+[node name="PlayerRig" type="Node3D"]
+
+[node name="Tank" parent="." instance=ExtResource("1_tank")]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 1, 0)
+
+[node name="ChaseCamera" type="Camera3D" parent="." node_paths=PackedStringArray("target")]
+current = true
+script = ExtResource("2_camera")
+target = NodePath("../Tank")
+
+[node name="ViewSwitcher" type="Node" parent="." node_paths=PackedStringArray("views")]
+script = ExtResource("3_switcher")
+views = [NodePath("../ChaseCamera"), NodePath("../Tank/Visual/Hull/DriverSlitCamera")]
+
+[node name="DebugHud" type="CanvasLayer" parent="." node_paths=PackedStringArray("station", "tank", "view_switcher")]
+script = ExtResource("4_hud")
+station = NodePath("../Tank/DriverStation")
+tank = NodePath("../Tank")
+view_switcher = NodePath("../ViewSwitcher")
+
+[node name="TuningPanel" type="CanvasLayer" parent="." node_paths=PackedStringArray("tank", "chase_camera")]
+script = ExtResource("5_tuning_panel")
+tank = NodePath("../Tank")
+chase_camera = NodePath("../ChaseCamera")

@@ -33,6 +33,8 @@ var right_terrain: TerrainType = null
 
 ## Where reset puts the tank. Starts as where the tank was placed.
 var _spawn_transform: Transform3D
+## The level's normal starting place (the Tab panel's "Start field").
+var _home_transform: Transform3D
 
 ## True while in the air, so the first frame back on the ground counts as a landing.
 var _airborne: bool = false
@@ -44,6 +46,7 @@ func _ready() -> void:
 	if tuning == null:
 		tuning = TankTuning.new()
 	_spawn_transform = global_transform
+	_home_transform = global_transform
 
 
 func _physics_process(delta: float) -> void:
@@ -125,9 +128,19 @@ func set_spawn(where: Transform3D) -> void:
 	_spawn_transform = where
 
 
-## The starting place the tank was given in the scene, before any set_spawn().
+## Where reset currently puts the tank.
 func get_spawn() -> Transform3D:
 	return _spawn_transform
+
+
+## The level's normal starting place. Starts as where the tank was placed;
+## a level can move it (e.g. to its start marker).
+func get_home() -> Transform3D:
+	return _home_transform
+
+
+func set_home(where: Transform3D) -> void:
+	_home_transform = where
 
 
 ## Radius of the round bottom of the tank's collision shape, in metres.

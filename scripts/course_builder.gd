@@ -51,23 +51,12 @@ func _build_walls() -> void:
 
 ## A flat trigger far below the ground. A tank that touches it goes back to the start.
 func _build_kill_plane() -> void:
-	var area := Area3D.new()
-	area.name = "KillPlane"
-	area.position = Vector3(0.0, -kill_plane_depth, 0.0)
-	var shape := BoxShape3D.new()
+	var kill_plane := KillPlane.new()
+	kill_plane.name = "KillPlane"
+	kill_plane.position = Vector3(0.0, -kill_plane_depth, 0.0)
 	# Much bigger than the ground, so nothing can fall past its edges.
-	shape.size = Vector3(ground_size.x * 4.0, 2.0, ground_size.y * 4.0)
-	var collision := CollisionShape3D.new()
-	collision.shape = shape
-	area.add_child(collision)
-	area.body_entered.connect(_on_kill_plane_body_entered)
-	add_child(area)
-
-
-func _on_kill_plane_body_entered(body: Node3D) -> void:
-	if body is Tank:
-		# Deferred: moving a body in the middle of a physics callback is unsafe.
-		(body as Tank).reset_to_spawn.call_deferred()
+	kill_plane.size = ground_size * 4.0
+	add_child(kill_plane)
 
 
 ## A solid box you can see and collide with.

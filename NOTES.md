@@ -126,6 +126,35 @@ check by hand. For how to run and play, see [README.md](README.md).
 - Placeholder colours: mud is very dark under the lighting, and sand is close to the ground
   colour.
 
+### Painted levels (level plan step 2a, height only)
+- `LevelTerrain` (`scripts/level_terrain.gd`, **tool script**): builds ground from a greyscale
+  PNG. Settings: `height_image_path`, `metres_per_pixel`, `max_height`, `smoothing` (3 × 3 blur
+  passes), plus an Inspector **Rebuild** button (`@export_tool_button`, confirmed in 4.6.3).
+  Rebuilds itself in the editor when the PNG's save time changes (checked every second), and
+  0.4 s after the last setting change (so dragging a slider doesn't rebuild every frame).
+  Generated nodes have no owner, so nothing is saved into the scene.
+- **The PNG is read raw** (`Image.load_from_file`), not through Godot's import, which may compress
+  it. Export later: add `levels/` images to the export's non-resource filter.
+- **16-bit PNGs:** confirmed (headless test, 2026-10-21) that Godot 4.6.3 loads them as 8-bit:
+  a stored 25728 came back as 25700. So heights have 256 steps; smoothing hides them. A small
+  hand-written 16-bit PNG reader is possible later if steps show.
+- Collision: `HeightMapShape3D` (points 1 unit apart) scaled evenly by `metres_per_pixel`, with
+  heights divided by the same amount. The visual mesh uses the same grid points. A 256 × 256
+  rebuild takes ~0.8 s (GDScript).
+- `LevelStart` (`scripts/level_start.gd`, tool script): a Marker3D with a yellow arrow in the
+  editor. Only its ground position and left/right turn are used.
+- `LevelRoot` (`scripts/level_root.gd`) on a level's root: when run, adds
+  `scenes/player_rig.tscn` (unless the scene has a `PlayerRig`), places it at the start on the
+  ground, adds a `KillPlane` 30 m below, and re-places the tank whenever the ground rebuilds.
+- **Player rig** (`scenes/player_rig.tscn`): Tank, ChaseCamera, ViewSwitcher, DebugHud,
+  TuningPanel. The test course now uses it too (its tank is at `PlayerRig/Tank`).
+- `Tank.get_home()/set_home()`: the level's normal start (the Tab panel's "Level start").
+- The Tab panel finds ramp rows (`SlopeLadder.GROUP`) and level ground (`LevelTerrain.GROUP`) by
+  itself; "Level ground" settings appear when a level is running.
+- Starter level `levels/starter/`: height map made by `tools/generate_starter_heightmap.gd`
+  (rerunning it overwrites the PNG). Edges are painted mountains (no walls), as decided.
+- Guide for making levels: `docs/making_levels.md`.
+
 ### Test course
 - Built when the scene starts, by three nodes in `scenes/test_course.tscn`:
   - `CourseBuilder`: 300 × 300 m flat ground (world-space checker shader), 3 m walls,
@@ -184,8 +213,8 @@ g 9.8 · track_width 3 · turn_resistance 0.75 · tilt_smoothing 8
 | 55° no ledge | fails (5% up) | fails (49% up) | fails / fails |
 
 All targets met. Run-up times are mostly the 70 m approach (about 8 s at full speed). Full
-suite: **83 of 83 checks pass** (input, views and HUD, tuning panel, air and landing levers,
-engine power, terrain,
+suite: **92 of 92 checks pass** (input, views and HUD, tuning panel, air and landing levers,
+engine power, terrain, level builder,
 course shape, flat driving, kill-plane,
 slopes, sanity). Flat: 39.9 m straight in 5 s with no drift; left tread only turns right;
 opposite treads spin with 0.00 m of travel. From full speed, all stop takes ~2.0 s and ~9.7 m.
@@ -276,3 +305,6 @@ committed). To watch: open `tests/test_runner.tscn` and press F6.
     survive tuning). Fixed a test that started driving into the new terrain ramps.
 11. **Tab panel: typing and wheel:** typed exact values, wheel no longer changes values.
     83 checks pass (9 new).
+12. **Level builder, height only:** `LevelTerrain`, `LevelStart`, `LevelRoot`, shared player rig,
+    starter level, `docs/making_levels.md`. 92 checks pass (9 new). Found and fixed a test
+    clean-up bug the rig move caused (a test tank named "Tank" was never removed).

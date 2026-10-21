@@ -7,6 +7,9 @@ extends Node3D
 ## node's position (its base line) and rises away from the start field,
 ## toward -Z. Tests ask this node where each ramp's base and top are.
 
+## Group every row of ramps joins, so the Tab panel can list their ramps.
+const GROUP: StringName = &"slope_ladders"
+
 ## The text file listing each ramp's angle and whether it has a ledge.
 @export_file("*.txt") var ramp_list_path: String = "res://levels/slope_ladder.txt"
 
@@ -46,6 +49,7 @@ var ramps: Array[RampInfo] = []
 
 
 func _ready() -> void:
+	add_to_group(GROUP)
 	ramps = _read_ramp_list()
 	for index: int in ramps.size():
 		_place_ramp(index)

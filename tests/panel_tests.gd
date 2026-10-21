@@ -18,8 +18,8 @@ func _init(test_runner: TestRunner) -> void:
 func run() -> void:
 	report.heading("Tuning panel")
 	var course: Node3D = runner.course
-	var panel: TuningPanel = course.get_node(^"TuningPanel")
-	var tank: Tank = course.get_node(^"Tank")
+	var panel: TuningPanel = course.get_node(^"PlayerRig/TuningPanel")
+	var tank: Tank = course.get_node(^"PlayerRig/Tank")
 	var ladder: SlopeLadder = course.get_node(^"SlopeLadder")
 
 	report.check("Panel starts hidden", not panel.visible)
