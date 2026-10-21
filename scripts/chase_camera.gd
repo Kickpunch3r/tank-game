@@ -27,6 +27,11 @@ func _ready() -> void:
 		look_at(_look_point(), Vector3.UP)
 
 
+## Called by the ViewSwitcher to turn this view on or off.
+func set_view_active(active: bool) -> void:
+	current = active
+
+
 func _physics_process(delta: float) -> void:
 	if not is_instance_valid(target):
 		return

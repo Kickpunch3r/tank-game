@@ -42,7 +42,7 @@
   and R set both levels to 0. Stopping still has inertia: from full speed the tank takes
   ~2.0 s and ~9.7 m to stop (set by `max_drive_accel`). Untick `use_tread_levels` on the
   `KeyboardDriverInput` node to go back to hold-to-drive. Gamepad sticks stay smooth.
-- `DriverReadout` (top-left text) is temporary; it becomes part of the F3 debug display.
+- The top-left `DebugHud` (F3 to hide) shows input, tread speeds, slope, floor, traction and view.
 - Later, for several stations or controllers: move input sources out of the tank into a separate
   "Controls" node, and give each gamepad source a device number.
 
@@ -112,6 +112,10 @@
    One test fix on the way: "standing start" first began 2.5 m in front of the ramp, which gave
    the tank a small run-in and let it climb 30°. It now starts at rest already touching the slope.
 
+6. **Driver slit camera + HUD** (2026-10-21): slit view on the hull, V to switch, F3 debug
+   display. Tests: 50/50 pass (8 new view/HUD checks, incl. the slit camera tilting 20.0° on the
+   20° ramp). Screenshots of both views checked by eye in a windowed run.
+
 ## Running the tests
 ```
 C:\Users\Laptop\Documents\Godot_v4.6.3-stable_win64_console.exe --headless --fixed-fps 60 --path . res://tests/test_runner.tscn
@@ -149,3 +153,14 @@ Run-up times are mostly the 70 m approach (about 8 s at full speed).
   Steeper ramps slow the tank faster, so there is always an angle no run-up can beat.
 - **Grip on steep slopes**: lowering `traction_coeff` makes every steep ramp harder at once.
 - Change a value, run the tests, and read the table.
+
+## Cameras and views
+- `ChaseCamera` (in the course): behind and above, smoothed, follows heading only, never rolls.
+- `DriverSlitCamera` (on `Tank/Visual/Hull`, at the front): first-person, tilts with the hull.
+  It owns its own overlay (CanvasLayer 5): black above and below a horizontal slit (18% of the
+  screen by default, `slit_height`) with thin dark edges, shown only while this view is active.
+- `ViewSwitcher` (in the course) cycles its `views` list on V (`view_toggle`), calling each
+  camera's `set_view_active(bool)`. For separate screens later: give each camera its own
+  `SubViewport` and drop the switcher; each camera already carries its own overlay.
+- `DebugHud` (CanvasLayer 10, above the slit) replaced the temporary readout. F3
+  (`debug_hud_toggle`) hides/shows it; `start_visible` sets whether it shows at the start.

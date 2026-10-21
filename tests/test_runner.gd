@@ -30,6 +30,7 @@ func _ready() -> void:
 
 	report.add_line("Tank game tests  (%s)" % Time.get_datetime_string_from_system(false, true))
 	await InputTests.new(self).run()
+	await ViewTests.new(self).run()
 	CourseTests.new(self).run()
 	await DrivingTests.new(self).run()
 
@@ -85,10 +86,10 @@ func watch_tank(tank: Tank) -> void:
 	var camera := course.get_node_or_null(^"ChaseCamera") as ChaseCamera
 	if camera != null:
 		camera.target = tank
-	var readout := course.get_node_or_null(^"DriverReadout") as DriverReadout
-	if readout != null:
-		readout.tank = tank
-		readout.station = tank.driver_station
+	var hud := course.get_node_or_null(^"DebugHud") as DebugHud
+	if hud != null:
+		hud.tank = tank
+		hud.station = tank.driver_station
 
 
 func remove_test_tanks() -> void:

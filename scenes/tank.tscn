@@ -6,6 +6,7 @@
 [ext_resource type="Script" path="res://scripts/gamepad_driver_input.gd" id="4_gamepad"]
 [ext_resource type="Resource" path="res://tuning/tank_tuning.tres" id="5_tuning"]
 [ext_resource type="Script" path="res://scripts/hull_tilt.gd" id="6_hull_tilt"]
+[ext_resource type="Script" path="res://scripts/driver_slit_camera.gd" id="7_slit_camera"]
 
 [sub_resource type="CapsuleShape3D" id="CapsuleShape3D_body"]
 radius = 1.7
@@ -98,3 +99,9 @@ mesh = SubResource("CylinderMesh_barrel")
 [node name="NoseMarker" type="MeshInstance3D" parent="Visual/Hull"]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 1.35, -2.1)
 mesh = SubResource("BoxMesh_nose")
+
+[node name="DriverSlitCamera" type="Camera3D" parent="Visual/Hull"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 1.2, -2.4)
+near = 0.05
+fov = 70.0
+script = ExtResource("7_slit_camera")

@@ -3,7 +3,8 @@
 [ext_resource type="Script" path="res://scripts/course_builder.gd" id="1_builder"]
 [ext_resource type="PackedScene" path="res://scenes/tank.tscn" id="2_tank"]
 [ext_resource type="Script" path="res://scripts/chase_camera.gd" id="3_camera"]
-[ext_resource type="Script" path="res://scripts/driver_readout.gd" id="4_readout"]
+[ext_resource type="Script" path="res://scripts/debug_hud.gd" id="4_hud"]
+[ext_resource type="Script" path="res://scripts/view_switcher.gd" id="7_switcher"]
 [ext_resource type="Script" path="res://scripts/slope_ladder.gd" id="5_ladder"]
 [ext_resource type="Script" path="res://scripts/rolling_bumps.gd" id="6_bumps"]
 
@@ -45,7 +46,12 @@ current = true
 script = ExtResource("3_camera")
 target = NodePath("../Tank")
 
-[node name="DriverReadout" type="CanvasLayer" parent="." node_paths=PackedStringArray("station", "tank")]
-script = ExtResource("4_readout")
+[node name="ViewSwitcher" type="Node" parent="." node_paths=PackedStringArray("views")]
+script = ExtResource("7_switcher")
+views = [NodePath("../ChaseCamera"), NodePath("../Tank/Visual/Hull/DriverSlitCamera")]
+
+[node name="DebugHud" type="CanvasLayer" parent="." node_paths=PackedStringArray("station", "tank", "view_switcher")]
+script = ExtResource("4_hud")
 station = NodePath("../Tank/DriverStation")
 tank = NodePath("../Tank")
+view_switcher = NodePath("../ViewSwitcher")
