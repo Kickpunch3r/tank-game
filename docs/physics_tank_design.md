@@ -99,3 +99,19 @@ lists the alternatives and why. Push back on any of them.
   view. This applies to the kinematic tank too, for a fair comparison; on ramps its look point
   now lags a little behind. `look_smoothing` 0 = the old behaviour. The slit camera still tilts
   with the hull (your choice).
+
+## 7. Course additions
+- **How it works now:** one new node in `scenes/test_course.tscn`, `ComparisonFeatures` at
+  (100, 0, 90), the open ground south of the bumps. Its script builds three lanes when the game
+  starts, each driven toward −Z from a start point at z = 125:
+  - **Ledge strip** (x 73): a 1.2 m high, 6 m wide, 50 m long platform with a 10° ramp up onto
+    it. Its +X edge is the drop.
+  - **Steps** (x 100): 8 × 8 m blocks 0.2, 0.4 and 0.6 m high, 7 m apart.
+  - **Crest** (x 125): a 3.5 m high hill with 15° slopes both sides.
+- The Tab panel's reset-point list now includes the three start points ("Distance back" only
+  applies to ramps).
+- Nothing existing moved. Measured with the physics tank: with its middle 0.5 m inside the
+  edge it teeters (12° roll standing, 22° driving) and stays on; with its middle at or past the
+  edge it tips and falls off. Steps up to 0.6 m and the crest drive cleanly (pitch −21° to +17°).
+- **Alternatives:** add the features to `levels/slope_ladder.txt` (it only knows ramps); edit
+  them into the scene by hand as nodes (bigger scene file, against CLAUDE.md's "keep scenes small").

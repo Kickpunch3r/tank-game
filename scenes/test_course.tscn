@@ -7,6 +7,7 @@
 [ext_resource type="Script" uid="uid://dvifxswxqwewy" path="res://scripts/terrain_patch.gd" id="9_terrain_patch"]
 [ext_resource type="Resource" path="res://terrain/mud.tres" id="10_mud"]
 [ext_resource type="Resource" path="res://terrain/sand.tres" id="11_sand"]
+[ext_resource type="Script" path="res://scripts/comparison_features.gd" id="12_features"]
 
 [sub_resource type="ProceduralSkyMaterial" id="SkyMaterial_main"]
 
@@ -54,5 +55,9 @@ transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 25, 0, 35)
 script = ExtResource("9_terrain_patch")
 terrain = ExtResource("11_sand")
 size = Vector2(24, 24)
+
+[node name="ComparisonFeatures" type="Node3D" parent="."]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 100, 0, 90)
+script = ExtResource("12_features")
 
 [node name="PlayerRig" parent="." unique_id=472648433 instance=ExtResource("2_player_rig")]

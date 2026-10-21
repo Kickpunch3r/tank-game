@@ -43,6 +43,31 @@ func run() -> void:
 			facing_down += 1
 	report.check("Bumps mesh faces upward", facing_down == 0, "%d normals face down" % facing_down)
 
+	# Comparison features (ledge strip, steps, crest).
+	var features: ComparisonFeatures = runner.course.get_node(^"ComparisonFeatures")
+	var origin: Vector3 = features.global_position
+	var platform: Dictionary = _ray_down(origin + Vector3(ComparisonFeatures.LEDGE_LANE_X, 0.0, 0.0))
+	var beside: Dictionary = _ray_down(Vector3(features.ledge_edge_x() + 1.0, 0.0, origin.z))
+	report.check("Ledge strip: a raised platform beside a drop",
+			not platform.is_empty() and absf(platform.position.y - features.ledge_height) < 0.01
+			and not beside.is_empty() and absf(beside.position.y) < 0.01,
+			"platform %.2f m, beside it %.2f m" % [platform.position.y if not platform.is_empty() else -1.0,
+				beside.position.y if not beside.is_empty() else -1.0])
+	var step_tops: PackedStringArray = []
+	var steps_ok: bool = true
+	var z: float = ComparisonFeatures.START_Z - 24.0
+	for height: float in features.step_heights:
+		var hit: Dictionary = _ray_down(origin + Vector3(ComparisonFeatures.STEPS_LANE_X, 0.0, z))
+		var top: float = hit.position.y if not hit.is_empty() else -1.0
+		steps_ok = steps_ok and absf(top - height) < 0.01
+		step_tops.append("%.2f" % top)
+		z -= 15.0
+	report.check("Steps: blocks of increasing height", steps_ok, "tops at %s m" % " / ".join(step_tops))
+	var half_run: float = features.crest_height / tan(deg_to_rad(features.crest_angle_degrees))
+	var peak: Dictionary = _ray_down(origin + Vector3(ComparisonFeatures.CREST_LANE_X, 0.0, ComparisonFeatures.START_Z - 15.0 - half_run))
+	report.check("Crest: rises to its peak", not peak.is_empty() and absf(peak.position.y - features.crest_height) < 0.05,
+			"peak %.2f m" % (peak.position.y if not peak.is_empty() else -1.0))
+
 
 func _ray_down(where: Vector3) -> Dictionary:
 	var query := PhysicsRayQueryParameters3D.create(

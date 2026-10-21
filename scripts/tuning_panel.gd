@@ -30,7 +30,8 @@ var _sliders: Array[HSlider] = []
 var _value_fields: Array[LineEdit] = []
 
 var _ramp_choice: OptionButton
-# One entry per dropdown item after "Start field": {"ladder": SlopeLadder, "index": int}.
+# One entry per dropdown item after "Start field": {"ladder": SlopeLadder, "index": int}
+# for a ramp, or {"transform": Transform3D} for a comparison feature's start.
 var _reset_choices: Array[Dictionary] = []
 var _distance_slider: HSlider
 var _distance_field: LineEdit
@@ -254,6 +255,10 @@ func _build_reset_point(list: VBoxContainer) -> void:
 				text += ", " + ramp.terrain.display_name.to_lower()
 			_ramp_choice.add_item(text)
 			_reset_choices.append({"ladder": ladder, "index": index})
+	for features: Node in get_tree().get_nodes_in_group(ComparisonFeatures.GROUP):
+		for point: Dictionary in (features as ComparisonFeatures).reset_points():
+			_ramp_choice.add_item(point.name)
+			_reset_choices.append({"transform": point.transform})
 	_ramp_choice.item_selected.connect(func(_index: int) -> void: _apply_reset_point())
 	list.add_child(_ramp_choice)
 
@@ -361,6 +366,10 @@ func _apply_reset_point() -> void:
 		tank.call(&"set_spawn", tank.call(&"get_home"))
 		return
 	var reset_choice: Dictionary = _reset_choices[choice - 1]
+	if reset_choice.has("transform"):
+		# A comparison feature's start (the distance slider is for ramps only).
+		tank.call(&"set_spawn", reset_choice.transform)
+		return
 	var ladder: SlopeLadder = reset_choice.ladder
 	var where: Vector3 = ladder.start_position_for(reset_choice.index, _distance_slider.value, tank)
 	# Facing the ramp (the ramps rise toward -Z, the way an unturned tank faces).
@@ -373,7 +382,7 @@ func choose_reset_point(ladder: SlopeLadder, ramp_index: int, distance: float) -
 	var item: int = 0
 	for choice_number: int in _reset_choices.size():
 		var reset_choice: Dictionary = _reset_choices[choice_number]
-		if reset_choice.ladder == ladder and reset_choice.index == ramp_index:
+		if reset_choice.get("ladder") == ladder and reset_choice.get("index") == ramp_index:
 			item = choice_number + 1
 	_ramp_choice.select(item)
 	_distance_slider.set_value_no_signal(distance)
