@@ -30,6 +30,10 @@ var turn_rate: float = 0.0
 ## How fast the forward speed changed last frame, in metres per second per
 ## second (positive = speeding up forwards). Used by the hull sway picture.
 var forward_accel: float = 0.0
+## Sideways slide: part of the tank's motion that carries on in an old
+## direction after a turn and fades away (see sideways_grip). Flat, in world
+## space, metres per second. Always zero at sideways_grip 1.
+var slide_velocity: Vector3 = Vector3.ZERO
 ## The ground's "up" direction under the tank (straight up when airborne).
 var ground_normal: Vector3 = Vector3.UP
 ## The terrain under each tread (null = ordinary firm ground, or in the air).
@@ -97,6 +101,11 @@ func _blocked_by_wall() -> void:
 		left_tread.speed *= kept
 		right_tread.speed *= kept
 		forward_speed = (left_tread.speed + right_tread.speed) / 2.0
+	# A slide into the wall stops; a slide along it carries on.
+	var wall_normal: Vector3 = get_wall_normal()
+	if slide_velocity.dot(wall_normal) < 0.0:
+		slide_velocity -= wall_normal * slide_velocity.dot(wall_normal)
+		slide_velocity.y = 0.0
 	# Sliding up a wall must not throw the tank into the air: keep any
 	# upward speed only while the tank is still on drivable ground.
 	if not is_on_floor():
@@ -128,14 +137,42 @@ func _drive_on_ground(delta: float) -> void:
 	# Turn resistance and weight hold the turn back (see TankTuning.turn_factor).
 	turn_rate = (right_tread.speed - left_tread.speed) / tuning.track_width
 	turn_rate *= tuning.turn_factor()
+	var old_heading: Vector3 = _flat_heading()
 	rotate_y(turn_rate * delta)
 	var previous_speed: float = forward_speed
 	forward_speed = (left_tread.speed + right_tread.speed) / 2.0
 	forward_accel = (forward_speed - previous_speed) / delta
+	_update_slide(old_heading, delta)
 
 	# Pressing lightly into the ground keeps Godot counting the tank as "on the
 	# floor" on slopes; without it, contact flickers on and off every frame.
-	velocity = ground_forward * forward_speed - ground_normal * GROUND_PRESS_SPEED
+	var slide_on_ground: Vector3 = slide_velocity - ground_normal * slide_velocity.dot(ground_normal)
+	velocity = ground_forward * forward_speed + slide_on_ground - ground_normal * GROUND_PRESS_SPEED
+
+
+## Sideways slide. After turning by a little this frame, the part of the old
+## motion that now points sideways keeps going as slide, which then fades at
+## a rate set by sideways_grip (1 = no slide at all, the tank is on rails).
+func _update_slide(old_heading: Vector3, delta: float) -> void:
+	var fade_rate: float = tuning.slide_decay_rate()
+	if is_inf(fade_rate):
+		slide_velocity = Vector3.ZERO
+		return
+	var right: Vector3 = _flat_heading().cross(Vector3.UP)
+	slide_velocity += right * (old_heading * forward_speed).dot(right)
+	slide_velocity *= exp(-fade_rate * delta)
+
+
+## The tank's facing, laid flat (the body never tilts, so this is exact).
+func _flat_heading() -> Vector3:
+	var heading: Vector3 = -global_basis.z
+	heading.y = 0.0
+	return heading.normalized()
+
+
+## How fast the tank is sliding sideways right now, in metres per second.
+func slide_speed() -> float:
+	return slide_velocity.length()
 
 
 ## Where a tread touches the ground: side = -1 for left, 1 for right.
@@ -211,6 +248,7 @@ func reset_to_spawn() -> void:
 	right_tread.stop()
 	forward_speed = 0.0
 	forward_accel = 0.0
+	slide_velocity = Vector3.ZERO
 	slope_degrees = 0.0
 	turn_rate = 0.0
 	ground_normal = Vector3.UP

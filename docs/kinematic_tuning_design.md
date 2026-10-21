@@ -67,3 +67,21 @@ Push back on any of them.
 - **Alternatives:** sway `Visual/Hull` and counter-rotate the camera (fragile: any rounding shows
   as camera wobble); sway `Visual` (same problem, the camera is under it).
 - **For art later:** put models under `Visual/Hull/Sway`.
+
+## 7. Sideways slide
+- **How it works now:** each frame the tank turns a little. The part of its old motion that now
+  points sideways is added to a "slide" velocity (flat, in the world), which fades away at
+  `slide decay rate` per second. The slide is added to the tank's motion.
+- Fade rate from the knob (`TankFeel.slide_decay_rate`): `0.3 + slide_decay_scale × g / (1 − g)`
+  where g = `sideways_grip`. At 1 there is no slide at all (the code is skipped, so the default
+  is exactly today's tank). At 0.5 it fades at 3.3 per second (gone in about a second), at 0.3
+  at 1.6 per second, at 0 at 0.3 per second (a long skate). `slide_decay_scale` (3) is advanced.
+- Hitting a wall stops the part of the slide going into the wall. In the air the slide is kept.
+- Measured: at 10 m/s, swinging into a hard turn (levers 1 and 0.25): slide up to 0.73 m/s
+  at sideways grip 0.3; 0 at sideways grip 1.
+- Found while testing: even with no slide, the tank's real motion lags its turn by one frame
+  (it moves along the heading it had at the start of the frame), about 2 cm/s sideways in that
+  turn. That was already the case on `main` and is left alone.
+- **Alternatives:** slide only on the tread speeds (can't express sideways motion); a
+  grip-limited sideways friction force like the physics tank (more realistic, but more values
+  and it would change the default feel).

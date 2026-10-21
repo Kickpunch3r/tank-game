@@ -18,6 +18,7 @@ func _init(test_runner: TestRunner) -> void:
 func run() -> void:
 	report.heading("Feel knobs")
 	await _weight_tests()
+	await _slide_tests()
 	await _tippiness_tests()
 
 
@@ -60,6 +61,48 @@ func _speed_up_and_coast(weight: float) -> Dictionary:
 	var coast: float = tank.global_position.distance_to(start)
 	await runner.remove_test_tanks()
 	return {"to_top": to_top, "coast": coast}
+
+
+# --- Sideways slide ----------------------------------------------------------
+
+func _slide_tests() -> void:
+	var rails: Dictionary = await _sideways_speed_in_sharp_turn(1.0)
+	var drifty: Dictionary = await _sideways_speed_in_sharp_turn(0.3)
+	# Even without slide, the real motion lags the turn by one frame (the
+	# tank moves along the heading it had at the start of the frame), which
+	# shows as a few cm/s sideways. That was there before; slide is extra.
+	report.check("Sideways grip 1: a sharp turn at speed doesn't slide",
+			rails.slide == 0.0 and rails.sideways < 0.05,
+			"slide %.3f m/s; real sideways %.3f m/s (one-frame turning lag)" % [rails.slide, rails.sideways])
+	report.check("Sideways grip 0.3: the same turn slides outward",
+			drifty.slide > 0.5 and drifty.sideways > 0.5 and drifty.outward,
+			"slide %.2f m/s; real sideways %.2f m/s" % [drifty.slide, drifty.sideways])
+
+
+## At full speed, swing into a sharp right turn (levers 1 and 0.25) for 2 s.
+## Returns the largest slide speed and real sideways speed (across the tank's
+## facing) seen, and whether the slide went outward (to the left).
+func _sideways_speed_in_sharp_turn(sideways_grip: float) -> Dictionary:
+	var tank: Tank = _tank(FLAT_AREA, PI)
+	tank.tuning.sideways_grip = sideways_grip
+	tank.driver_station.brake = true
+	await runner.wait_physics_frames(20)
+	tank.driver_station.brake = false
+	tank.left_tread.speed = 10.0
+	tank.right_tread.speed = 10.0
+	var result: Dictionary = {"slide": 0.0, "sideways": 0.0, "outward": false}
+	for frame: int in 2 * FPS:
+		tank.driver_station.left_tread = 1.0
+		tank.driver_station.right_tread = 0.25
+		await runner.get_tree().physics_frame
+		var sideways: float = tank.get_real_velocity().dot(tank.global_basis.x)
+		result.slide = maxf(result.slide, tank.slide_speed())
+		result.sideways = maxf(result.sideways, absf(sideways))
+		# Turning right, the slide carries the tank out to the left.
+		if tank.slide_speed() > 0.1:
+			result.outward = tank.slide_velocity.dot(tank.global_basis.x) < 0.0
+	await runner.remove_test_tanks()
+	return result
 
 
 # --- Tippiness (looks only) ----------------------------------------------------
