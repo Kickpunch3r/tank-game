@@ -4,6 +4,8 @@
 [ext_resource type="PackedScene" path="res://scenes/tank.tscn" id="2_tank"]
 [ext_resource type="Script" path="res://scripts/chase_camera.gd" id="3_camera"]
 [ext_resource type="Script" path="res://scripts/driver_readout.gd" id="4_readout"]
+[ext_resource type="Script" path="res://scripts/slope_ladder.gd" id="5_ladder"]
+[ext_resource type="Script" path="res://scripts/rolling_bumps.gd" id="6_bumps"]
 
 [sub_resource type="ProceduralSkyMaterial" id="SkyMaterial_main"]
 
@@ -26,6 +28,14 @@ shadow_enabled = true
 
 [node name="CourseBuilder" type="Node3D" parent="."]
 script = ExtResource("1_builder")
+
+[node name="SlopeLadder" type="Node3D" parent="."]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, -70)
+script = ExtResource("5_ladder")
+
+[node name="RollingBumps" type="Node3D" parent="."]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 100, 0, 0)
+script = ExtResource("6_bumps")
 
 [node name="Tank" parent="." instance=ExtResource("2_tank")]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 1, 0)

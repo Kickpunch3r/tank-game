@@ -1,0 +1,19 @@
+# The Slope Ladder: one ramp per line, left to right.
+#
+#   <angle in degrees>   ledge | no ledge
+#
+# ledge    = a flat platform on top of the ramp, then a drop.
+# no ledge = the ramp ends in a sharp crest with a drop straight behind it.
+#
+# Lines starting with # are notes and are ignored. Save, then press Play.
+
+5    ledge
+10   no ledge
+15   ledge
+20   no ledge
+25   ledge
+30   no ledge
+35   ledge
+40   no ledge
+45   ledge
+55   no ledge

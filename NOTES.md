@@ -66,6 +66,23 @@
 - Hitting a wall stops the body but the treads keep their speed (they spin against it).
 - Tuning lives in `tuning/tank_tuning.tres`; defaults in `scripts/tank_tuning.gd`.
 
+## Test course
+- Built at runtime by three nodes in `scenes/test_course.tscn`:
+  - `CourseBuilder`: 300 × 300 m flat ground, 3 m boundary walls, kill-plane 20 m below
+    (anything touching it is reset to the start).
+  - `SlopeLadder` (at z = −70): ramps side by side, 8 m wide, 4 m apart, each 20 m along the
+    slope, rising away from the start toward −Z. Green (gentle) to red (steep), with a floating
+    angle label. The tank spawns at the origin, so every ramp has a 70 m run-up.
+  - `RollingBumps` (at x = 100): 60 × 60 m of hills up to 2 m high, fading to flat at the edges.
+- **Ramp list is a text file:** `levels/slope_ladder.txt`, one line per ramp: `25  ledge` or
+  `30  no ledge`. Edit and press Play. (Developer's idea: some ramps have a flat 10 m platform
+  on top, others end in a crest with a sheer drop. They alternate by default.)
+- Ramps are wedges (`PrismMesh` with `left_to_right = 0`, turned −90° about Y), with convex
+  collision made from the same mesh, so the angle is exact and the base sits flush.
+- Bumps use a `HeightMapShape3D` and a mesh built from the same grid points.
+- **For exporting later:** `levels/*.txt` must be added to the export's "non-resource files"
+  filter, or the ramp list won't be found in an exported build.
+
 ## Milestone log
 1. **Skeleton** (2026-10-21): project, folders, `.gitignore`, flat ground, placeholder tank,
    chase camera. Headless run: no errors; tank settles on the ground (y = 0.001, on floor).
@@ -78,3 +95,14 @@
    and 55°; climbs 25° slowly from rest (5.1 m/s); fails 30° from rest. Turn resistance raised
    0.4 → 0.75 after the first run (spinning was ~230°/s; now ~95°/s at full tread speed).
    Untested: driving off a ledge (no ledges until milestone 4), how it feels by hand.
+4. **Slope Ladder course** (2026-10-21): ramps from a text file (with and without ledges),
+   rolling bumps, walls, kill-plane. Headless check: all 10 ramp angles measured exact to
+   0.01°, ledges present/absent as listed, bases flush with the ground, bump mesh faces up,
+   35° with run-up reaches the ledge, kill-plane resets the tank in 2.2 s, driving across the
+   bumps stays finite and above ground.
+
+## Ideas for later (from play-testing)
+- Tweak how hard the slopes are to climb (2026-10-21). Milestone 5's tests will show which
+  tuning values move which ramps from "climbs" to "fails".
+- Improve the feel of launching off a "no ledge" crest (2026-10-21): e.g. hang time, nose
+  dipping in the air, a landing thump or camera shake.

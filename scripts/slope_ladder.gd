@@ -1,0 +1,155 @@
+class_name SlopeLadder
+extends Node3D
+## Builds a row of ramps of increasing steepness when the scene starts, from
+## the list in `ramp_list_path` (a plain text file you can edit without Godot).
+##
+## Ramps sit side by side, left to right along X. Each one starts at this
+## node's position (its base line) and rises away from the start field,
+## toward -Z. Tests ask this node where each ramp's base and top are.
+
+## The text file listing each ramp's angle and whether it has a ledge.
+@export_file("*.txt") var ramp_list_path: String = "res://levels/slope_ladder.txt"
+
+## Length of each ramp's slope surface, in metres (measured along the slope).
+@export var ramp_length: float = 20.0
+
+## Width of each ramp, in metres.
+@export var ramp_width: float = 8.0
+
+## Flat ground between neighbouring ramps, in metres.
+@export var ramp_gap: float = 4.0
+
+## Length of the flat platform on top of ramps that have a ledge, in metres.
+@export var ledge_length: float = 10.0
+
+## Distance of flat run-up in front of each ramp, used by the tests, in metres.
+@export var run_up_length: float = 70.0
+
+
+## What the builder knows about one ramp, in world coordinates.
+class RampInfo:
+	## Steepness in degrees.
+	var angle_degrees: float
+	## True if there is a flat platform on top.
+	var has_ledge: bool
+	## Middle of the ramp's bottom edge, on the ground.
+	var base_position: Vector3
+	## Middle of the ramp's top edge (where the slope ends).
+	var top_position: Vector3
+	## Where a tank starts for a run-up at this ramp.
+	var run_up_start: Vector3
+
+
+var ramps: Array[RampInfo] = []
+
+
+func _ready() -> void:
+	ramps = _read_ramp_list()
+	for index: int in ramps.size():
+		_place_ramp(index)
+		_build_ramp(ramps[index], index)
+
+
+## Reads lines like "25  ledge" or "30  no ledge". Skips blank lines and # notes.
+func _read_ramp_list() -> Array[RampInfo]:
+	var result: Array[RampInfo] = []
+	var file := FileAccess.open(ramp_list_path, FileAccess.READ)
+	if file == null:
+		push_error("SlopeLadder: cannot open ramp list %s" % ramp_list_path)
+		return result
+	var line_number: int = 0
+	while not file.eof_reached():
+		var line: String = file.get_line().strip_edges()
+		line_number += 1
+		if line.is_empty() or line.begins_with("#"):
+			continue
+		var words: PackedStringArray = line.split(" ", false)
+		if not words[0].is_valid_float():
+			push_error("SlopeLadder: line %d: '%s' does not start with an angle" % [line_number, line])
+			continue
+		var ramp := RampInfo.new()
+		ramp.angle_degrees = words[0].to_float()
+		var rest: String = " ".join(words.slice(1)).to_lower()
+		if rest == "ledge":
+			ramp.has_ledge = true
+		elif rest == "no ledge":
+			ramp.has_ledge = false
+		else:
+			push_warning("SlopeLadder: line %d: expected 'ledge' or 'no ledge', got '%s'; using ledge" % [line_number, rest])
+			ramp.has_ledge = true
+		result.append(ramp)
+	return result
+
+
+## Works out where ramp number `index` sits in the world.
+func _place_ramp(index: int) -> void:
+	var ramp: RampInfo = ramps[index]
+	var pitch: float = ramp_width + ramp_gap
+	var x: float = (index - (ramps.size() - 1) / 2.0) * pitch
+	var angle: float = deg_to_rad(ramp.angle_degrees)
+	ramp.base_position = global_position + Vector3(x, 0.0, 0.0)
+	ramp.top_position = ramp.base_position + Vector3(0.0, ramp_length * sin(angle), -ramp_length * cos(angle))
+	ramp.run_up_start = ramp.base_position + Vector3(0.0, 0.0, run_up_length)
+
+
+func _build_ramp(ramp: RampInfo, index: int) -> void:
+	var angle: float = deg_to_rad(ramp.angle_degrees)
+	var run: float = ramp_length * cos(angle)
+	var rise: float = ramp_length * sin(angle)
+	var local_base: Vector3 = to_local(ramp.base_position)
+
+	var body := StaticBody3D.new()
+	body.name = "Ramp%02d_%ddeg" % [index + 1, roundi(ramp.angle_degrees)]
+	add_child(body)
+	var material := StandardMaterial3D.new()
+	material.albedo_color = _ramp_colour(index)
+	material.roughness = 0.85
+
+	# The slope: a right-angled wedge. PrismMesh with left_to_right = 0 puts the
+	# high side on its left (-X); turning it -90 degrees about Y points that
+	# high side away from the start field (-Z), with its width along X.
+	var wedge := PrismMesh.new()
+	wedge.left_to_right = 0.0
+	wedge.size = Vector3(run, rise, ramp_width)
+	wedge.material = material
+	var wedge_transform := Transform3D(Basis(Vector3.UP, deg_to_rad(-90.0)),
+			local_base + Vector3(0.0, rise / 2.0, -run / 2.0))
+	_add_solid(body, wedge, wedge_transform, "Slope")
+
+	if ramp.has_ledge:
+		var ledge := BoxMesh.new()
+		ledge.size = Vector3(ramp_width, rise, ledge_length)
+		ledge.material = material
+		var ledge_transform := Transform3D(Basis.IDENTITY,
+				local_base + Vector3(0.0, rise / 2.0, -run - ledge_length / 2.0))
+		_add_solid(body, ledge, ledge_transform, "Ledge")
+
+	var label := Label3D.new()
+	label.name = "AngleLabel"
+	label.text = "%d°\n%s" % [roundi(ramp.angle_degrees), "ledge" if ramp.has_ledge else "no ledge"]
+	label.billboard = BaseMaterial3D.BILLBOARD_ENABLED
+	label.font_size = 160
+	label.outline_size = 24
+	label.pixel_size = 0.015
+	label.position = local_base + Vector3(0.0, 4.0, 3.0)
+	body.add_child(label)
+
+
+## Adds a mesh you can see and a matching collision shape, both at `where`.
+func _add_solid(body: StaticBody3D, mesh: PrimitiveMesh, where: Transform3D, part_name: String) -> void:
+	var visual := MeshInstance3D.new()
+	visual.name = part_name + "Visual"
+	visual.mesh = mesh
+	visual.transform = where
+	body.add_child(visual)
+	var collision := CollisionShape3D.new()
+	collision.name = part_name + "Collision"
+	collision.shape = mesh.create_convex_shape()
+	collision.transform = where
+	body.add_child(collision)
+
+
+## Green for the gentlest ramp, through yellow, to red for the steepest.
+func _ramp_colour(index: int) -> Color:
+	var t: float = 0.0 if ramps.size() < 2 else float(index) / (ramps.size() - 1)
+	return Color.from_hsv(0.33 * (1.0 - t), 0.75, 0.85)
