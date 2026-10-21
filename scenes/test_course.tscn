@@ -5,6 +5,7 @@
 [ext_resource type="Script" path="res://scripts/chase_camera.gd" id="3_camera"]
 [ext_resource type="Script" path="res://scripts/debug_hud.gd" id="4_hud"]
 [ext_resource type="Script" path="res://scripts/view_switcher.gd" id="7_switcher"]
+[ext_resource type="Script" path="res://scripts/tuning_panel.gd" id="8_tuning_panel"]
 [ext_resource type="Script" path="res://scripts/slope_ladder.gd" id="5_ladder"]
 [ext_resource type="Script" path="res://scripts/rolling_bumps.gd" id="6_bumps"]
 
@@ -55,3 +56,9 @@ script = ExtResource("4_hud")
 station = NodePath("../Tank/DriverStation")
 tank = NodePath("../Tank")
 view_switcher = NodePath("../ViewSwitcher")
+
+[node name="TuningPanel" type="CanvasLayer" parent="." node_paths=PackedStringArray("tank", "chase_camera", "slope_ladder")]
+script = ExtResource("8_tuning_panel")
+tank = NodePath("../Tank")
+chase_camera = NodePath("../ChaseCamera")
+slope_ladder = NodePath("../SlopeLadder")

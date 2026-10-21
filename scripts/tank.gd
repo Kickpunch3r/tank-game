@@ -28,8 +28,13 @@ var slope_degrees: float = 0.0
 ## The ground's "up" direction under the tank (straight up when airborne).
 var ground_normal: Vector3 = Vector3.UP
 
-## Where the tank started, so reset can put it back.
+## Where reset puts the tank. Starts as where the tank was placed.
 var _spawn_transform: Transform3D
+
+## True while in the air, so the first frame back on the ground counts as a landing.
+var _airborne: bool = false
+## How fast the tank was falling just before it landed, in metres per second.
+var _fall_speed: float = 0.0
 
 
 func _ready() -> void:
@@ -44,6 +49,8 @@ func _physics_process(delta: float) -> void:
 		return
 
 	if is_on_floor():
+		if _airborne:
+			_land()
 		_drive_on_ground(delta)
 	else:
 		_fall(delta)
@@ -75,8 +82,37 @@ func _drive_on_ground(delta: float) -> void:
 
 ## In the air: keep moving the way we were going, fall, and don't drive.
 func _fall(delta: float) -> void:
+	_airborne = true
 	ground_normal = Vector3.UP
-	velocity.y -= tuning.g * delta
+	velocity.y -= tuning.g * tuning.air_gravity_scale * delta
+	_fall_speed = maxf(-velocity.y, 0.0)
+
+
+## First frame back on the ground: a hard landing costs some tread speed.
+func _land() -> void:
+	_airborne = false
+	# A 10 m/s fall counts as fully hard; softer landings lose proportionally less.
+	var hardness: float = clampf(_fall_speed / 10.0, 0.0, 1.0)
+	var keep: float = 1.0 - tuning.landing_speed_loss * hardness
+	left_tread.speed *= keep
+	right_tread.speed *= keep
+	_fall_speed = 0.0
+
+
+## Choose where reset puts the tank from now on.
+func set_spawn(where: Transform3D) -> void:
+	_spawn_transform = where
+
+
+## The starting place the tank was given in the scene, before any set_spawn().
+func get_spawn() -> Transform3D:
+	return _spawn_transform
+
+
+## Radius of the round bottom of the tank's collision shape, in metres.
+func contact_radius() -> float:
+	var shape := ($Collision as CollisionShape3D).shape as CapsuleShape3D
+	return shape.radius
 
 
 ## Is either tread trying to push harder than its grip allows this frame?
@@ -93,3 +129,5 @@ func reset_to_spawn() -> void:
 	forward_speed = 0.0
 	slope_degrees = 0.0
 	ground_normal = Vector3.UP
+	_airborne = false
+	_fall_speed = 0.0

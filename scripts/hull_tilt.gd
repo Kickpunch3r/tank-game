@@ -28,7 +28,11 @@ func _process(delta: float) -> void:
 
 
 ## The hull's resting transform for the current ground, relative to the tank.
+## In the air there is no ground: the hull follows its flight path instead,
+## as much as the tuning's nose_dip says (0 = stay level).
 func _target_transform() -> Transform3D:
+	if not _tank.is_on_floor():
+		return Transform3D(Basis(Vector3.RIGHT, _flight_pitch() * _tank.tuning.nose_dip), Vector3.ZERO)
 	var up: Vector3 = (_tank.global_basis.inverse() * _tank.ground_normal).normalized()
 	# Keep the hull facing the tank's way, laid along the tilted ground.
 	var back: Vector3 = Vector3.BACK - up * Vector3.BACK.dot(up)
@@ -39,6 +43,16 @@ func _target_transform() -> Transform3D:
 	var sphere_centre := Vector3(0.0, contact_radius, 0.0)
 	var contact_point: Vector3 = sphere_centre - up * contact_radius
 	return Transform3D(tilted, contact_point)
+
+
+## Angle of the tank's flight path, in radians: positive = climbing, negative
+## = falling. Driving backwards through the air, the tail leads instead.
+func _flight_pitch() -> float:
+	var local_velocity: Vector3 = _tank.global_basis.inverse() * _tank.velocity
+	var forward_speed: float = -local_velocity.z
+	if absf(forward_speed) < 0.5:
+		return 0.0
+	return atan2(local_velocity.y, absf(forward_speed)) * signf(forward_speed)
 
 
 func _find_tank() -> Tank:

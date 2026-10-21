@@ -116,11 +116,15 @@ func _ramp_tests() -> void:
 func _climb_all(ladder: SlopeLadder, with_run_up: bool) -> Array[Dictionary]:
 	var tanks: Array[Tank] = []
 	var results: Array[Dictionary] = []
-	for ramp: SlopeLadder.RampInfo in ladder.ramps:
-		var start: Vector3 = ramp.run_up_start
+	for index: int in ladder.ramps.size():
+		var ramp: SlopeLadder.RampInfo = ladder.ramps[index]
+		var start: Vector3 = ramp.run_up_start + Vector3(0.0, 0.05, 0.0)
+		var tank: Tank = runner.spawn_test_tank(start)
 		if not with_run_up:
-			start = ramp.base_position + Vector3(0.0, 0.0, _touching_distance(ramp.angle_degrees))
-		tanks.append(runner.spawn_test_tank(start + Vector3(0.0, 0.05, 0.0)))
+			# Standing start: at rest, already touching the slope.
+			tank.position = ladder.start_position(index, 0.0, tank.contact_radius())
+			tank.set_spawn(tank.global_transform)
+		tanks.append(tank)
 		results.append({"climbed": false, "seconds": 0.0, "best_height": 0.0})
 	runner.watch_tank(tanks[tanks.size() / 2])
 	await runner.wait_physics_frames(30)
@@ -144,17 +148,6 @@ func _climb_all(ladder: SlopeLadder, with_run_up: bool) -> Array[Dictionary]:
 				result.seconds = (frame + 1) / float(FPS)
 	await runner.remove_test_tanks()
 	return results
-
-
-## For a standing start: how far in front of the ramp's bottom edge the tank
-## stands so that its round bottom just touches the slope, with no run-in.
-## (A sphere of radius r resting on flat ground touches a slope of angle a
-## when its centre is r x tan(a / 2) in front of the slope's bottom edge.)
-func _touching_distance(angle_degrees: float) -> float:
-	var hull_tilt: HullTilt = runner.TANK_SCENE.instantiate().get_node(^"Visual/Hull")
-	var radius: float = hull_tilt.contact_radius
-	hull_tilt.get_owner().free()
-	return radius * tan(deg_to_rad(angle_degrees) / 2.0) + 0.05
 
 
 ## What each angle should do: [standing start, run-up]. "climbs", "fails" or "either".

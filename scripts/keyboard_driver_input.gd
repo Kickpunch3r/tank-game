@@ -22,8 +22,7 @@ var right_level: int = 0
 
 func _unhandled_input(event: InputEvent) -> void:
 	if event.is_action_pressed(&"driver_reset") or event.is_action_pressed(&"driver_all_stop"):
-		left_level = 0
-		right_level = 0
+		clear_levels()
 		return
 	if not use_tread_levels:
 		return
@@ -51,6 +50,12 @@ func get_right_tread() -> float:
 
 func is_reset_just_pressed() -> bool:
 	return Input.is_action_just_pressed(&"driver_reset")
+
+
+## Both treads back to level 0.
+func clear_levels() -> void:
+	left_level = 0
+	right_level = 0
 
 
 func _step(level: int, direction: int) -> int:

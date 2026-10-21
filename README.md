@@ -25,6 +25,7 @@ pressing Play, not in the editor viewport.
 | `R` | Reset the tank to the start |
 | `V` | Switch view: chase camera / driver's vision slit |
 | `F3` | Hide / show the debug display |
+| `Tab` | Open / close the tuning panel (use the mouse on it) |
 
 - Driving: both treads forward = straight ahead. Left tread only = turn right. Opposite
   treads = spin on the spot.
@@ -36,6 +37,16 @@ pressing Play, not in the editor viewport.
   with `driver_`, plus `view_toggle` and `debug_hud_toggle`).
 
 ## Changing things
+- **While playing: the tuning panel (Tab).** Sliders for every driving value, the new air and
+  landing values (air gravity, nose dip, landing speed loss), the chase camera and the slit
+  height. Changes take effect immediately but **only last until you quit**:
+  - **Copy values** puts the current numbers on the clipboard (and in the Output panel),
+    grouped by where each one lives, so you can type them into the Inspector or paste them to
+    Claude to make them permanent.
+  - **Reset to saved** puts every slider back to how the game started.
+  - **Reset point** chooses where `R` puts you: "Start field", or in front of any ramp, with a
+    **Distance back** slider from 0 m (touching the ramp, at rest) to 70 m (full run-up).
+    **Reset now** goes there straight away.
 - **How the tank drives:** click `tuning/tank_tuning.tres` and change values in the
   Inspector. Each value is explained in plain language there (from `scripts/tank_tuning.gd`).
 - **The ramps:** edit `levels/slope_ladder.txt` (any text editor), one line per ramp, like

@@ -65,6 +65,30 @@ check by hand. For how to run and play, see [README.md](README.md).
 - `DebugHud` (CanvasLayer 10, above the slit): input, levels, tread speeds, forward speed,
   slope, on floor, traction capped, resets, current view. F3 hides/shows it.
 
+### Tuning panel and air/landing levers (added 2026-10-21, after milestone 7)
+- `TuningPanel` (CanvasLayer 20, in the course, Tab = `tuning_panel_toggle`): sliders for every
+  `TankTuning` value, the `ChaseCamera` follow settings and `DriverSlitCamera.slit_height`.
+  Built in code from a list in `_define_settings()`; add a line there to expose a new value.
+- **Changes are session-only** (developer's choice, over saving into the .tres). "Copy values"
+  gives the numbers as text, grouped by the file or node they belong in.
+- Sliders and buttons have no keyboard focus, so arrows and Space keep driving.
+- A target that needs to react to a change (the slit redraws itself) has an
+  `on_setting_changed()` method, which the panel calls.
+- The tuning resource is shared by every tank that uses `tank_tuning.tres`; the panel changes it
+  in memory only. Tests that change tuning give their tank its own `duplicate()`.
+- **Reset point:** the panel calls `Tank.set_spawn()`. Positions come from
+  `SlopeLadder.start_position(ramp, distance, tank radius)`, the same rule the standing-start
+  tests use (at distance 0 the tank is at rest, touching the slope).
+- **New levers in `TankTuning` ("Air and landing")**, all defaulting to the old behaviour:
+  - `air_gravity_scale` (1.0): gravity multiplier in the air only. 0.5 → a 20 m drop takes
+    2.85 s instead of 2.02 s.
+  - `nose_dip` (0.0): how much the hull picture tips to follow its flight path in the air
+    (`HullTilt._flight_pitch()`). At 1 the nose points ~40° down after a second of falling.
+  - `landing_speed_loss` (0.0): fraction of tread speed lost on a hard landing, scaled by fall
+    speed (10 m/s counts as fully hard). 0.5 on a 5 m drop: 8.0 → 4.1 m/s.
+- Side result from a broken test run: with `max_tread_speed` 15, the 45° and 55° ramps become
+  climbable with a run-up (7.8 s and 8.3 s). Top speed strongly sets what a run-up can beat.
+
 ### Test course
 - Built when the scene starts, by three nodes in `scenes/test_course.tscn`:
   - `CourseBuilder`: 300 × 300 m flat ground (world-space checker shader), 3 m walls,
@@ -123,7 +147,8 @@ g 9.8 · track_width 3 · turn_resistance 0.75 · tilt_smoothing 8
 | 55° no ledge | fails (5% up) | fails (49% up) | fails / fails |
 
 All targets met. Run-up times are mostly the 70 m approach (about 8 s at full speed). Full
-suite: **50 of 50 checks pass** (input, views and HUD, course shape, flat driving, kill-plane,
+suite: **65 of 65 checks pass** (input, views and HUD, tuning panel, air and landing levers,
+course shape, flat driving, kill-plane,
 slopes, sanity). Flat: 39.9 m straight in 5 s with no drift; left tread only turns right;
 opposite treads spin with 0.00 m of travel. From full speed, all stop takes ~2.0 s and ~9.7 m.
 
@@ -153,7 +178,8 @@ committed). To watch: open `tests/test_runner.tscn` and press F6.
 - **Chase camera** updates in physics frames; it may look juddery on a high-refresh screen
   (possible fix: physics interpolation). It can also end up inside ramps or walls when the tank
   backs into them (not checked).
-- **Launching off a crest** is plain: the tank keeps its speed and falls; no extra feel yet.
+- **Launching off a crest:** air gravity, nose dip and landing speed loss exist (all off by
+  default); camera shake and a hull bounce on landing are not built yet.
 - **Exporting:** add `levels/*.txt` to the export's "non-resource files" filter, or the ramp
   list won't be found in an exported build.
 - The run-up test has a 15 s limit and the 40° run-up takes 11.2 s; much slower tuning could
@@ -188,3 +214,5 @@ committed). To watch: open `tests/test_runner.tscn` and press F6.
 6. **Driver slit camera + HUD:** slit view on the hull, V to switch, F3 debug display; 50 checks.
    Both views checked by eye in screenshots from a windowed run.
 7. **Docs:** README.md and this file.
+8. **Tuning panel** (after the plan): Tab panel with live sliders, Copy values, Reset to saved,
+   reset point (ramp + distance), and three new air/landing levers. 65 checks pass.

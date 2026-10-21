@@ -31,6 +31,7 @@ func _ready() -> void:
 	report.add_line("Tank game tests  (%s)" % Time.get_datetime_string_from_system(false, true))
 	await InputTests.new(self).run()
 	await ViewTests.new(self).run()
+	await PanelTests.new(self).run()
 	CourseTests.new(self).run()
 	await DrivingTests.new(self).run()
 

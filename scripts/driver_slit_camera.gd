@@ -38,6 +38,17 @@ func is_slit_visible() -> bool:
 	return _overlay.visible
 
 
+## Called by the tuning panel after a setting changes: redraw the slit.
+func on_setting_changed() -> void:
+	var was_visible: bool = _overlay.visible
+	# Remove the old overlay straight away so the new one can take its name.
+	remove_child(_overlay)
+	_overlay.queue_free()
+	_overlay = _build_overlay()
+	add_child(_overlay)
+	_overlay.visible = was_visible
+
+
 func _build_overlay() -> CanvasLayer:
 	var layer := CanvasLayer.new()
 	layer.name = "SlitOverlay"

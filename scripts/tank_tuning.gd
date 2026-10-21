@@ -38,6 +38,21 @@ extends Resource
 ## Raise it to make spinning in place feel heavier.
 @export_range(0.0, 1.0) var turn_resistance: float = 0.75
 
+@export_group("Air and landing")
+## Gravity in the air, as a multiple of g. Only affects jumps and falls, not
+## slopes. Below 1 = more hang time and floatier jumps; above 1 = heavier.
+@export_range(0.1, 3.0) var air_gravity_scale: float = 1.0
+
+## How much the hull tips to follow its flight path in the air, from 0 (eases
+## back to level) to 1 (points exactly where it is heading, so it arcs over and
+## lands nose-first). Only affects the picture and the slit view.
+@export_range(0.0, 1.0) var nose_dip: float = 0.0
+
+## Speed lost on a hard landing, from 0 (none) to 1. At 1, landing from a
+## 10 m/s fall (about a 5 m drop) stops the treads dead; softer landings lose
+## proportionally less.
+@export_range(0.0, 1.0) var landing_speed_loss: float = 0.0
+
 @export_group("Looks")
 ## How quickly the hull tilts to match the ground. Higher = snappier,
 ## lower = smoother and floatier. Only affects the picture, not the driving.
