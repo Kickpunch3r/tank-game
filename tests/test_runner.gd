@@ -10,6 +10,7 @@ extends Node
 
 const COURSE_SCENE: PackedScene = preload("res://scenes/test_course.tscn")
 const TANK_SCENE: PackedScene = preload("res://scenes/tank.tscn")
+const PHYSICS_TANK_SCENE: PackedScene = preload("res://scenes/physics_tank.tscn")
 const RESULTS_PATH: String = "res://tests/last_results.txt"
 
 var course: Node3D
@@ -19,7 +20,8 @@ var report := TestReport.new()
 ## through the ground. Checked every physics frame while test tanks exist.
 var sanity_broken_position: bool = false
 var sanity_fell_through: bool = false
-var _watched_tanks: Array[Tank] = []
+# Kinematic and physics test tanks.
+var _watched_tanks: Array[Node3D] = []
 
 
 func _ready() -> void:
@@ -46,6 +48,7 @@ func _ready() -> void:
 	await DrivingTests.new(self).run()
 	await BrakeTests.new(self).run()
 	await FeelTests.new(self).run()
+	await PhysicsTankTests.new(self).run()
 	await TerrainTests.new(self).run()
 	await LevelTests.new(self).run()
 
@@ -60,7 +63,7 @@ func _ready() -> void:
 
 
 func _physics_process(_delta: float) -> void:
-	for tank: Tank in _watched_tanks:
+	for tank: Node3D in _watched_tanks:
 		if not is_instance_valid(tank):
 			continue
 		if not tank.global_position.is_finite():
@@ -92,15 +95,35 @@ func spawn_test_tank(where: Vector3, yaw_radians: float = 0.0) -> Tank:
 	tank.rotation.y = yaw_radians
 	course.add_child(tank)
 	tank.driver_station.listen_to_input_sources = false
-	for other: Tank in _watched_tanks:
-		if is_instance_valid(other):
-			tank.add_collision_exception_with(other)
-	_watched_tanks.append(tank)
+	_keep_apart(tank)
 	return tank
 
 
+## A fresh physics tank for a test, like spawn_test_tank().
+func spawn_test_physics_tank(where: Vector3, yaw_radians: float = 0.0) -> PhysicsTank:
+	var tank: PhysicsTank = PHYSICS_TANK_SCENE.instantiate()
+	tank.position = where
+	tank.rotation.y = yaw_radians
+	course.add_child(tank)
+	tank.driver_station.listen_to_input_sources = false
+	_keep_apart(tank)
+	return tank
+
+
+## Test tanks pass through each other (and physics tanks' probes ignore other tanks).
+func _keep_apart(tank: PhysicsBody3D) -> void:
+	for other: Node3D in _watched_tanks:
+		if is_instance_valid(other):
+			tank.add_collision_exception_with(other)
+			for body: Node in [tank, other]:
+				var partner: Node = other if body == tank else tank
+				for probe: Node in body.find_children("Probe*", "RayCast3D", false, false):
+					(probe as RayCast3D).add_exception(partner as CollisionObject3D)
+	_watched_tanks.append(tank)
+
+
 ## Point the chase camera and readout at a tank, so the tests can be watched.
-func watch_tank(tank: Tank) -> void:
+func watch_tank(tank: Node3D) -> void:
 	var camera := course.get_node_or_null(^"PlayerRig/ChaseCamera") as ChaseCamera
 	if camera != null:
 		camera.target = tank
@@ -111,7 +134,7 @@ func watch_tank(tank: Tank) -> void:
 
 
 func remove_test_tanks() -> void:
-	for tank: Tank in _watched_tanks:
+	for tank: Node3D in _watched_tanks:
 		# Only tanks the tests added straight to the course (the player's tank is in PlayerRig).
 		if is_instance_valid(tank) and tank.get_parent() == course:
 			tank.queue_free()

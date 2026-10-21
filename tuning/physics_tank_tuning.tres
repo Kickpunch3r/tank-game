@@ -1,0 +1,12 @@
+[gd_resource type="Resource" script_class="PhysicsTankTuning" format=3]
+
+[ext_resource type="Script" path="res://scripts/physics_tank_tuning.gd" id="1_tuning"]
+
+[resource]
+script = ExtResource("1_tuning")
+weight = 1.0
+top_speed = 10.0
+pulling_power = 5.0
+grip = 28.8108
+sideways_grip = 1.0
+tippiness = 0.3

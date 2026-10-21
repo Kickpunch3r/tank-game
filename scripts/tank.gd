@@ -242,7 +242,12 @@ func is_traction_capped() -> bool:
 
 ## Put the tank back where it started, standing still.
 func reset_to_spawn() -> void:
-	global_transform = _spawn_transform
+	place_at(_spawn_transform)
+
+
+## Put the tank somewhere, standing still.
+func place_at(where: Transform3D) -> void:
+	global_transform = where
 	velocity = Vector3.ZERO
 	left_tread.stop()
 	right_tread.stop()
@@ -256,3 +261,35 @@ func reset_to_spawn() -> void:
 	_fall_speed = 0.0
 	left_terrain = null
 	right_terrain = null
+
+
+# --- Shared with the physics tank (used by the rig, HUD, panel, tests) --------
+
+## How far in front of a ramp's base this tank's middle sits when it is at
+## rest, just touching the slope (its round bottom touches the slope).
+func standing_start_distance(angle_degrees: float) -> float:
+	return contact_radius() * tan(deg_to_rad(angle_degrees) / 2.0) + 0.05
+
+
+func display_name() -> String:
+	return "Kinematic tank"
+
+
+## Lines for the debug display.
+func debug_lines() -> PackedStringArray:
+	return [
+		"Tank: KINEMATIC   (T = swap)",
+		"Left tread:  input %+.2f   speed %+5.1f m/s" % [driver_station.left_tread, left_tread.speed],
+		"Right tread: input %+.2f   speed %+5.1f m/s" % [driver_station.right_tread, right_tread.speed],
+		"Forward speed: %+5.1f m/s   Brake: %s" % [forward_speed, "ON" if driver_station.brake else "off"],
+		"Engine push available: L %.1f  R %.1f  (of %.1f)" % [
+			left_tread.engine_output, right_tread.engine_output, tuning.max_drive_accel],
+		"Slope: %+5.1f deg   On floor: %s" % [slope_degrees, "yes" if is_on_floor() else "no"],
+		"Traction capped: %s" % ("YES" if is_traction_capped() else "no"),
+		"Ground: left %s, right %s" % [_terrain_name(left_terrain), _terrain_name(right_terrain)],
+		"Sideways slide: %.2f m/s" % slide_speed(),
+	]
+
+
+func _terrain_name(terrain: TerrainType) -> String:
+	return terrain.display_name if terrain != null else "firm"
