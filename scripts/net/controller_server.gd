@@ -19,6 +19,10 @@ const GROUP: StringName = &"controller_server"
 ## Tests set this (e.g. "127.0.0.1") so test runs only listen on this computer
 ## and don't trigger a Windows Firewall question. Empty = use bind_address.
 static var bind_address_override: String = ""
+## Tests also use their own ports (0 = use the exported ports), so a running
+## game or an open controller page can't interfere with a test run.
+static var http_port_override: int = 0
+static var websocket_port_override: int = 0
 
 ## Port for the controller web page.
 @export var http_port: int = 8080
@@ -55,6 +59,10 @@ var _websocket_error: Error = OK
 func _ready() -> void:
 	add_to_group(GROUP)
 	var address: String = bind_address_override if not bind_address_override.is_empty() else bind_address
+	if http_port_override != 0:
+		http_port = http_port_override
+	if websocket_port_override != 0:
+		websocket_port = websocket_port_override
 	_http.page_path = page_path
 	_http.websocket_port = websocket_port
 	_http_error = _http.start(http_port, address)

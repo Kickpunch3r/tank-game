@@ -65,6 +65,32 @@ pressing Play, not in the editor viewport.
 - **The slit:** select `Visual/Hull/DriverSlitCamera` in `scenes/tank.tscn` for slit height,
   edge thickness and colours.
 
+## Phone controller
+Drive the tank from a phone with two on-screen tread levers. The game hosts the page itself:
+no apps or other software needed.
+
+1. **Phone and computer on the same network.** eduroam, library and most public Wi-Fi block
+   devices from talking to each other, so use the laptop's **Windows Mobile Hotspot** (Settings >
+   Network > Mobile hotspot, if allowed on this laptop), a **phone hotspot** (connect the laptop
+   to the phone), or a private router.
+2. Start the game. The web address to open is shown at the bottom-left of the screen (and in the
+   F3 debug display), e.g. `http://192.168.137.1:8080`.
+3. Open that address in the phone's browser and turn the phone sideways.
+4. **First time only:** Windows Firewall may ask whether Godot may use the network. Allow it on
+   **private** networks. If the phone can't load the page, the firewall is the first thing to
+   check (this laptop has no admin rights, so the prompt may need a staff member).
+
+Using it:
+- Left lever = left tread, right lever = right tread. Both thumbs work at once.
+- Levers spring back to 0 when you let go. **Settings** on the phone switches to "stay where
+  left", turns vibration off, or goes full screen.
+- The first phone to connect drives; other phones watch until the driver leaves.
+- While a phone is driving, it overrides the keyboard and gamepad. If the phone goes quiet for a
+  quarter of a second (Wi-Fi drops, phone locks), the tank stops and the keyboard works again.
+- Android phones buzz when a lever crosses 0 and when the tank hits a wall (iPhones don't vibrate
+  from web pages).
+- The phone screen may lock while driving: raise the phone's auto-lock time.
+
 ## Levels
 - **Starter level:** open `levels/starter/starter.tscn` and press **F6** (Run Current Scene).
   It is built from `levels/starter/height.png` and has mountains round the edge, a flat start
@@ -91,6 +117,8 @@ pressing Play, not in the editor viewport.
 | `scenes/` | `test_course.tscn` (main scene), `tank.tscn`, `player_rig.tscn` (tank + cameras + debug display + Tab panel, shared by every level) |
 | `levels/<name>/` | A level: `height.png` and its scene (e.g. `levels/starter/`) |
 | `tools/` | Helper scripts, e.g. the one that generated the starter height map |
+| `scripts/net/` | Phone controller: servers, station registry, phone input |
+| `web/` | `controller.html`: the page phones open (one self-contained file) |
 | `scripts/` | Game scripts: tank, treads, stations, inputs, cameras, course builders, HUD |
 | `tuning/` | `tank_tuning.tres`: all driving numbers |
 | `levels/` | Ramp lists: `slope_ladder.txt` (firm ramps), `terrain_ramps.txt` (sand and mud ramps) |

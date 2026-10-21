@@ -23,8 +23,11 @@ var _watched_tanks: Array[Tank] = []
 
 
 func _ready() -> void:
-	# Phone servers listen on this computer only during tests (no firewall question).
+	# Phone servers listen on this computer only during tests (no firewall question),
+	# on their own ports so a running game or open controller page can't interfere.
 	ControllerServer.bind_address_override = "127.0.0.1"
+	ControllerServer.http_port_override = 18080
+	ControllerServer.websocket_port_override = 18081
 	course = COURSE_SCENE.instantiate()
 	add_child(course)
 	# Let the course builders run and physics settle.

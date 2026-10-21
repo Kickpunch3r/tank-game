@@ -57,7 +57,29 @@ func _physics_process(_delta: float) -> void:
 	])
 	if is_instance_valid(view_switcher):
 		lines.append("View: %s   (V = switch, F3 = hide this)" % view_switcher.current_view_name())
+	lines.append_array(_phone_lines())
 	_label.text = "\n".join(lines)
+
+
+## Phone controller status, if the scene has a ControllerServer.
+func _phone_lines() -> PackedStringArray:
+	var server := get_tree().get_first_node_in_group(ControllerServer.GROUP) as ControllerServer
+	if server == null:
+		return []
+	if not server.problem().is_empty():
+		return ["Phone: off (%s)" % server.problem()]
+	var urls: PackedStringArray = server.controller_urls()
+	var lines: PackedStringArray = [
+		"Phone URL: %s" % ("  ".join(urls) if not urls.is_empty() else "no network found"),
+		"Phones connected: %d   Driver phone: %s" % [server.phone_count(),
+				("#%d" % server.driver_id()) if server.driver_id() != 0 else "none"],
+	]
+	if server.driver_id() != 0:
+		var since_ms: int = roundi(server.seconds_since_driver_message() * 1000.0) if is_finite(server.seconds_since_driver_message()) else -1
+		lines.append("Driver phone: last message %s ago, L %+.2f R %+.2f %s" % [
+				("%d ms" % since_ms) if since_ms >= 0 else "never", server.latest_left, server.latest_right,
+				"(driving)" if server.is_driver_live() else "(watchdog: treads 0)"])
+	return lines
 
 
 func _terrain_name(terrain: TerrainType) -> String:

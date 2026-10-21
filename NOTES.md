@@ -126,6 +126,43 @@ check by hand. For how to run and play, see [README.md](README.md).
 - Placeholder colours: mud is very dark under the lighting, and sand is close to the ground
   colour.
 
+### Phone controller (branch `phone-controller`, from PHONE_CONTROLLER_PLAN.md)
+- `ControllerServer` (`scripts/net/controller_server.gd`, a node in `scenes/player_rig.tscn`, so
+  every level has it): HTTP server on 8080 (`ControllerHttpServer`, serves only
+  `web/controller.html` at `/`, 404 otherwise, fills `{{WEBSOCKET_PORT}}` into the page) and a
+  WebSocket server on 8081 (`TCPServer` + `WebSocketPeer.accept_stream`), polled every frame.
+  Ports and bind address are exported. Chosen over an autoload so it lives with the player rig.
+- Protocol as in the plan: `hello`/`welcome`, `in` (l, r clamped to -1..1, must be numbers),
+  `buzz`. Bad messages are ignored, read with `JSON.new().parse()` (quiet; `JSON.parse_string`
+  logged an error for each bad message).
+- `StationRegistry`: station name -> phone. First phone to ask gets "driver"; later phones wait
+  as spectators and the first waiting one is promoted (and told) when the driver leaves. Adding
+  a gunner/engineer = more names in `STATIONS`.
+- **Merging:** new `DriverInputSource.takes_over()`. `PhoneDriverInput` takes over while the
+  driver phone has sent input in the last 0.25 s; while any source takes over, the station only
+  listens to those (otherwise "hardest push wins" as before). Reset still comes from any source.
+- **Watchdog:** `watchdog_seconds` = 0.25, measured in game time (frame deltas) so headless tests
+  behave like real play. After it, the phone reports 0 and stops taking over.
+- The tank's new `bumped` signal (first frame of driving into a wall at > 1 m/s) buzzes the
+  driver phone for 40 ms. Tank movement code is otherwise unchanged.
+- URL shown bottom-left (`PhoneStatusLabel`) and in the F3 HUD (URL, phones connected, driver,
+  time since last message, latest values, live/watchdog). Addresses from `IP.get_local_addresses()`
+  minus IPv6, 127.x and 169.254.x.
+- Page (`web/controller.html`): Pointer Events with pointer capture, one finger per lever;
+  dead zone ±0.05; spring return default, "stay where left" setting (localStorage); sends on
+  change up to ~30/s and a heartbeat every 150 ms; reconnects every 1 s and resets levers to 0;
+  vibration on zero crossing and buzz; wake lock only works on HTTPS, so a tip is shown instead.
+- **Tests** bind to 127.0.0.1 on ports 18080/18081 (`ControllerServer.*_override`), so test runs
+  never trigger a firewall prompt and can't collide with a running game or an open controller
+  page (found when a browser tab left open on the page grabbed the driver role from a test).
+- **Checked in a browser** (built-in browser pane, phone-sized, against the running game): both
+  levers at once (L 1.00, R -0.63 reached the station), spring return, stay mode, a silenced
+  phone (watchdog stopped the tank), page reload (new driver, levers at 0). **Not tested on a real
+  phone** (touch feel, vibration, Wi-Fi, firewall).
+- **QR code skipped:** no addon-free way short of writing a QR encoder; the URL is shown as text.
+- **Exporting later:** add `web/*` to the export's non-resource filter.
+- The plan's milestones 1 and 2 were committed together (server and protocol share a script).
+
 ### Painted levels (level plan step 2a, height only)
 - `LevelTerrain` (`scripts/level_terrain.gd`, **tool script**): builds ground from a greyscale
   PNG. Settings: `height_image_path`, `metres_per_pixel`, `max_height`, `smoothing` (3 × 3 blur
@@ -213,8 +250,8 @@ g 9.8 · track_width 3 · turn_resistance 0.75 · tilt_smoothing 8
 | 55° no ledge | fails (5% up) | fails (49% up) | fails / fails |
 
 All targets met. Run-up times are mostly the 70 m approach (about 8 s at full speed). Full
-suite: **95 of 95 checks pass** (input, views and HUD, tuning panel, air and landing levers,
-engine power, terrain, level builder,
+suite: **111 of 111 checks pass** (input, views and HUD, tuning panel, air and landing levers,
+engine power, terrain, level builder, phone controller,
 course shape, flat driving, kill-plane,
 slopes, sanity). Flat: 39.9 m straight in 5 s with no drift; left tread only turns right;
 opposite treads spin with 0.00 m of travel. From full speed, all stop takes ~2.0 s and ~9.7 m.
@@ -321,3 +358,6 @@ committed). To watch: open `tests/test_runner.tscn` and press F6.
       autoload, action `toggle_fullscreen`). Checked in a real window: starts 1920 × 1080
       fullscreen, F11 → windowed. Unconfirmed: whether the editor's embedded "Game" tab honours it.
     95 checks pass.
+14. **Phone controller** (branch `phone-controller`): servers, protocol, station registry,
+    phone input with takeover and watchdog, controller page, HUD and README. 111 checks pass
+    (16 new). Browser-checked; not yet tried on a real phone.
