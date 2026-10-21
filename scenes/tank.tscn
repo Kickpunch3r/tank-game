@@ -8,6 +8,7 @@
 [ext_resource type="Script" path="res://scripts/hull_tilt.gd" id="6_hull_tilt"]
 [ext_resource type="Script" path="res://scripts/driver_slit_camera.gd" id="7_slit_camera"]
 [ext_resource type="Script" path="res://scripts/net/phone_driver_input.gd" id="8_phone"]
+[ext_resource type="Script" path="res://scripts/hull_sway.gd" id="9_hull_sway"]
 
 [sub_resource type="CapsuleShape3D" id="CapsuleShape3D_body"]
 radius = 1.7
@@ -80,27 +81,30 @@ shape = SubResource("CapsuleShape3D_body")
 [node name="Hull" type="Node3D" parent="Visual"]
 script = ExtResource("6_hull_tilt")
 
-[node name="HullBody" type="MeshInstance3D" parent="Visual/Hull"]
+[node name="Sway" type="Node3D" parent="Visual/Hull"]
+script = ExtResource("9_hull_sway")
+
+[node name="HullBody" type="MeshInstance3D" parent="Visual/Hull/Sway"]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.9, 0)
 mesh = SubResource("BoxMesh_hull")
 
-[node name="TreadLeft" type="MeshInstance3D" parent="Visual/Hull"]
+[node name="TreadLeft" type="MeshInstance3D" parent="Visual/Hull/Sway"]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -1.5, 0.45, 0)
 mesh = SubResource("BoxMesh_tread")
 
-[node name="TreadRight" type="MeshInstance3D" parent="Visual/Hull"]
+[node name="TreadRight" type="MeshInstance3D" parent="Visual/Hull/Sway"]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 1.5, 0.45, 0)
 mesh = SubResource("BoxMesh_tread")
 
-[node name="Turret" type="MeshInstance3D" parent="Visual/Hull"]
+[node name="Turret" type="MeshInstance3D" parent="Visual/Hull/Sway"]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 1.6, 0.3)
 mesh = SubResource("CylinderMesh_turret")
 
-[node name="Barrel" type="MeshInstance3D" parent="Visual/Hull"]
+[node name="Barrel" type="MeshInstance3D" parent="Visual/Hull/Sway"]
 transform = Transform3D(1, 0, 0, 0, 0, 1, 0, -1, 0, 0, 1.6, -1.6)
 mesh = SubResource("CylinderMesh_barrel")
 
-[node name="NoseMarker" type="MeshInstance3D" parent="Visual/Hull"]
+[node name="NoseMarker" type="MeshInstance3D" parent="Visual/Hull/Sway"]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 1.35, -2.1)
 mesh = SubResource("BoxMesh_nose")
 

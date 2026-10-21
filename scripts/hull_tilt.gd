@@ -23,7 +23,7 @@ func _process(delta: float) -> void:
 	if _tank == null:
 		return
 	var target: Transform3D = _target_transform()
-	var catch_up: float = 1.0 - exp(-_tank.tuning.tilt_smoothing * delta)
+	var catch_up: float = 1.0 - exp(-_tank.tuning.effective_tilt_smoothing() * delta)
 	transform = transform.interpolate_with(target, catch_up)
 
 

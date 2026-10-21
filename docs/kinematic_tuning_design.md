@@ -39,3 +39,31 @@ Push back on any of them.
   copying the panel.
 - The panel can now `rebuild()` itself from the current values (used after a preset switch).
   "Reset to saved" still goes back to the values at the start of the game, even after a rebuild.
+
+## 5. What weight changes (all exactly today's numbers at weight 1)
+| Effect | Rule | Why |
+|---|---|---|
+| Speeding up and braking | push = `pulling_power / weight` | the plan |
+| Idling (lever at 0) | drag = `idle_drag / weight` | so a heavy tank coasts further, as the plan's test asks |
+| Turning | turn rate × `(1 − turn_resistance) / weight` | "slows turn response" |
+| Hull tilt | `tilt_smoothing / weight` | "tilt lags more" |
+| Rolling resistance, turn scrub | unchanged | friction grows with weight, so the slow-down it causes doesn't change |
+
+- **Turn resistance and tilt smoothing stay as advanced values** (the plan says "derived from
+  weight"). They are now the values *for weight 1*, and weight scales them. Deriving them purely
+  from weight would have removed two values you tune live, for no gain.
+- Measured: weight 2 takes 3.97 s to reach 9.5 m/s (1.95 s at weight 1) and coasts 28.2 m after
+  letting go (14.6 m).
+
+## 6. Tippiness: a new `Sway` node holds the meshes
+- `Visual/Hull` (tilts to the ground) now has a child `Sway` (script `HullSway`) holding all the
+  meshes. The slit camera stays on `Visual/Hull`, beside `Sway`, so the sway can't move it.
+- The sway is a damped spring toward a target angle: target pitch = tippiness × 1.5°
+  (`sway_degrees_per_accel`) per m/s² of speeding up or braking; target roll the same per m/s²
+  of turning (speed × turn rate), leaning outward. At most 12°. At tippiness 1, a full-power
+  start gives about 7.5°.
+- Tests: the path is identical with tippiness 0 and 1, and the slit camera is in exactly the same
+  place and direction.
+- **Alternatives:** sway `Visual/Hull` and counter-rotate the camera (fragile: any rounding shows
+  as camera wobble); sway `Visual` (same problem, the camera is under it).
+- **For art later:** put models under `Visual/Hull/Sway`.

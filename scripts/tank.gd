@@ -27,6 +27,9 @@ var forward_speed: float = 0.0
 var slope_degrees: float = 0.0
 ## How fast the tank is turning, in radians per second (positive = left).
 var turn_rate: float = 0.0
+## How fast the forward speed changed last frame, in metres per second per
+## second (positive = speeding up forwards). Used by the hull sway picture.
+var forward_accel: float = 0.0
 ## The ground's "up" direction under the tank (straight up when airborne).
 var ground_normal: Vector3 = Vector3.UP
 ## The terrain under each tread (null = ordinary firm ground, or in the air).
@@ -122,10 +125,13 @@ func _drive_on_ground(delta: float) -> void:
 	right_tread.update(driver_station.right_tread, slope, tuning, delta, right_terrain, braking, turn_hold)
 
 	# Right tread faster than left = turn left (positive yaw), and the reverse.
+	# Turn resistance and weight hold the turn back (see TankTuning.turn_factor).
 	turn_rate = (right_tread.speed - left_tread.speed) / tuning.track_width
-	turn_rate *= 1.0 - tuning.turn_resistance
+	turn_rate *= tuning.turn_factor()
 	rotate_y(turn_rate * delta)
+	var previous_speed: float = forward_speed
 	forward_speed = (left_tread.speed + right_tread.speed) / 2.0
+	forward_accel = (forward_speed - previous_speed) / delta
 
 	# Pressing lightly into the ground keeps Godot counting the tank as "on the
 	# floor" on slopes; without it, contact flickers on and off every frame.
@@ -152,6 +158,7 @@ func _fall(delta: float) -> void:
 	right_terrain = null
 	velocity.y -= tuning.g * tuning.air_gravity_scale * delta
 	_fall_speed = maxf(-velocity.y, 0.0)
+	forward_accel = 0.0
 
 
 ## First frame back on the ground: a hard landing costs some tread speed.
@@ -203,6 +210,7 @@ func reset_to_spawn() -> void:
 	left_tread.stop()
 	right_tread.stop()
 	forward_speed = 0.0
+	forward_accel = 0.0
 	slope_degrees = 0.0
 	turn_rate = 0.0
 	ground_normal = Vector3.UP

@@ -44,6 +44,7 @@ func _ready() -> void:
 	CourseTests.new(self).run()
 	await DrivingTests.new(self).run()
 	await BrakeTests.new(self).run()
+	await FeelTests.new(self).run()
 	await TerrainTests.new(self).run()
 	await LevelTests.new(self).run()
 

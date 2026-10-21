@@ -7,7 +7,7 @@ extends RefCounted
 ## - Braking (brake held): pushes against its motion to stop and hold still,
 ##   even on slopes, as hard as max_drive_accel (pulling_power / weight) and its grip allow.
 ## - Idling (lever at 0): the engine doesn't push, and the tread is held back
-##   by idle_drag (plus rolling resistance and terrain drag), so it slows by
+##   by idle_drag / weight (plus rolling resistance and terrain drag), so it slows by
 ##   itself. Slopes steeper than the drag can resist still pull it.
 ## - Driving (lever not at 0): pushes toward the lever's target speed, limited
 ##   by the engine (max_drive_accel, engine power fade, warm-up) and its grip.
@@ -79,7 +79,7 @@ func update(input: float, slope: float, tuning: TankTuning, delta: float,
 	# lever is at 0): a pull toward zero that never overshoots it.
 	var resistance: float = tuning.rolling_resistance + drag
 	if input == 0.0 and not braking:
-		resistance += tuning.idle_drag
+		resistance += tuning.effective_idle_drag()
 	speed = move_toward(speed, 0.0, resistance * delta)
 
 
