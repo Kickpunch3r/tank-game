@@ -177,10 +177,10 @@ No Ableton Live or drivers needed; plug the Push in by USB and switch it on.
 ```
 row 7   .  .  .  .  .  .  .  .     (free, for later)
 row 6   L  L  .  .  .  .  R  R     full forward
-row 5   L  L  B  B  B  B  R  R     0.5 forward
-row 4   L  L  B  B  B  B  R  R     0.25 forward
-row 3   L  L  B  B  B  B  R  R     0 (stop)
-row 2   L  L  B  B  B  B  R  R     0.25 back
+row 5   L  L  .  .  .  .  R  R     0.5 forward
+row 4   L  L  .  B  B  .  R  R     0.25 forward
+row 3   L  L  .  B  B  .  R  R     0 (stop)
+row 2   L  L  .  .  .  .  R  R     0.25 back
 row 1   L  L  .  .  .  .  R  R     0.5 back
 row 0   L  L  .  .  .  .  R  R     full back
 ```
@@ -188,7 +188,7 @@ row 0   L  L  .  .  .  .  R  R     full back
 - **Levers** (two columns each side): press a pad to put the lever there; it stays when you let
   go. Each lever's lit pad is where it is (green forward, blue backwards, white at 0); the other
   notches are dim, the middle (0) a little brighter.
-- **Brake** (the red square): hold any pad to brake; pressing it also puts both levers to 0. The
+- **Brake** (the red 2 x 2 square in the middle): hold any of its pads to brake; pressing it also puts both levers to 0. The
   square lights white while braking.
 - The lights show what the tank is actually being told, so they also follow the keyboard and
   the phone. They work with both tanks (T).

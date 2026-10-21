@@ -6,15 +6,16 @@ extends RefCounted
 ##
 ##   row 7   .  .  .  .  .  .  .  .     (free, for later)
 ##   row 6   L  L  .  .  .  .  R  R     level +3 (full forward)
-##   row 5   L  L  B  B  B  B  R  R     level +2
-##   row 4   L  L  B  B  B  B  R  R     level +1
-##   row 3   L  L  B  B  B  B  R  R     level 0
-##   row 2   L  L  B  B  B  B  R  R     level -1
+##   row 5   L  L  .  .  .  .  R  R     level +2
+##   row 4   L  L  .  B  B  .  R  R     level +1
+##   row 3   L  L  .  B  B  .  R  R     level 0
+##   row 2   L  L  .  .  .  .  R  R     level -1
 ##   row 1   L  L  .  .  .  .  R  R     level -2
 ##   row 0   L  L  .  .  .  .  R  R     level -3 (full back)
 ##
 ## L / R = left / right tread lever (two columns wide, easy to hit without
-## looking), B = brake square. The lever levels are the shared TreadLevels.
+## looking), B = brake (a 2 x 2 square in the middle). The lever levels are
+## the shared TreadLevels.
 
 const FIRST_NOTE: int = 36
 const COLUMNS: int = 8
@@ -24,8 +25,8 @@ const LEFT_LEVER_COLUMNS: Array[int] = [0, 1]
 const RIGHT_LEVER_COLUMNS: Array[int] = [6, 7]
 ## Rows 0 to 6 are the 7 notches; this row is level 0.
 const ZERO_ROW: int = 3
-const BRAKE_COLUMNS: Array[int] = [2, 3, 4, 5]
-const BRAKE_ROWS: Array[int] = [2, 3, 4, 5]
+const BRAKE_COLUMNS: Array[int] = [3, 4]
+const BRAKE_ROWS: Array[int] = [3, 4]
 
 ## What a pad is for.
 enum Kind { NONE, LEFT_LEVER, RIGHT_LEVER, BRAKE }

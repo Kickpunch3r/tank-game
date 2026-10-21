@@ -589,7 +589,7 @@ committed). To watch: open `tests/test_runner.tscn` and press F6.
 ## Ableton Push 3 controller (branch `push-controller`, from `physics-tank`, 2026-10-22)
 - Developer's design: the phone's layout on the Push pads. `PushLayout` (`scripts/push/`): left
   lever columns 0–1, right lever columns 6–7, rows 0–6 = levels −3..+3 (row 3 = 0), brake square
-  columns 2–5 × rows 2–5, top row free. Levers two columns wide so they're easy to hit without
+  columns 3–4 × rows 3–4 (2 × 2; first built 4 × 4, shrunk at the developer's request), top row free. Levers two columns wide so they're easy to hit without
   looking (developer said "7 lights either side"; two columns chosen, recommended and agreed).
 - `PushController` (in the player rig, like the phone's server): opens MIDI, reads only the port
   named "Ableton Push 3 MIDI" (the Push shows each press on two ports; same as the finger-walking

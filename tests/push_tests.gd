@@ -39,9 +39,12 @@ func run() -> void:
 	report.check("Layout: left lever bottom pad = full back, top = full forward",
 			_kind_level(PushLayout.note_for(0, 0)) == [PushLayout.Kind.LEFT_LEVER, -3]
 			and _kind_level(PushLayout.note_for(1, 6)) == [PushLayout.Kind.LEFT_LEVER, 3])
-	report.check("Layout: right lever middle pad = 0, brake square in the middle, top row free",
+	report.check("Layout: right lever middle pad = 0, 2 x 2 brake in the middle, top row free",
 			_kind_level(PushLayout.note_for(7, 3)) == [PushLayout.Kind.RIGHT_LEVER, 0]
 			and _kind_level(PushLayout.note_for(3, 4))[0] == PushLayout.Kind.BRAKE
+			and _kind_level(PushLayout.note_for(4, 3))[0] == PushLayout.Kind.BRAKE
+			and _kind_level(PushLayout.note_for(2, 3))[0] == PushLayout.Kind.NONE
+			and _kind_level(PushLayout.note_for(4, 5))[0] == PushLayout.Kind.NONE
 			and _kind_level(PushLayout.note_for(4, 7))[0] == PushLayout.Kind.NONE)
 
 	# Levers.
@@ -59,14 +62,14 @@ func run() -> void:
 			and _colour(pads, 0, 5) == lights.notch_colour and _colour(pads, 0, 3) == lights.zero_notch_colour)
 	report.check("Lights: reverse position in the reverse colour, brake square red, top row dark",
 			_colour(pads, 7, 1) == lights.reverse_colour and _colour(pads, 3, 3) == lights.brake_colour
-			and _colour(pads, 4, 7) == 0 and _colour(pads, 2, 0) == 0)
+			and _colour(pads, 4, 7) == 0 and _colour(pads, 2, 0) == 0 and _colour(pads, 2, 3) == 0 and _colour(pads, 5, 4) == 0)
 
 	# Brake.
-	await _press(PushLayout.note_for(2, 2), true)
+	await _press(PushLayout.note_for(3, 3), true)
 	report.check("Holding a brake pad brakes and puts both levers to 0",
 			station.brake and push.left_level == 0 and push.right_level == 0)
-	report.check("Lights: brake square shows it's held", _colour(lights.build_pads(), 5, 5) == lights.brake_held_colour)
-	await _press(PushLayout.note_for(2, 2), false)
+	report.check("Lights: brake square shows it's held", _colour(lights.build_pads(), 4, 4) == lights.brake_held_colour)
+	await _press(PushLayout.note_for(3, 3), false)
 	report.check("Letting go of the brake pad releases the brake", not station.brake)
 
 	# The lights show what the tank is told, from any controller.
