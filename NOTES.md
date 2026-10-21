@@ -36,6 +36,12 @@
   in `_pad` (left stick Y, right stick Y, Back/Select). All with deadzone 0.2.
 - **Gamepad is untested on real hardware** (the developer has none). It was checked only with
   simulated stick and button events.
+- **Keyboard tread levels** (developer's idea, 2026-10-21): with `use_tread_levels` on (default),
+  each press of W/S or Up/Down steps that tread one level between -3 and +3, and it stays there.
+  The source reports level / 3, so the station and tank are unchanged. Space (`driver_all_stop`)
+  and R set both levels to 0. Stopping still has inertia: from full speed the tank takes
+  ~2.0 s and ~9.7 m to stop (set by `max_drive_accel`). Untick `use_tread_levels` on the
+  `KeyboardDriverInput` node to go back to hold-to-drive. Gamepad sticks stay smooth.
 - `DriverReadout` (top-left text) is temporary; it becomes part of the F3 debug display.
 - Later, for several stations or controllers: move input sources out of the tank into a separate
   "Controls" node, and give each gamepad source a device number.

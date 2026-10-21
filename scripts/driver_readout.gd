@@ -33,4 +33,8 @@ func _physics_process(_delta: float) -> void:
 		"Traction capped: %s" % ("YES" if tank.is_traction_capped() else "no"),
 		"Resets: %d" % _reset_count,
 	]
+	var keyboard := station.get_node_or_null(^"KeyboardDriverInput") as KeyboardDriverInput
+	if keyboard != null and keyboard.use_tread_levels:
+		lines.insert(0, "Keyboard levels:  L %+d   R %+d   (Space = all stop)" % [
+			keyboard.left_level, keyboard.right_level])
 	_label.text = "\n".join(lines)
