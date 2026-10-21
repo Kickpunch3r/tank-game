@@ -18,3 +18,9 @@ func get_right_tread() -> float:
 ## True only on the frame the reset control is first pressed.
 func is_reset_just_pressed() -> bool:
 	return false
+
+
+## True while this source should be the only one listened to (e.g. a phone
+## that is actively driving). Most sources never take over.
+func takes_over() -> bool:
+	return false

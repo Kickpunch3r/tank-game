@@ -5,6 +5,8 @@
 [ext_resource type="Script" path="res://scripts/view_switcher.gd" id="3_switcher"]
 [ext_resource type="Script" path="res://scripts/debug_hud.gd" id="4_hud"]
 [ext_resource type="Script" path="res://scripts/tuning_panel.gd" id="5_tuning_panel"]
+[ext_resource type="Script" path="res://scripts/net/controller_server.gd" id="6_controller_server"]
+[ext_resource type="Script" path="res://scripts/net/phone_status_label.gd" id="7_phone_label"]
 
 [node name="PlayerRig" type="Node3D"]
 
@@ -30,3 +32,11 @@ view_switcher = NodePath("../ViewSwitcher")
 script = ExtResource("5_tuning_panel")
 tank = NodePath("../Tank")
 chase_camera = NodePath("../ChaseCamera")
+
+[node name="ControllerServer" type="Node" parent="." node_paths=PackedStringArray("tank")]
+script = ExtResource("6_controller_server")
+tank = NodePath("../Tank")
+
+[node name="PhoneStatusLabel" type="CanvasLayer" parent="." node_paths=PackedStringArray("server")]
+script = ExtResource("7_phone_label")
+server = NodePath("../ControllerServer")

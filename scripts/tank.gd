@@ -36,6 +36,12 @@ var _spawn_transform: Transform3D
 ## The level's normal starting place (the Tab panel's "Start field").
 var _home_transform: Transform3D
 
+## Emitted when the tank drives into a wall or cliff (once per hit).
+signal bumped
+
+## True while driving into a wall, so a hit is only announced once.
+var _was_against_wall: bool = false
+
 ## True while in the air, so the first frame back on the ground counts as a landing.
 var _airborne: bool = false
 ## How fast the tank was falling just before it landed, in metres per second.
@@ -63,6 +69,8 @@ func _physics_process(delta: float) -> void:
 	move_and_slide()
 	if is_on_wall():
 		_blocked_by_wall()
+	else:
+		_was_against_wall = false
 
 
 ## Something too steep to drive on (a wall, a cliff, a rock) is in the way.
@@ -74,6 +82,11 @@ func _blocked_by_wall() -> void:
 	var forward: Vector3 = -global_basis.z
 	var driving_direction: Vector3 = forward * signf(forward_speed)
 	if absf(forward_speed) > 0.01 and get_wall_normal().dot(driving_direction) < -0.1:
+		# A hit worth announcing (e.g. to buzz a phone): the first frame of
+		# contact, at a real speed.
+		if not _was_against_wall and absf(forward_speed) > 1.0:
+			bumped.emit()
+		_was_against_wall = true
 		var real_forward_speed: float = get_real_velocity().dot(forward)
 		var kept: float = clampf(real_forward_speed / forward_speed, 0.0, 1.0)
 		left_tread.speed *= kept

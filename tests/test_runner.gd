@@ -23,6 +23,8 @@ var _watched_tanks: Array[Tank] = []
 
 
 func _ready() -> void:
+	# Phone servers listen on this computer only during tests (no firewall question).
+	ControllerServer.bind_address_override = "127.0.0.1"
 	course = COURSE_SCENE.instantiate()
 	add_child(course)
 	# Let the course builders run and physics settle.
@@ -32,6 +34,7 @@ func _ready() -> void:
 	await InputTests.new(self).run()
 	await ViewTests.new(self).run()
 	await PanelTests.new(self).run()
+	await PhoneTests.new(self).run()
 	CourseTests.new(self).run()
 	await DrivingTests.new(self).run()
 	await TerrainTests.new(self).run()
