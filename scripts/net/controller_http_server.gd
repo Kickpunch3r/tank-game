@@ -16,6 +16,10 @@ var page_path: String = ""
 ## always connects to the right port.
 var websocket_port: int = 8081
 
+## Filled into the page wherever it says {{TREAD_LEVELS}} (as a JSON list),
+## so the phone's lever notches match the keyboard's (see TreadLevels).
+var tread_levels: Array[float] = [0.25, 0.5, 1.0]
+
 var _server := TCPServer.new()
 # One entry per open browser connection:
 # {"peer": StreamPeerTCP, "request": PackedByteArray, "age": float, "answered": bool}
@@ -70,6 +74,7 @@ func _answer(peer: StreamPeerTCP, request: String) -> void:
 		var page: String = FileAccess.get_file_as_string(page_path)
 		if not page.is_empty():
 			page = page.replace("{{WEBSOCKET_PORT}}", str(websocket_port))
+			page = page.replace("{{TREAD_LEVELS}}", JSON.stringify(tread_levels))
 			_send(peer, "200 OK", "text/html; charset=utf-8", page.to_utf8_buffer())
 			return
 		push_error("ControllerHttpServer: cannot read %s" % page_path)

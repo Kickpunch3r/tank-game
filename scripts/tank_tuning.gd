@@ -20,6 +20,13 @@ extends Resource
 ## Small. It only matters when nothing else is slowing the tank.
 @export var rolling_resistance: float = 0.1
 
+## How hard a tread at level 0 resists rolling, in metres per second lost
+## each second: the idling engine and gearbox hold it back. So with one lever
+## at 0 the tank swings round that tread, and with both at 0 it comes to a
+## stop by itself (3 = about 3.3 s from 10 m/s). Unlike the brake, it can't
+## hold the tank on slopes steeper than about atan(idle_drag / g) (18° at 3).
+@export var idle_drag: float = 3.0
+
 @export_group("Engine power")
 ## Where the engine starts to run out of pull, as a fraction of top speed.
 ## Below this speed the treads push at full strength (max_drive_accel); above
@@ -32,6 +39,13 @@ extends Resource
 ## 1 = no fade. 0.3 = only 30% left, so the last stretch to top speed is slow.
 ## At 0 the tank creeps toward top speed but never quite reaches it.
 @export_range(0.0, 1.0) var power_at_top_speed: float = 1.0
+
+## How long each tread's engine takes to warm up from nothing to full push,
+## in seconds, whenever you ask for more power. 0 = instant. From a standstill
+## or steady driving the push builds up over this time; if the tread is still
+## speeding up (the engine already pushing hard), more power comes at once.
+## Braking is never delayed.
+@export var warm_up_time: float = 0.0
 
 @export_group("Grip and gravity")
 ## How well the treads grip the ground. 0 = ice, 1 = very grippy.
@@ -50,6 +64,14 @@ extends Resource
 ## How much turning is held back, from 0 (turns freely) to 1 (cannot turn).
 ## Raise it to make spinning in place feel heavier.
 @export_range(0.0, 1.0) var turn_resistance: float = 0.75
+
+## How much turning holds the tank back: the treads scrape sideways over the
+## ground. While turning, the speed the treads can reach is divided by
+## (1 + turn_scrub x turning speed in radians per second), so the engine can't
+## make it back. 0 = turning costs nothing. Driving straight is never affected.
+## Sharper turns lose the most: at 2, a one-tread pivot creeps round and
+## spinning on the spot is slow and heavy.
+@export var turn_scrub: float = 2.0
 
 @export_group("Air and landing")
 ## Gravity in the air, as a multiple of g. Only affects jumps and falls, not

@@ -183,12 +183,13 @@ func _speed_up_and_brake(falloff_start: float, at_top: float) -> Dictionary:
 			result.to_40 = frames / float(DrivingTests.FPS)
 		if tank.left_tread.speed >= 0.95 * top:
 			result.to_95 = frames / float(DrivingTests.FPS)
-	# Let it reach top speed, then let go and time the stop.
+	# Let it reach top speed, then brake and time the stop.
 	await runner.wait_physics_frames(600)
 	frames = 0
 	while tank.left_tread.speed > 0.01 and frames < 600:
 		tank.driver_station.left_tread = 0.0
 		tank.driver_station.right_tread = 0.0
+		tank.driver_station.brake = true
 		await runner.get_tree().physics_frame
 		frames += 1
 	result.stop = frames / float(DrivingTests.FPS)

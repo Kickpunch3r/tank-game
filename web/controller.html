@@ -10,9 +10,12 @@
     --background: #111;
     --track: #2a2a2a;
     --track-edge: #666;
+    --notch: #777;
     --zero-line: #fff;
     --thumb: #ffcc22;
     --text: #fff;
+    --brake: #c62828;
+    --brake-held: #ff5252;
     --driver: #2e9e4f;
     --spectator: #2f6fb5;
     --waiting: #8a6d1a;
@@ -28,37 +31,43 @@
   }
   #layout { display: flex; height: 100%; }
   .lever-zone {
-    flex: 0 0 38%; display: flex; align-items: center; justify-content: center;
+    flex: 0 0 34%; display: flex; align-items: center; justify-content: center;
     touch-action: none;
   }
   .track {
     position: relative; width: min(120px, 60%); height: 88%;
     background: var(--track); border: 3px solid var(--track-edge); border-radius: 18px;
   }
-  .zero-line {
-    position: absolute; left: -12px; right: -12px; top: 50%; height: 4px; margin-top: -2px;
-    background: var(--zero-line);
+  .notch {
+    position: absolute; left: 10%; right: 10%; height: 2px; margin-top: -1px; background: var(--notch);
   }
+  .notch.zero { left: -12px; right: -12px; height: 4px; margin-top: -2px; background: var(--zero-line); }
   .thumb {
-    position: absolute; left: -10px; right: -10px; height: 70px; margin-top: -35px; top: 50%;
+    position: absolute; left: -10px; right: -10px; height: 56px; margin-top: -28px; top: 50%;
     background: var(--thumb); border-radius: 14px; box-shadow: 0 0 0 3px #000 inset;
   }
-  .lever-value { position: absolute; bottom: -1.6em; width: 100%; text-align: center; font-size: 14px; }
+  .lever-value { position: absolute; bottom: -1.6em; width: 100%; text-align: center; font-size: 14px; white-space: nowrap; }
   #middle {
     flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: center;
-    gap: 14px; text-align: center; padding: 8px;
+    gap: 12px; text-align: center; padding: 8px;
   }
-  #status { padding: 10px 16px; border-radius: 10px; font-weight: bold; font-size: 18px; background: var(--waiting); }
+  #status { padding: 8px 14px; border-radius: 10px; font-weight: bold; font-size: 17px; background: var(--waiting); }
   #status.driver { background: var(--driver); }
   #status.spectator { background: var(--spectator); }
   #status.lost { background: var(--lost); }
+  #brake {
+    width: min(100%, 220px); height: 38vh; min-height: 90px; border-radius: 20px;
+    background: var(--brake); border: 4px solid #000; color: #fff;
+    font: bold 28px system-ui, sans-serif; letter-spacing: 2px; touch-action: none;
+  }
+  #brake.held { background: var(--brake-held); }
   button {
     font: inherit; color: var(--text); background: #333; border: 2px solid #777;
     border-radius: 10px; padding: 8px 14px;
   }
-  #tip { font-size: 13px; opacity: 0.75; max-width: 22em; }
+  #tip { font-size: 12px; opacity: 0.7; max-width: 22em; }
   #settings {
-    position: fixed; inset: 0; background: rgba(0, 0, 0, 0.85); display: none;
+    position: fixed; inset: 0; background: rgba(0, 0, 0, 0.88); display: none;
     align-items: center; justify-content: center; flex-direction: column; gap: 16px;
   }
   #settings.open { display: flex; }
@@ -74,18 +83,18 @@
 <body>
 <div id="layout">
   <div class="lever-zone" id="left-zone">
-    <div class="track"><div class="zero-line"></div><div class="thumb" id="left-thumb"></div>
-      <div class="lever-value" id="left-value">0.00</div></div>
+    <div class="track"><div class="thumb" id="left-thumb"></div>
+      <div class="lever-value" id="left-value"></div></div>
   </div>
   <div id="middle">
     <div id="status">Connecting...</div>
-    <div>Left lever = left tread, right lever = right tread</div>
+    <button id="brake">BRAKE</button>
     <button id="settings-button">Settings</button>
     <div id="tip"></div>
   </div>
   <div class="lever-zone" id="right-zone">
-    <div class="track"><div class="zero-line"></div><div class="thumb" id="right-thumb"></div>
-      <div class="lever-value" id="right-value">0.00</div></div>
+    <div class="track"><div class="thumb" id="right-thumb"></div>
+      <div class="lever-value" id="right-value"></div></div>
   </div>
 </div>
 
@@ -99,13 +108,17 @@
 
 <script>
 "use strict";
-// --- Settings (remembered on this phone) -----------------------------------
-const SEND_EVERY_MS = 33;        // ~30 times a second while touching
-const HEARTBEAT_MS = 150;        // at least this often when idle (game watchdog: 250 ms)
-const RECONNECT_MS = 1000;
-const DEAD_ZONE = 0.05;          // values this close to 0 count as 0, so 0 is easy to find
-const PORT_TEXT = "{{WEBSOCKET_PORT}}";   // filled in by the game when it serves this page
+// --- Filled in by the game when it serves this page ---------------------------
+const PORT_TEXT = "{{WEBSOCKET_PORT}}";
+const LEVELS_TEXT = "{{TREAD_LEVELS}}";
 const WEBSOCKET_PORT = PORT_TEXT.startsWith("{{") ? 8081 : Number(PORT_TEXT);
+// Push for levels 1, 2, 3 (same backwards); matches the keyboard (TreadLevels in the game).
+const LEVEL_VALUES = LEVELS_TEXT.startsWith("{{") ? [0.25, 0.5, 1] : JSON.parse(LEVELS_TEXT);
+const MAX_LEVEL = LEVEL_VALUES.length;
+
+const SEND_EVERY_MS = 33;        // at most ~30 times a second on change
+const HEARTBEAT_MS = 150;        // at least this often otherwise (game watchdog: 250 ms)
+const RECONNECT_MS = 1000;
 
 function loadSetting(name, fallback) {
   try { const v = localStorage.getItem(name); return v === null ? fallback : v === "true"; }
@@ -113,38 +126,52 @@ function loadSetting(name, fallback) {
 }
 function saveSetting(name, value) { try { localStorage.setItem(name, String(value)); } catch (e) {} }
 
-let springReturn = loadSetting("springReturn", true);
+// Levers stay where you leave them unless this setting is switched on.
+let springReturn = loadSetting("springReturn2", false);
 let vibration = loadSetting("vibration", true);
 
-// --- Levers -----------------------------------------------------------------
-// Each lever follows its own finger, so both thumbs work at once.
+function levelValue(level) {
+  return level === 0 ? 0 : Math.sign(level) * LEVEL_VALUES[Math.abs(level) - 1];
+}
+
+// --- Levers: notched, one finger each ----------------------------------------
+// Notches are evenly spaced (not by value), so every notch is equally easy to hit.
 const levers = {
-  left:  { value: 0, pointer: null, zone: document.getElementById("left-zone"),
+  left:  { level: 0, pointer: null, zone: document.getElementById("left-zone"),
            thumb: document.getElementById("left-thumb"), label: document.getElementById("left-value") },
-  right: { value: 0, pointer: null, zone: document.getElementById("right-zone"),
+  right: { level: 0, pointer: null, zone: document.getElementById("right-zone"),
            thumb: document.getElementById("right-thumb"), label: document.getElementById("right-value") },
 };
 
-function setLever(lever, value) {
-  if (Math.abs(value) < DEAD_ZONE) value = 0;
-  value = Math.max(-1, Math.min(1, value));
-  const crossedZero = (lever.value > 0 && value <= 0) || (lever.value < 0 && value >= 0);
-  const changed = value !== lever.value;
-  lever.value = value;
-  // Draw from the value: thumb at the centre for 0, at the ends for +1 / -1.
-  const track = lever.thumb.parentElement;
-  const travel = (track.clientHeight - lever.thumb.offsetHeight) / 2;
-  lever.thumb.style.top = (track.clientHeight / 2 - value * travel) + "px";
-  lever.label.textContent = value.toFixed(2);
-  if (crossedZero && changed) buzz(15);
-  if (changed) sendSoon();
+function trackOf(lever) { return lever.thumb.parentElement; }
+function travelOf(lever) { return (trackOf(lever).clientHeight - lever.thumb.offsetHeight) / 2; }
+
+function drawNotches(lever) {
+  const track = trackOf(lever);
+  for (const old of track.querySelectorAll(".notch")) old.remove();
+  for (let level = -MAX_LEVEL; level <= MAX_LEVEL; level++) {
+    const mark = document.createElement("div");
+    mark.className = level === 0 ? "notch zero" : "notch";
+    mark.style.top = (track.clientHeight / 2 - (level / MAX_LEVEL) * travelOf(lever)) + "px";
+    track.insertBefore(mark, lever.thumb);
+  }
 }
 
-function valueFromPointer(lever, clientY) {
-  const track = lever.thumb.parentElement.getBoundingClientRect();
-  const travel = (track.height - lever.thumb.offsetHeight) / 2;
-  const centre = track.top + track.height / 2;
-  return (centre - clientY) / travel;
+function setLevel(lever, level) {
+  level = Math.max(-MAX_LEVEL, Math.min(MAX_LEVEL, level));
+  const changed = level !== lever.level;
+  lever.level = level;
+  // Drawn from the level: centre for 0, the ends for +3 / -3.
+  const track = trackOf(lever);
+  lever.thumb.style.top = (track.clientHeight / 2 - (level / MAX_LEVEL) * travelOf(lever)) + "px";
+  lever.label.textContent = (level > 0 ? "+" : "") + level + "  (" + levelValue(level).toFixed(2) + ")";
+  if (changed) { buzz(level === 0 ? 30 : 12); sendSoon(); }
+}
+
+function levelFromPointer(lever, clientY) {
+  const rect = trackOf(lever).getBoundingClientRect();
+  const fraction = (rect.top + rect.height / 2 - clientY) / travelOf(lever);
+  return Math.round(fraction * MAX_LEVEL);
 }
 
 for (const lever of Object.values(levers)) {
@@ -152,24 +179,51 @@ for (const lever of Object.values(levers)) {
     if (lever.pointer !== null) return;
     e.preventDefault();
     lever.pointer = e.pointerId;
-    lever.zone.setPointerCapture(e.pointerId);
-    setLever(lever, valueFromPointer(lever, e.clientY));
+    // Keep this finger on this lever even if it slides off; never let a
+    // refusal here stop the lever working.
+    try { lever.zone.setPointerCapture(e.pointerId); } catch (error) {}
+    setLevel(lever, levelFromPointer(lever, e.clientY));
   });
   lever.zone.addEventListener("pointermove", (e) => {
     if (e.pointerId !== lever.pointer) return;
     e.preventDefault();
-    setLever(lever, valueFromPointer(lever, e.clientY));
+    setLevel(lever, levelFromPointer(lever, e.clientY));
   });
   const letGo = (e) => {
     if (e.pointerId !== lever.pointer) return;
     lever.pointer = null;
-    if (springReturn) setLever(lever, 0);
+    if (springReturn) setLevel(lever, 0);
   };
   lever.zone.addEventListener("pointerup", letGo);
   lever.zone.addEventListener("pointercancel", letGo);
 }
 document.addEventListener("contextmenu", (e) => e.preventDefault());
 document.addEventListener("touchmove", (e) => e.preventDefault(), { passive: false });
+
+// --- Brake: hold to brake; pressing it also puts both levers back to 0 -------
+const brakeButton = document.getElementById("brake");
+let brakeHeld = false;
+let brakePointer = null;
+brakeButton.addEventListener("pointerdown", (e) => {
+  e.preventDefault();
+  brakePointer = e.pointerId;
+  try { brakeButton.setPointerCapture(e.pointerId); } catch (error) {}
+  brakeHeld = true;
+  brakeButton.classList.add("held");
+  setLevel(levers.left, 0);
+  setLevel(levers.right, 0);
+  buzz(40);
+  sendNow();
+});
+const releaseBrake = (e) => {
+  if (e.pointerId !== brakePointer) return;
+  brakePointer = null;
+  brakeHeld = false;
+  brakeButton.classList.remove("held");
+  sendNow();
+};
+brakeButton.addEventListener("pointerup", releaseBrake);
+brakeButton.addEventListener("pointercancel", releaseBrake);
 
 // --- Talking to the game ----------------------------------------------------
 const statusBox = document.getElementById("status");
@@ -189,8 +243,8 @@ function connect() {
   socket = new WebSocket("ws://" + location.hostname + ":" + WEBSOCKET_PORT);
   socket.onopen = () => {
     // Never resume driving with old lever positions after a reconnect.
-    setLever(levers.left, 0);
-    setLever(levers.right, 0);
+    setLevel(levers.left, 0);
+    setLevel(levers.right, 0);
     socket.send(JSON.stringify({ t: "hello", role: "driver" }));
     sendNow();
   };
@@ -215,19 +269,19 @@ function connect() {
 
 function sendNow() {
   if (!socket || socket.readyState !== WebSocket.OPEN) return;
-  socket.send(JSON.stringify({ t: "in", l: round(levers.left.value), r: round(levers.right.value) }));
+  socket.send(JSON.stringify({
+    t: "in", l: levelValue(levers.left.level), r: levelValue(levers.right.level), b: brakeHeld ? 1 : 0,
+  }));
   lastSent = performance.now();
   sendPending = false;
 }
 function sendSoon() { sendPending = true; }
-function round(value) { return Math.round(value * 100) / 100; }
 
-// Send on change (at most ~30 times a second), and a heartbeat when idle,
-// so the game knows the phone is still there.
+// Send soon after a change (at most ~30 times a second), and a heartbeat
+// otherwise, so the game knows the phone is still there.
 setInterval(() => {
-  const touching = levers.left.pointer !== null || levers.right.pointer !== null;
   const since = performance.now() - lastSent;
-  if ((sendPending || touching) && since >= SEND_EVERY_MS) sendNow();
+  if (sendPending && since >= SEND_EVERY_MS) sendNow();
   else if (since >= HEARTBEAT_MS) sendNow();
 }, 16);
 
@@ -238,8 +292,7 @@ function buzz(ms) {
 }
 
 // --- Keeping the screen awake -----------------------------------------------
-// Needs a secure (https) page, so on the game's plain local page it usually
-// isn't available: then show a tip instead.
+// Needs a secure (https) page; the game's page usually isn't, so show a tip.
 const tip = document.getElementById("tip");
 async function keepAwake() {
   try {
@@ -249,7 +302,7 @@ async function keepAwake() {
       return;
     }
   } catch (e) {}
-  tip.textContent = "Tip: set your phone's auto-lock / screen timeout to a few minutes so the screen stays on.";
+  tip.textContent = "Tip: raise your phone's screen timeout so it stays on while driving.";
 }
 document.addEventListener("visibilitychange", () => { if (document.visibilityState === "visible") keepAwake(); });
 
@@ -263,17 +316,19 @@ document.getElementById("settings-button").onclick = () => settings.classList.ad
 document.getElementById("close-settings").onclick = () => settings.classList.remove("open");
 springBox.onchange = () => {
   springReturn = springBox.checked;
-  saveSetting("springReturn", springReturn);
-  for (const lever of Object.values(levers)) if (springReturn && lever.pointer === null) setLever(lever, 0);
+  saveSetting("springReturn2", springReturn);
+  for (const lever of Object.values(levers)) if (springReturn && lever.pointer === null) setLevel(lever, 0);
 };
 vibrationBox.onchange = () => { vibration = vibrationBox.checked; saveSetting("vibration", vibration); };
 document.getElementById("fullscreen-button").onclick = () => {
   try { document.documentElement.requestFullscreen(); } catch (e) {}
 };
 
-window.addEventListener("resize", () => { setLever(levers.left, levers.left.value); setLever(levers.right, levers.right.value); });
-setLever(levers.left, 0);
-setLever(levers.right, 0);
+function redraw() {
+  for (const lever of Object.values(levers)) { drawNotches(lever); setLevel(lever, lever.level); }
+}
+window.addEventListener("resize", redraw);
+redraw();
 keepAwake();
 connect();
 </script>

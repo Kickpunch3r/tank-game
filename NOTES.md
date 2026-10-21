@@ -250,7 +250,7 @@ g 9.8 · track_width 3 · turn_resistance 0.75 · tilt_smoothing 8
 | 55° no ledge | fails (5% up) | fails (49% up) | fails / fails |
 
 All targets met. Run-up times are mostly the 70 m approach (about 8 s at full speed). Full
-suite: **119 of 119 checks pass** (input, views and HUD, tuning panel, air and landing levers,
+suite: **138 of 138 checks pass** (input, views and HUD, tuning panel, air and landing levers,
 engine power, terrain, level builder, phone controller,
 course shape, flat driving, kill-plane,
 slopes, sanity). Flat: 39.9 m straight in 5 s with no drift; left tread only turns right;
@@ -378,3 +378,35 @@ committed). To watch: open `tests/test_runner.tscn` and press F6.
     119 checks pass (8 new).
 16. **Phone controller tested on a real phone over USB** by the developer (2026-10-21):
     "works great". Merged `phone-controller` into `main`.
+17. **Brake, idling, levels, warm-up, turn scrub** (developer's design, 2026-10-21):
+    - **Levels** 0.25 / 0.5 / 1 (and back), defined once in `TreadLevels`; the game fills them
+      into the phone page (`{{TREAD_LEVELS}}`), so keyboard and phone always agree.
+    - **Brake** is a separate control: `DriverStation.brake` (any source; always wins over a
+      source that is taking over). Keyboard: hold Space (action still named `driver_all_stop`;
+      renaming it needs project.godot with Godot closed). Phone: BRAKE button, `"b":1` in `in`
+      messages. No gamepad brake (developer won't use a gamepad). Brake strength = Max Drive
+      Accel (1.97 s from 10 m/s); holds the tank on slopes up to the grip limit.
+    - **Level 0 = idling:** no engine push; `idle_drag` (3) slows the tread (stops from 10 m/s
+      in 3.2 s). Doesn't hold slopes steeper than atan(idle_drag / g) ≈ 18°: rolled 4.6 m back
+      in 3 s on 25°. First built as pure coasting, but then a lever at 0 at speed barely turned
+      the tank (1° in 2 s), because that tread freewheeled; the developer's instinct (an
+      unpowered tread should be dragged, making a slow pivot) led to idle drag.
+    - **Watchdog now brakes** for `LOSS_BRAKE_SECONDS` (3 s) when the driver phone goes quiet or
+      disconnects, since level 0 alone would let the tank roll on.
+    - **Warm-up** (`warm_up_time`, default 0 = off): each tread's push builds from nothing to
+      full over that time whenever more is asked for; drops at once; never delays the brake.
+      0.5 s: half the speed after the first 0.5 s (1.24 vs 2.45 m/s). Correction to what was
+      first said: stepping up from steady cruising warms up almost from scratch (the engine is
+      barely pushing at cruise); only stepping up while still speeding up is instant.
+    - **Turn scrub** (`turn_scrub`, default 2): first built as an extra drag, but the engine
+      (5 m/s²) cancelled it out (0.04 m/s difference in a hard turn). Reworked: while turning,
+      the treads' target speeds are divided by (1 + turn_scrub × turn rate), so the engine can't
+      make it back. Straight driving and all slope results unchanged. Measured: spin on the spot
+      40°/s (95 without); one-tread pivot 25°/s with the powered tread at 5.3 m/s; hard turn at
+      speed (levers 1 and 0.25) 3.6 m/s after 2 s (6.2 without); one lever to 0 at full speed:
+      13° in 2 s and down to 5.3 m/s.
+    - Phone page: 7 evenly spaced notches per lever, snap, buzz per notch, stay where left
+      (spring-back is a setting, off); BRAKE button; `setPointerCapture` failures are caught (a
+      browser check with simulated touches showed an uncaught failure there stopped the brake).
+    - Debug display: brake state and each tread's available engine push.
+    138 checks pass.

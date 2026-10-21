@@ -77,14 +77,17 @@ func _define_settings() -> void:
 	_add_setting("Speed", tuning, &"max_tread_speed", 0.0, 50.0, 0.5, 0.1)
 	_add_setting("Speed", tuning, &"max_drive_accel", 0.0, 30.0, 0.1)
 	_add_setting("Speed", tuning, &"rolling_resistance", 0.0, 5.0, 0.05)
+	_add_setting("Speed", tuning, &"idle_drag", 0.0, 10.0, 0.1)
 	# Fractions of top speed / of full pull: only 0 to 1 make sense.
 	_add_setting("Engine power", tuning, &"power_falloff_start", 0.0, 1.0, 0.05, 0.0, 1.0)
 	_add_setting("Engine power", tuning, &"power_at_top_speed", 0.0, 1.0, 0.05, 0.0, 1.0)
+	_add_setting("Engine power", tuning, &"warm_up_time", 0.0, 2.0, 0.05)
 	_add_setting("Grip and gravity", tuning, &"traction_coeff", 0.0, 3.0, 0.01)
 	_add_setting("Grip and gravity", tuning, &"g", 0.0, 50.0, 0.1)
 	_add_setting("Turning", tuning, &"track_width", 0.1, 15.0, 0.1, 0.1)
 	# Above 1 the tank would turn the wrong way.
 	_add_setting("Turning", tuning, &"turn_resistance", 0.0, 1.0, 0.01, 0.0, 1.0)
+	_add_setting("Turning", tuning, &"turn_scrub", 0.0, 6.0, 0.1)
 	_add_setting("Air and landing", tuning, &"air_gravity_scale", 0.0, 5.0, 0.05)
 	_add_setting("Air and landing", tuning, &"nose_dip", 0.0, 2.0, 0.05)
 	# Above 1 a landing would reverse the treads.

@@ -1,21 +1,20 @@
 class_name KeyboardDriverInput
 extends DriverInputSource
 ## Keyboard controls for the driver. Keys are set in Project Settings > Input Map:
-## left tread W / S, right tread Up / Down arrows, all stop Space, reset R.
+## left tread W / S, right tread Up / Down arrows, brake Space (hold, action
+## "driver_all_stop"), reset R.
 ##
 ## Two ways to drive, switched with `use_tread_levels`:
-## - Levels (on): each press moves that tread one level up or down, from -3 to +3,
-##   and it stays there when you let go, like a throttle lever with notches.
-##   Space sets both treads to 0. The treads still slow down gradually (inertia).
+## - Levels (on): each press moves that tread one notch up or down (see
+##   TreadLevels: 0.25, 0.5, 1 forward and the same back), and it stays there
+##   when you let go, like a notched lever. Level 0 = engine idling: the tank
+##   coasts. Holding Space brakes and sets both levels back to 0.
 ## - Hold (off): a tread drives only while its key is held.
-
-## Highest tread level. Level MAX_LEVEL is full speed.
-const MAX_LEVEL: int = 3
 
 ## On: keys step the tread levels. Off: hold a key to drive.
 @export var use_tread_levels: bool = true
 
-## Current tread levels, from -MAX_LEVEL to MAX_LEVEL (only used with levels on).
+## Current tread levels, from -3 to 3 (only used with levels on).
 var left_level: int = 0
 var right_level: int = 0
 
@@ -38,14 +37,18 @@ func _unhandled_input(event: InputEvent) -> void:
 
 func get_left_tread() -> float:
 	if use_tread_levels:
-		return float(left_level) / MAX_LEVEL
+		return TreadLevels.value_for(left_level)
 	return Input.get_axis(&"driver_left_back", &"driver_left_forward")
 
 
 func get_right_tread() -> float:
 	if use_tread_levels:
-		return float(right_level) / MAX_LEVEL
+		return TreadLevels.value_for(right_level)
 	return Input.get_axis(&"driver_right_back", &"driver_right_forward")
+
+
+func is_brake_held() -> bool:
+	return Input.is_action_pressed(&"driver_all_stop")
 
 
 func is_reset_just_pressed() -> bool:
@@ -59,4 +62,4 @@ func clear_levels() -> void:
 
 
 func _step(level: int, direction: int) -> int:
-	return clampi(level + direction, -MAX_LEVEL, MAX_LEVEL)
+	return clampi(level + direction, -TreadLevels.MAX_LEVEL, TreadLevels.MAX_LEVEL)

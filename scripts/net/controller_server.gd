@@ -7,7 +7,8 @@ extends Node
 ## Phone and computer must be on the same local network.
 ##
 ## Messages are small JSON texts:
-##   phone -> game: {"t":"hello","role":"driver"}  then  {"t":"in","l":0.53,"r":-1.0}
+##   phone -> game: {"t":"hello","role":"driver"}  then  {"t":"in","l":0.5,"r":-1.0,"b":0}
+##                  ("b" = brake button held: 1 or 0; optional)
 ##   game -> phone: {"t":"welcome","role":"driver" or "spectator"},  {"t":"buzz","ms":40}
 ## The first phone to say hello as driver becomes the driver; later phones are
 ## spectators and their input is ignored, until the driver leaves.
@@ -43,9 +44,15 @@ static var websocket_port_override: int = 0
 ## The tank whose bumps make the driver's phone buzz (optional).
 @export var tank: Tank
 
+## When the driver phone goes quiet or disconnects while driving, the brake
+## is held for this long (seconds), so the tank stops instead of coasting on.
+## After that the keyboard can drive again.
+const LOSS_BRAKE_SECONDS: float = 3.0
+
 ## Latest values from the driver phone (only meaningful while is_driver_live()).
 var latest_left: float = 0.0
 var latest_right: float = 0.0
+var latest_brake: bool = false
 
 var _http := ControllerHttpServer.new()
 var _websocket_server := TCPServer.new()
@@ -58,6 +65,8 @@ var _time: float = 0.0
 var _last_driver_message_time: float = -INF
 var _http_error: Error = OK
 var _websocket_error: Error = OK
+var _was_driver_live: bool = false
+var _loss_brake_until: float = -INF
 
 
 func _ready() -> void:
@@ -71,6 +80,7 @@ func _ready() -> void:
 		websocket_port = websocket_port_override
 	_http.page_path = page_path
 	_http.websocket_port = websocket_port
+	_http.tread_levels = TreadLevels.VALUES
 	_http_error = _http.start(http_port, address)
 	_websocket_error = _websocket_server.listen(websocket_port, address)
 	if _http_error != OK or _websocket_error != OK:
@@ -98,6 +108,11 @@ func _process(delta: float) -> void:
 			_next_id += 1
 	for id: int in _phones.keys():
 		_poll_phone(id, delta)
+	# The driver phone just stopped being live (quiet or gone): brake for a while.
+	var live: bool = is_driver_live()
+	if _was_driver_live and not live:
+		_loss_brake_until = _time + LOSS_BRAKE_SECONDS
+	_was_driver_live = live
 
 
 # --- What the rest of the game asks ---------------------------------------
@@ -114,6 +129,14 @@ func driver_left() -> float:
 
 func driver_right() -> float:
 	return latest_right if is_driver_live() else 0.0
+
+
+## True while the driver phone holds its brake button, and for a few seconds
+## after the driver phone goes quiet or disconnects (so the tank stops).
+func driver_brake() -> bool:
+	if is_driver_live():
+		return latest_brake
+	return _time < _loss_brake_until
 
 
 func is_listening() -> bool:
@@ -211,6 +234,9 @@ func _handle_message(id: int, text: String) -> void:
 				return
 			latest_left = clampf(float(left), -1.0, 1.0)
 			latest_right = clampf(float(right), -1.0, 1.0)
+			# Brake is optional: "b": 1 (or true) while the brake button is held.
+			var brake: Variant = message.get("b", 0)
+			latest_brake = (brake is bool and brake) or (_is_number(brake) and float(brake) != 0.0)
 			_last_driver_message_time = _time
 
 
@@ -221,6 +247,7 @@ func _forget_phone(id: int) -> void:
 	if was_driver:
 		latest_left = 0.0
 		latest_right = 0.0
+		latest_brake = false
 		_last_driver_message_time = -INF
 	if not promoted.is_empty():
 		_send(promoted.new_holder, {"t": "welcome", "role": promoted.station})

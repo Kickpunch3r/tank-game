@@ -30,15 +30,29 @@ func run() -> void:
 	report.check("Level +3 = full forward at the station",
 			is_equal_approx(station.left_tread, 1.0) and is_equal_approx(station.right_tread, 1.0),
 			"L %.2f R %.2f" % [station.left_tread, station.right_tread])
-	await _tap_key(KEY_SPACE)
-	report.check("Space -> both levels 0", keyboard.left_level == 0 and keyboard.right_level == 0)
+	await _set_key(KEY_SPACE, true)
+	report.check("Holding Space brakes and sets both levels to 0",
+			station.brake and keyboard.left_level == 0 and keyboard.right_level == 0)
+	await _set_key(KEY_SPACE, false)
+	report.check("Letting go of Space releases the brake", not station.brake)
+	await _tap_key(KEY_W)
 	await _tap_key(KEY_S)
 	await _tap_key(KEY_S)
 	await _tap_key(KEY_DOWN)
-	report.check("S x2, Down x1 -> left -2, right -1",
-			keyboard.left_level == -2 and keyboard.right_level == -1
-			and is_equal_approx(station.left_tread, -2.0 / 3.0),
-			"levels %d / %d, station L %.2f" % [keyboard.left_level, keyboard.right_level, station.left_tread])
+	await _tap_key(KEY_UP)
+	await _tap_key(KEY_UP)
+	report.check("Levels are 0.25 / 0.5 / 1 (left -1 = -0.25, right +1 = 0.25)",
+			keyboard.left_level == -1 and is_equal_approx(station.left_tread, -0.25)
+			and keyboard.right_level == 1 and is_equal_approx(station.right_tread, 0.25),
+			"levels %d / %d, station L %.2f R %.2f" % [keyboard.left_level, keyboard.right_level, station.left_tread, station.right_tread])
+	await _tap_key(KEY_S)
+	await _tap_key(KEY_UP)
+	report.check("Level 2 = 0.5 (left -2 = -0.5, right +2 = 0.5)",
+			is_equal_approx(station.left_tread, -0.5) and is_equal_approx(station.right_tread, 0.5),
+			"station L %.2f R %.2f" % [station.left_tread, station.right_tread])
+	report.check("The keyboard's levels come from the shared list (TreadLevels)",
+			TreadLevels.all_notches() == [-1.0, -0.5, -0.25, 0.0, 0.25, 0.5, 1.0])
+	keyboard.clear_levels()
 
 	# Reset.
 	tank.global_position = Vector3(5.0, 0.5, 7.0)
@@ -64,7 +78,7 @@ func run() -> void:
 	for i: int in 3:
 		await _tap_key(KEY_W)
 	report.check("Hardest push wins: keyboard +3 beats half stick", is_equal_approx(station.left_tread, 1.0))
-	await _tap_key(KEY_SPACE)
+	keyboard.clear_levels()
 	await _set_stick(JOY_AXIS_LEFT_Y, 0.1)
 	await _set_stick(JOY_AXIS_RIGHT_Y, -0.15)
 	report.check("Small stick wobble inside the deadzone counts as 0",

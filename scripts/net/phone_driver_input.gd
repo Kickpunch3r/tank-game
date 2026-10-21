@@ -20,6 +20,13 @@ func get_right_tread() -> float:
 	return server.driver_right() if server != null else 0.0
 
 
+## The phone's brake button, and also a few seconds of braking after the
+## driver phone goes quiet or disconnects (see ControllerServer).
+func is_brake_held() -> bool:
+	var server: ControllerServer = _find_server()
+	return server != null and server.driver_brake()
+
+
 func takes_over() -> bool:
 	var server: ControllerServer = _find_server()
 	return server != null and server.is_driver_live()

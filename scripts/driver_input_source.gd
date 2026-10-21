@@ -15,6 +15,11 @@ func get_right_tread() -> float:
 	return 0.0
 
 
+## True while the brake is held.
+func is_brake_held() -> bool:
+	return false
+
+
 ## True only on the frame the reset control is first pressed.
 func is_reset_just_pressed() -> bool:
 	return false

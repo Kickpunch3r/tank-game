@@ -25,6 +25,8 @@ var right_tread := TankTread.new()
 var forward_speed: float = 0.0
 ## Ground angle along the tank, in degrees, positive when nose-up.
 var slope_degrees: float = 0.0
+## How fast the tank is turning, in radians per second (positive = left).
+var turn_rate: float = 0.0
 ## The ground's "up" direction under the tank (straight up when airborne).
 var ground_normal: Vector3 = Vector3.UP
 ## The terrain under each tread (null = ordinary firm ground, or in the air).
@@ -111,14 +113,19 @@ func _drive_on_ground(delta: float) -> void:
 	# that side and pulls the tank toward the mud.
 	left_terrain = TerrainPatch.terrain_at(get_tree(), _tread_position(-1.0))
 	right_terrain = TerrainPatch.terrain_at(get_tree(), _tread_position(1.0))
-	left_tread.update(driver_station.left_tread, slope, tuning, delta, left_terrain)
-	right_tread.update(driver_station.right_tread, slope, tuning, delta, right_terrain)
+	var braking: bool = driver_station.brake
+	# Turn scrub: turning drags the treads sideways over the ground, so while
+	# turning they can't reach their levers' full speed. The sharper the turn
+	# (as of last frame), the lower the speed they can hold.
+	var turn_hold: float = 1.0 / (1.0 + tuning.turn_scrub * absf(turn_rate))
+	left_tread.update(driver_station.left_tread, slope, tuning, delta, left_terrain, braking, turn_hold)
+	right_tread.update(driver_station.right_tread, slope, tuning, delta, right_terrain, braking, turn_hold)
 
-	forward_speed = (left_tread.speed + right_tread.speed) / 2.0
 	# Right tread faster than left = turn left (positive yaw), and the reverse.
-	var yaw_rate: float = (right_tread.speed - left_tread.speed) / tuning.track_width
-	yaw_rate *= 1.0 - tuning.turn_resistance
-	rotate_y(yaw_rate * delta)
+	turn_rate = (right_tread.speed - left_tread.speed) / tuning.track_width
+	turn_rate *= 1.0 - tuning.turn_resistance
+	rotate_y(turn_rate * delta)
+	forward_speed = (left_tread.speed + right_tread.speed) / 2.0
 
 	# Pressing lightly into the ground keeps Godot counting the tank as "on the
 	# floor" on slopes; without it, contact flickers on and off every frame.
@@ -197,6 +204,7 @@ func reset_to_spawn() -> void:
 	right_tread.stop()
 	forward_speed = 0.0
 	slope_degrees = 0.0
+	turn_rate = 0.0
 	ground_normal = Vector3.UP
 	_airborne = false
 	_fall_speed = 0.0

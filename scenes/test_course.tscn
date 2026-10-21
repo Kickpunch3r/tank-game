@@ -4,7 +4,7 @@
 [ext_resource type="PackedScene" path="res://scenes/player_rig.tscn" id="2_player_rig"]
 [ext_resource type="Script" uid="uid://disbr778sui33" path="res://scripts/slope_ladder.gd" id="5_ladder"]
 [ext_resource type="Script" uid="uid://ch0ib75cdkdwc" path="res://scripts/rolling_bumps.gd" id="6_bumps"]
-[ext_resource type="Script" path="res://scripts/terrain_patch.gd" id="9_terrain_patch"]
+[ext_resource type="Script" uid="uid://dvifxswxqwewy" path="res://scripts/terrain_patch.gd" id="9_terrain_patch"]
 [ext_resource type="Resource" path="res://terrain/mud.tres" id="10_mud"]
 [ext_resource type="Resource" path="res://terrain/sand.tres" id="11_sand"]
 
@@ -38,21 +38,21 @@ script = ExtResource("5_ladder")
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 100, 0, 0)
 script = ExtResource("6_bumps")
 
-[node name="TerrainRamps" type="Node3D" parent="."]
+[node name="TerrainRamps" type="Node3D" parent="." unique_id=731507324]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -100, 0, -70)
 script = ExtResource("5_ladder")
 ramp_list_path = "res://levels/terrain_ramps.txt"
 
-[node name="MudPatch" type="Node3D" parent="."]
+[node name="MudPatch" type="Node3D" parent="." unique_id=65149335]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -25, 0, 35)
 script = ExtResource("9_terrain_patch")
 terrain = ExtResource("10_mud")
 size = Vector2(24, 24)
 
-[node name="SandPatch" type="Node3D" parent="."]
+[node name="SandPatch" type="Node3D" parent="." unique_id=99047201]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 25, 0, 35)
 script = ExtResource("9_terrain_patch")
 terrain = ExtResource("11_sand")
 size = Vector2(24, 24)
 
-[node name="PlayerRig" parent="." instance=ExtResource("2_player_rig")]
+[node name="PlayerRig" parent="." unique_id=472648433 instance=ExtResource("2_player_rig")]

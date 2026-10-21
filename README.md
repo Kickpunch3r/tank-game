@@ -19,17 +19,23 @@ pressing Play, not in the editor viewport.
 
 | Key | What it does |
 |---|---|
-| `W` / `S` | Left tread one level up / down (levels −3 to +3, stays set) |
+| `W` / `S` | Left tread one level up / down (stays set) |
 | `Up` / `Down` | Right tread one level up / down |
-| `Space` | All stop: both treads to level 0 (the tank glides to a halt) |
+| `Space` (hold) | **Brake**: both levels to 0, stops the tank, holds it still on slopes |
 | `R` | Reset the tank to the start |
 | `V` | Switch view: chase camera / driver's vision slit |
 | `F3` | Hide / show the debug display |
 | `Tab` | Open / close the tuning panel (use the mouse on it) |
 | `F11` | Full screen / window (the game starts full screen) |
 
-- Driving: both treads forward = straight ahead. Left tread only = turn right. Opposite
-  treads = spin on the spot.
+- **Levels:** each tread has 3 levels forward and 3 back: **0.25, 0.5 and full** (the phone's
+  levers use the same notches).
+- **Level 0 = engine idling:** that tread doesn't push and is held back by **Idle Drag**, so it
+  slows by itself. With both levers at 0 the tank stops in about 3 s. On slopes steeper than
+  about 18° it rolls back unless you **brake**.
+- Driving: both treads forward = straight ahead. Left tread only = a slow, heavy pivot to the
+  right round the idle tread. Opposite treads = spin on the spot (slow and heavy). Turning
+  always costs speed (**Turn Scrub**); driving straight doesn't.
 - **Hold-to-drive instead of levels:** in `scenes/tank.tscn`, select
   `DriverStation/KeyboardDriverInput` and untick **Use Tread Levels**.
 - **Gamepad** (untested on real hardware): left stick up/down = left tread, right stick
@@ -107,12 +113,16 @@ iPhones can't connect by USB this way.
 
 Using it:
 - Left lever = left tread, right lever = right tread. Both thumbs work at once.
-- Levers spring back to 0 when you let go. **Settings** on the phone switches to "stay where
-  left", turns vibration off, or goes full screen.
+- Each lever has **7 notches** (full back, 0.5 back, 0.25 back, 0, 0.25, 0.5, full): it snaps
+  to the nearest, buzzes as it clicks into each one (a longer buzz at 0), and **stays where you
+  leave it**.
+- **BRAKE** (the big red button in the middle): hold to brake; pressing it also puts both
+  levers back to 0.
+- **Settings** on the phone: turn on "spring back to 0", turn vibration off, or go full screen.
 - The first phone to connect drives; other phones watch until the driver leaves.
 - While a phone is driving, it overrides the keyboard and gamepad. If the phone goes quiet for a
-  quarter of a second (cable pulled, Wi-Fi drops, phone locks), the tank stops and the keyboard
-  works again.
+  quarter of a second (cable pulled, Wi-Fi drops, phone locks), the game **brakes for 3 seconds**
+  so the tank stops, then the keyboard works again.
 - Android phones buzz when a lever crosses 0 and when the tank hits a wall (iPhones don't vibrate
   from web pages).
 - The phone screen may lock while driving: raise the phone's auto-lock time.

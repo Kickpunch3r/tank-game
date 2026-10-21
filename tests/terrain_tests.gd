@@ -33,7 +33,7 @@ func run() -> void:
 	var mud: Dictionary = await _drive_and_stop(mud_patch.global_position)
 	report.check("Top speed: mud < sand < firm", mud.top < sand.top and sand.top < firm.top,
 			"after 3 s: firm %.1f, sand %.1f, mud %.1f m/s" % [firm.top, sand.top, mud.top])
-	report.check("Letting go stops sooner in mud than on firm ground", mud.stop < firm.stop,
+	report.check("Idling (lever at 0) stops sooner in mud than on firm ground", mud.stop < firm.stop,
 			"from 4 m/s: firm %.2f s, mud %.2f s" % [firm.stop, mud.stop])
 	report.check("Hull sinks in mud, more than in sand", mud.sink > sand.sink and sand.sink >= firm.sink,
 			"hull lowered by firm %.2f, sand %.2f, mud %.2f m" % [firm.sink, sand.sink, mud.sink])
@@ -46,7 +46,7 @@ func run() -> void:
 
 
 ## Drives full forward for 3 s from `where`, then lets go. Returns top speed,
-## seconds to stop from 4 m/s, and how far the hull sank.
+## seconds to stop from 4 m/s with the lever at 0 (capped at 10 s), and how far the hull sank.
 func _drive_and_stop(where: Vector3) -> Dictionary:
 	var tank: Tank = runner.spawn_test_tank(where + Vector3(0.0, 0.05, 6.0))
 	runner.watch_tank(tank)
@@ -58,7 +58,7 @@ func _drive_and_stop(where: Vector3) -> Dictionary:
 		tank.driver_station.right_tread = 1.0
 		await runner.get_tree().physics_frame
 	var top: float = tank.forward_speed
-	# Bring every case to the same 4 m/s, then let go and time the stop.
+	# Bring every case to the same 4 m/s, then idle (lever at 0) and time the stop.
 	tank.left_tread.speed = 4.0
 	tank.right_tread.speed = 4.0
 	var frames: int = 0

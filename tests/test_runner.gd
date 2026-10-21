@@ -43,6 +43,7 @@ func _ready() -> void:
 	UsbLinkTests.new(self).run()
 	CourseTests.new(self).run()
 	await DrivingTests.new(self).run()
+	await BrakeTests.new(self).run()
 	await TerrainTests.new(self).run()
 	await LevelTests.new(self).run()
 

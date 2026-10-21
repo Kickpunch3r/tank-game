@@ -35,6 +35,8 @@ func run() -> void:
 	var page: String = await _http_get("/")
 	report.check("Web page: GET / returns the controller page (200)",
 			page.begins_with("HTTP/1.1 200") and page.contains("<html"), page.get_slice("\r\n", 0))
+	report.check("Page gets the same lever levels as the keyboard (filled in by the game)",
+			page.contains("const LEVELS_TEXT = \"[0.25,0.5,1.0]\"") and not page.contains("{{TREAD_LEVELS}}"))
 	var missing: String = await _http_get("/nothing-here")
 	report.check("Web page: anything else returns 404", missing.begins_with("HTTP/1.1 404"), missing.get_slice("\r\n", 0))
 
@@ -68,10 +70,27 @@ func run() -> void:
 	report.check("Watchdog: phone goes quiet -> treads back to 0 within ~0.3 s",
 			quiet_frames <= 18 and station.left_tread == 0.0 and station.right_tread == 0.0,
 			"stopped counting as live after %.2f s; station L %.2f" % [quiet_frames / 60.0, station.left_tread])
+	report.check("Watchdog also brakes, so the tank stops instead of coasting on", station.brake)
+	var braking_frames: int = 0
+	while station.brake and braking_frames < 600:
+		await runner.get_tree().physics_frame
+		braking_frames += 1
+	report.check("...for about 3 s, then lets go", absf(braking_frames / 60.0 - ControllerServer.LOSS_BRAKE_SECONDS) < 0.1,
+			"braked for %.2f s" % (braking_frames / 60.0))
 	for i: int in 3:
 		await _tap_key(KEY_W)
-	report.check("After the watchdog, the keyboard drives again", is_equal_approx(station.left_tread, 1.0))
+	report.check("After the watchdog, the keyboard drives again", is_equal_approx(station.left_tread, 1.0) and not station.brake)
 	keyboard.clear_levels()
+
+	# The phone's brake button.
+	for i: int in 10:
+		driver.poll()
+		_send(driver, {"t": "in", "l": 0, "r": 0, "b": 1})
+		await runner.get_tree().physics_frame
+	await runner.wait_physics_frames(2)
+	report.check("Phone brake button brakes the tank", station.brake)
+	await _send_for(driver, 0.5, 0.5, 10)
+	report.check("Releasing the phone brake lets the tank drive", not station.brake and is_equal_approx(station.left_tread, 0.5))
 
 	# A second phone is a spectator and its input is ignored.
 	var second: WebSocketPeer = await _connect()

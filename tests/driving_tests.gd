@@ -127,7 +127,12 @@ func climb_all(ladder: SlopeLadder, with_run_up: bool) -> Array[Dictionary]:
 		tanks.append(tank)
 		results.append({"climbed": false, "seconds": 0.0, "best_height": 0.0})
 	runner.watch_tank(tanks[tanks.size() / 2])
+	# Settle with the brake on (at level 0 the tanks would roll), then release it.
+	for tank: Tank in tanks:
+		tank.driver_station.brake = true
 	await runner.wait_physics_frames(30)
+	for tank: Tank in tanks:
+		tank.driver_station.brake = false
 
 	for frame: int in roundi(CLIMB_TIME_LIMIT * FPS):
 		for index: int in tanks.size():
