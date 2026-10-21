@@ -376,3 +376,5 @@ committed). To watch: open `tests/test_runner.tscn` and press F6.
       adb.exe run, and whether Windows needs a USB driver for the phone (needs admin).
     - adb leaves its own background server running after the game closes (normal for adb).
     119 checks pass (8 new).
+16. **Phone controller tested on a real phone over USB** by the developer (2026-10-21):
+    "works great". Merged `phone-controller` into `main`.
