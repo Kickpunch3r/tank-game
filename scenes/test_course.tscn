@@ -1,0 +1,35 @@
+[gd_scene format=3]
+
+[ext_resource type="Script" path="res://scripts/course_builder.gd" id="1_builder"]
+[ext_resource type="PackedScene" path="res://scenes/tank.tscn" id="2_tank"]
+[ext_resource type="Script" path="res://scripts/chase_camera.gd" id="3_camera"]
+
+[sub_resource type="ProceduralSkyMaterial" id="SkyMaterial_main"]
+
+[sub_resource type="Sky" id="Sky_main"]
+sky_material = SubResource("SkyMaterial_main")
+
+[sub_resource type="Environment" id="Environment_main"]
+background_mode = 2
+sky = SubResource("Sky_main")
+tonemap_mode = 2
+
+[node name="TestCourse" type="Node3D"]
+
+[node name="WorldEnvironment" type="WorldEnvironment" parent="."]
+environment = SubResource("Environment_main")
+
+[node name="Sun" type="DirectionalLight3D" parent="."]
+transform = Transform3D(0.866, 0, -0.5, -0.383, 0.6428, -0.6634, 0.3214, 0.766, 0.5567, 0, 20, 0)
+shadow_enabled = true
+
+[node name="CourseBuilder" type="Node3D" parent="."]
+script = ExtResource("1_builder")
+
+[node name="Tank" parent="." instance=ExtResource("2_tank")]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 1, 0)
+
+[node name="ChaseCamera" type="Camera3D" parent="." node_paths=PackedStringArray("target")]
+current = true
+script = ExtResource("3_camera")
+target = NodePath("../Tank")
