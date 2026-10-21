@@ -39,7 +39,10 @@ pressing Play, not in the editor viewport.
 ## Changing things
 - **While playing: the tuning panel (Tab).** Sliders for every driving value, the new air and
   landing values (air gravity, nose dip, landing speed loss), the chase camera and the slit
-  height. Changes take effect immediately but **only last until you quit**:
+  height. Drag a slider, or click the box beside it, type an exact value and press Enter (or
+  click elsewhere). Typed values are used exactly but kept within the slider's range. While
+  typing, keys go to the box, not the tank. The mouse wheel scrolls the panel and never
+  changes a value. Changes take effect immediately but **only last until you quit**:
   - **Copy values** puts the current numbers on the clipboard (and in the Output panel),
     grouped by where each one lives, so you can type them into the Inspector or paste them to
     Claude to make them permanent.
