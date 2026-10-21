@@ -49,3 +49,53 @@ lists the alternatives and why. Push back on any of them.
   phone), so it reads input exactly like the kinematic tank. A test drives both with the same
   station values (left only, right only, both, opposite) and checks they move and turn the same
   way.
+
+## 4. Tuning resource and presets
+- `PhysicsTankTuning` (`tuning/physics_tank_tuning.tres`): the six knobs first, same names and
+  meanings as `TankTuning`, then "Advanced". Built in milestone 1 (not 3) because the springs
+  are derived from it.
+  - `weight`: mass = weight × 30 000 kg (`base_mass`). `pulling_power`: push = pulling_power ÷
+    weight, as in the kinematic tank. `grip`: degrees, tan() inside, per probe.
+  - `sideways_grip`: sideways hold rate = the kinematic tank's slide fade rate for the same
+    knob value (`TankFeel.slide_decay_rate`), capped at `max_sideways_rate` (6). So 1 = as firm
+    as the tank allows, lower = it drifts.
+  - `tippiness`: centre of mass height, from 0.2 m (0) to 2.2 m (1) above the tread bottoms.
+    Default **0.3** (0.8 m), not 0: a physics tank with no tippiness at all would be unreal, and
+    the kinematic default of 0 means "no sway picture", which a physics tank can't have anyway.
+- **The same preset files** (`tuning/presets/*.tres`) and the same `PresetSwitcher` set the six
+  knobs on both tanks at once, so a swap keeps the preset.
+
+## 5. Two tanks in one rig, swapped with T
+- **How it works now:** `scenes/player_rig.tscn` holds both `Tank` and `PhysicsTank`. Its new
+  root script `PlayerRig` keeps `active_tank`. **T** (Input Map `tank_swap`) swaps: the other
+  tank is put where the active one is (upright, same heading, 0.2 m up, at rest), takes over
+  its reset point and level start, and the keyboard lever levels carry over (the phone's carry
+  over by themselves). The chase camera, the slit view in the V cycle, the HUD and the Tab panel
+  are pointed at it, and the panel rebuilds.
+- **The hidden tank is switched off** (`process_mode = DISABLED`, hidden). Disabled nodes get no
+  input and Godot removes a disabled body from the physics world, so it can't react or be hit.
+- **Each tank keeps its own DriverStation** (the hand-off's first option). **Alternative:** one
+  station on the rig that the active tank reads: less duplication, but tests and the test
+  runner spawn single tanks from `tank.tscn` with their own station, and every test reaches
+  `tank.driver_station`, so it would have meant changing much more. The cost: the keyboard
+  levels must be copied on a swap (done, and tested).
+- **Shared interface (duck typing, no common class):** both tanks have `driver_station`,
+  `tuning` (with `panel_settings()` and the six knobs), `bumped`, `place_at()`,
+  `reset_to_spawn()`, `set_spawn()/get_spawn()`, `set_home()/get_home()`,
+  `standing_start_distance(angle)`, `display_name()` and `debug_lines()`. A common base class
+  isn't possible (one is a `CharacterBody3D`, the other a `RigidBody3D`).
+- The HUD asks the active tank for its `debug_lines()` and adds the shared lines (keyboard
+  levels, preset, knobs, climbable limit, view, phone). Nothing was copied.
+- Levels: `LevelRoot` gives every tank in the rig the level's start. Tested in the starter
+  level: T, drive 45 m on the painted ground, R back to the start.
+- The kill plane resets anything with `reset_to_spawn()`; the phone buzz is connected for both.
+- **Bug found and fixed:** "Reset to saved" in the Tab panel only reset the tank on show, so a
+  preset left the hidden tank's knobs changed. The panel now remembers both tanks' tunings at
+  the start and puts both back.
+
+## 6. Chase camera pitch damping
+- The chase camera already never rolls. It now also smooths how its look point moves up and
+  down (`look_smoothing`, 6 per second), so the physics tank's spring bounce doesn't tip the
+  view. This applies to the kinematic tank too, for a fair comparison; on ramps its look point
+  now lags a little behind. `look_smoothing` 0 = the old behaviour. The slit camera still tilts
+  with the hull (your choice).

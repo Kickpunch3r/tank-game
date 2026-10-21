@@ -60,9 +60,13 @@ func start_transform() -> Transform3D:
 func _place_tank_at_start() -> void:
 	var home: Transform3D = start_transform()
 	home.origin.y += 0.3
-	tank.set_home(home)
-	tank.set_spawn(home)
-	tank.reset_to_spawn()
+	# Every tank in the rig (kinematic and physics) gets the same start.
+	var rig := tank.get_parent() as PlayerRig
+	var all_tanks: Array[Node3D] = rig.tanks if rig != null else [tank as Node3D]
+	for each_tank: Node3D in all_tanks:
+		each_tank.call(&"set_home", home)
+		each_tank.call(&"set_spawn", home)
+		each_tank.call(&"reset_to_spawn")
 
 
 func _find_child_of_type(node: Node, type_name: String) -> Node:

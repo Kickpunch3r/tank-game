@@ -106,6 +106,14 @@ func _load_terrain(terrain_name: String, line_number: int) -> TerrainType:
 ## it. At distance 0 the tank's round bottom (radius `tank_radius`) just touches
 ## the slope, with no run-in. (A sphere resting on flat ground touches a slope
 ## of angle a when its centre is radius x tan(a / 2) in front of the bottom edge.)
+## Where `tank` (either kind) stands at rest at the foot of ramp `index`,
+## `distance` metres back. Each kind of tank says how close it can stand.
+func start_position_for(index: int, distance: float, tank: Node3D) -> Vector3:
+	var ramp: RampInfo = ramps[index]
+	var touching: float = tank.call(&"standing_start_distance", ramp.angle_degrees)
+	return ramp.base_position + Vector3(0.0, 0.05, touching + distance)
+
+
 func start_position(index: int, distance: float, tank_radius: float) -> Vector3:
 	var ramp: RampInfo = ramps[index]
 	var touching: float = tank_radius * tan(deg_to_rad(ramp.angle_degrees) / 2.0) + 0.05

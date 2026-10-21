@@ -42,6 +42,7 @@ func _ready() -> void:
 	await ViewTests.new(self).run()
 	await PanelTests.new(self).run()
 	await FeelTests.new(self).run_preset_keys()
+	await PhysicsTankTests.new(self).run_swap()
 	await PhoneTests.new(self).run()
 	UsbLinkTests.new(self).run()
 	CourseTests.new(self).run()

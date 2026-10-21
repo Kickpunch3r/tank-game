@@ -12,10 +12,22 @@
 [ext_resource type="Resource" path="res://tuning/presets/heavy.tres" id="10_heavy"]
 [ext_resource type="Resource" path="res://tuning/presets/nimble.tres" id="11_nimble"]
 [ext_resource type="Resource" path="res://tuning/presets/slippery.tres" id="12_slippery"]
+[ext_resource type="PackedScene" path="res://scenes/physics_tank.tscn" id="13_physics_tank"]
+[ext_resource type="Script" path="res://scripts/player_rig.gd" id="14_rig"]
 
-[node name="PlayerRig" type="Node3D"]
+[node name="PlayerRig" type="Node3D" node_paths=PackedStringArray("tanks", "chase_camera", "view_switcher", "debug_hud", "tuning_panel", "controller_server")]
+script = ExtResource("14_rig")
+tanks = [NodePath("Tank"), NodePath("PhysicsTank")]
+chase_camera = NodePath("ChaseCamera")
+view_switcher = NodePath("ViewSwitcher")
+debug_hud = NodePath("DebugHud")
+tuning_panel = NodePath("TuningPanel")
+controller_server = NodePath("ControllerServer")
 
 [node name="Tank" parent="." instance=ExtResource("1_tank")]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 1, 0)
+
+[node name="PhysicsTank" parent="." instance=ExtResource("13_physics_tank")]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 1, 0)
 
 [node name="ChaseCamera" type="Camera3D" parent="." node_paths=PackedStringArray("target")]
@@ -42,7 +54,7 @@ chase_camera = NodePath("../ChaseCamera")
 [node name="PresetSwitcher" type="Node" parent="." node_paths=PackedStringArray("tanks", "tuning_panel")]
 script = ExtResource("9_presets")
 presets = Array[Resource]([ExtResource("10_heavy"), ExtResource("11_nimble"), ExtResource("12_slippery")])
-tanks = [NodePath("../Tank")]
+tanks = [NodePath("../Tank"), NodePath("../PhysicsTank")]
 tuning_panel = NodePath("../TuningPanel")
 
 [node name="ControllerServer" type="Node" parent="." node_paths=PackedStringArray("tank")]

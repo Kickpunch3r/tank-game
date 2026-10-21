@@ -18,6 +18,7 @@ func _ready() -> void:
 
 
 func _on_body_entered(body: Node3D) -> void:
-	if body is Tank:
+	# Either kind of tank.
+	if body.has_method(&"reset_to_spawn"):
 		# Deferred: moving a body in the middle of a physics callback is unsafe.
-		(body as Tank).reset_to_spawn.call_deferred()
+		body.call_deferred(&"reset_to_spawn")

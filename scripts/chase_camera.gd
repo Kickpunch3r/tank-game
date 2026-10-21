@@ -20,10 +20,19 @@ extends Camera3D
 ## How quickly the camera catches up. Higher = snappier, lower = floatier.
 @export var follow_smoothing: float = 4.0
 
+## How quickly the point the camera looks at follows the tank up and down.
+## Smooths out the view tipping up and down as the tank bounces (the physics
+## tank's springs). 0 = follows at once, with no smoothing.
+@export var look_smoothing: float = 6.0
+
+# The smoothed height of the point the camera looks at.
+var _look_y: float = 0.0
+
 
 func _ready() -> void:
 	if target != null:
 		global_position = _desired_position()
+		_look_y = target.global_position.y + look_height
 		look_at(_look_point(), Vector3.UP)
 
 
@@ -38,6 +47,8 @@ func _physics_process(delta: float) -> void:
 	# Frame-rate independent smoothing: move a fraction of the remaining gap each frame.
 	var catch_up: float = 1.0 - exp(-follow_smoothing * delta)
 	global_position = global_position.lerp(_desired_position(), catch_up)
+	var wanted_y: float = target.global_position.y + look_height
+	_look_y = wanted_y if look_smoothing <= 0.0 else lerpf(_look_y, wanted_y, 1.0 - exp(-look_smoothing * delta))
 	look_at(_look_point(), Vector3.UP)
 
 
@@ -52,4 +63,4 @@ func _desired_position() -> Vector3:
 
 
 func _look_point() -> Vector3:
-	return target.global_position + Vector3.UP * look_height
+	return Vector3(target.global_position.x, _look_y, target.global_position.z)

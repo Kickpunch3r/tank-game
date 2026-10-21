@@ -10,8 +10,9 @@ extends CanvasLayer
 ## The panel also chooses where R puts the tank: in front of a chosen ramp, a
 ## chosen distance back from it.
 
-## The tank whose tuning and slit camera are being changed.
-@export var tank: Tank
+## The tank whose tuning and slit camera are being changed (either kind;
+## the PlayerRig swaps it and calls rebuild()).
+@export var tank: Node3D
 
 ## The chase camera whose follow settings are being changed.
 @export var chase_camera: ChaseCamera
@@ -35,13 +36,15 @@ var _distance_slider: HSlider
 var _distance_field: LineEdit
 var _copy_button: Button
 var _panel: PanelContainer
-# Value at the start of the game, by target and property (see _saved_key).
+# Value at the start of the game, by target and property (see _saved_key):
+# {"target": Object, "property": StringName, "value": Variant}.
 var _saved_values: Dictionary = {}
 
 
 func _ready() -> void:
 	layer = 20
 	visible = false
+	_remember_all_tank_tunings()
 	_define_settings()
 	_build_panel()
 
@@ -100,8 +103,9 @@ func _stop_typing() -> void:
 func _define_settings() -> void:
 	_settings.clear()
 	# The tank's own tuning lists its rows (feel knobs first, then advanced).
-	for row: Dictionary in tank.tuning.panel_settings():
-		_add_setting(row.group, tank.tuning, row.property, row.min, row.max, row.step, row.hard_min, row.hard_max)
+	var tuning: Resource = tank.get(&"tuning")
+	for row: Dictionary in tuning.call(&"panel_settings"):
+		_add_setting(row.group, tuning, row.property, row.min, row.max, row.step, row.hard_min, row.hard_max)
 	var slit: DriverSlitCamera = tank.get_node(^"Visual/Hull/DriverSlitCamera")
 	# Slider range first (just a comfortable dragging range: typed values can
 	# go past it), then hard limits only where other values break the maths.
@@ -151,9 +155,8 @@ func _add_setting(group: String, target: Object, property: StringName,
 	var value: float = target.get(property)
 	# "Reset to saved" goes back to the value at the very start, even after
 	# the panel was rebuilt (e.g. after a preset switch).
+	_remember_saved(target, property)
 	var key: String = _saved_key(target, property)
-	if not _saved_values.has(key):
-		_saved_values[key] = value
 	_settings.append({
 		"group": group,
 		"target": target,
@@ -164,8 +167,27 @@ func _add_setting(group: String, target: Object, property: StringName,
 		"step": step,
 		"hard_min": hard_min,
 		"hard_max": hard_max,
-		"saved": _saved_values[key],
+		"saved": _saved_values[key].value,
 	})
+
+
+## Remember a value as it was at the start of the game (only the first time).
+func _remember_saved(target: Object, property: StringName) -> void:
+	var key: String = _saved_key(target, property)
+	if not _saved_values.has(key):
+		_saved_values[key] = {"target": target, "property": property, "value": target.get(property)}
+
+
+## Also remember every tank's tuning in the player rig, including a hidden
+## tank's, so "Reset to saved" puts back values a preset changed on it.
+func _remember_all_tank_tunings() -> void:
+	var rig := get_parent() as PlayerRig
+	if rig == null:
+		return
+	for each_tank: Node3D in rig.tanks:
+		var tuning: Resource = each_tank.get(&"tuning")
+		for row: Dictionary in tuning.call(&"panel_settings"):
+			_remember_saved(tuning, row.property)
 
 
 func _saved_key(target: Object, property: StringName) -> String:
@@ -303,10 +325,17 @@ func _on_distance_typed(text: String) -> void:
 
 
 func _on_reset_to_saved_pressed() -> void:
+	var shown: Dictionary = {}
 	for index: int in _settings.size():
 		var setting: Dictionary = _settings[index]
 		_sliders[index].set_value_no_signal(setting.saved)
 		_on_setting_changed(index, setting.saved)
+		shown[_saved_key(setting.target, setting.property)] = true
+	# Values not on show right now (the hidden tank's tuning) go back too.
+	for key: String in _saved_values:
+		var saved: Dictionary = _saved_values[key]
+		if not shown.has(key) and is_instance_valid(saved.target):
+			(saved.target as Object).set(saved.property, saved.value)
 
 
 func _on_copy_pressed() -> void:
@@ -318,10 +347,10 @@ func _on_copy_pressed() -> void:
 
 
 func _on_reset_now_pressed() -> void:
-	var keyboard := tank.driver_station.get_node_or_null(^"KeyboardDriverInput") as KeyboardDriverInput
+	var keyboard := tank.get_node_or_null(^"DriverStation/KeyboardDriverInput") as KeyboardDriverInput
 	if keyboard != null:
 		keyboard.clear_levels()
-	tank.reset_to_spawn()
+	tank.call(&"reset_to_spawn")
 
 
 ## Tell the tank where R should put it, from the ramp choice and distance.
@@ -329,13 +358,13 @@ func _apply_reset_point() -> void:
 	_distance_field.text = _format(_distance_slider.value)
 	var choice: int = _ramp_choice.selected
 	if choice <= 0:
-		tank.set_spawn(tank.get_home())
+		tank.call(&"set_spawn", tank.call(&"get_home"))
 		return
 	var reset_choice: Dictionary = _reset_choices[choice - 1]
 	var ladder: SlopeLadder = reset_choice.ladder
-	var where: Vector3 = ladder.start_position(reset_choice.index, _distance_slider.value, tank.contact_radius())
+	var where: Vector3 = ladder.start_position_for(reset_choice.index, _distance_slider.value, tank)
 	# Facing the ramp (the ramps rise toward -Z, the way an unturned tank faces).
-	tank.set_spawn(Transform3D(Basis.IDENTITY, where))
+	tank.call(&"set_spawn", Transform3D(Basis.IDENTITY, where))
 
 
 ## Choose the reset point from code (used by the tests): ramp number
@@ -387,13 +416,16 @@ func values_text() -> String:
 
 
 func _place_name(target: Object) -> String:
-	if target is TankTuning:
+	if target is TankTuning or target is PhysicsTankTuning:
 		var path: String = (target as Resource).resource_path
-		return path.trim_prefix("res://") if not path.is_empty() else "tuning/tank_tuning.tres"
+		if not path.is_empty():
+			return path.trim_prefix("res://")
+		return "tuning/tank_tuning.tres" if target is TankTuning else "tuning/physics_tank_tuning.tres"
 	if target is ChaseCamera:
 		return "ChaseCamera node in scenes/test_course.tscn"
 	if target is DriverSlitCamera:
-		return "Visual/Hull/DriverSlitCamera node in scenes/tank.tscn"
+		var tank_scene: String = "scenes/physics_tank.tscn" if tank is PhysicsTank else "scenes/tank.tscn"
+		return "Visual/Hull/DriverSlitCamera node in %s" % tank_scene
 	if target is TerrainType:
 		return (target as TerrainType).resource_path
 	if target is LevelTerrain:

@@ -156,6 +156,42 @@ func _starter_level() -> void:
 	station.right_tread = 0.0
 	panel._on_reset_to_saved_pressed()
 	await runner.wait_physics_frames(60)
+	await _physics_tank_in_level(level)
+
+
+## T works in painted levels too: the physics tank takes over at the start,
+## drives on the painted ground, and R puts it back at the level's start.
+func _physics_tank_in_level(level: LevelRoot) -> void:
+	var rig: PlayerRig = level.get_node(^"PlayerRig")
+	var physics_tank: PhysicsTank = rig.get_node(^"PhysicsTank")
+	var start: Vector3 = level.start.global_position
+	rig.swap_tank()
+	var station: DriverStation = physics_tank.driver_station
+	station.listen_to_input_sources = false
+	await runner.wait_physics_frames(120)
+	var gap: float = physics_tank.global_position.y - level.terrain.height_at(physics_tank.global_position)
+	report.check("Level: T swaps to the physics tank, which settles on the ground at the start",
+			rig.active_tank == physics_tank and absf(gap) < 0.3
+			and Vector2(physics_tank.global_position.x, physics_tank.global_position.z).distance_to(Vector2(start.x, start.z)) < 1.0,
+			"physics tank %s, %.2f m from the ground" % [physics_tank.global_position, gap])
+	var lowest_gap: float = 99.0
+	for frame: int in 300:
+		station.left_tread = 1.0
+		station.right_tread = 1.0
+		await runner.get_tree().physics_frame
+		lowest_gap = minf(lowest_gap, physics_tank.global_position.y - level.terrain.height_at(physics_tank.global_position))
+	var travelled: float = Vector2(physics_tank.global_position.x - start.x, physics_tank.global_position.z - start.z).length()
+	station.left_tread = 0.0
+	station.right_tread = 0.0
+	station.reset_requested = true
+	await runner.get_tree().physics_frame
+	station.reset_requested = false
+	await runner.wait_physics_frames(2)
+	var back_home: bool = Vector2(physics_tank.global_position.x, physics_tank.global_position.z).distance_to(Vector2(start.x, start.z)) < 0.5
+	report.check("Level: the physics tank drives on the painted ground, and reset brings it back to the start",
+			travelled > 25.0 and lowest_gap > -0.5 and back_home,
+			"travelled %.0f m, lowest point %.2f m relative to the ground, back at start: %s" % [travelled, lowest_gap, back_home])
+	rig.swap_tank()
 
 
 func _ray_height(where: Vector3) -> float:

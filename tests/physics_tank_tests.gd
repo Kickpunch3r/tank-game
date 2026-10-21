@@ -24,6 +24,86 @@ func run() -> void:
 	await _controls_test()
 
 
+# --- Swapping tanks (T) ---------------------------------------------------------
+
+## On the course's own player rig, so this runs early (before the driving
+## tests remove the course's tank).
+func run_swap() -> void:
+	report.heading("Swapping tanks (T)")
+	var course: Node3D = runner.course
+	var rig: PlayerRig = course.get_node(^"PlayerRig")
+	var kinematic: Tank = course.get_node(^"PlayerRig/Tank")
+	var physics: PhysicsTank = course.get_node(^"PlayerRig/PhysicsTank")
+	var chase: ChaseCamera = course.get_node(^"PlayerRig/ChaseCamera")
+	var hud: DebugHud = course.get_node(^"PlayerRig/DebugHud")
+	var panel: TuningPanel = course.get_node(^"PlayerRig/TuningPanel")
+	var views: ViewSwitcher = course.get_node(^"PlayerRig/ViewSwitcher")
+	var kinematic_keys: KeyboardDriverInput = kinematic.get_node(^"DriverStation/KeyboardDriverInput")
+	var physics_keys: KeyboardDriverInput = physics.get_node(^"DriverStation/KeyboardDriverInput")
+	runner.watch_tank(kinematic)
+
+	report.check("The kinematic tank starts active; the physics tank is hidden and switched off",
+			rig.active_tank == kinematic and not physics.visible
+			and physics.process_mode == Node.PROCESS_MODE_DISABLED)
+	kinematic.place_at(Transform3D(Basis(Vector3.UP, 0.6), Vector3(10.0, 0.05, 20.0)))
+	await runner.wait_physics_frames(20)
+	await _tap_key(KEY_W)
+	report.check("The hidden tank doesn't react to the keys", kinematic_keys.left_level == 1 and physics_keys.left_level == 0)
+	var kinematic_place: Vector3 = kinematic.global_position
+	await _tap_key(KEY_T)
+	var heading_gap: float = rad_to_deg(absf(_flat(-physics.global_basis.z).signed_angle_to(_flat(-kinematic.global_basis.z), Vector3.UP)))
+	var place_gap: float = Vector2(physics.global_position.x - kinematic_place.x, physics.global_position.z - kinematic_place.z).length()
+	report.check("T: the physics tank appears where the kinematic tank was, facing the same way",
+			rig.active_tank == physics and physics.visible and not kinematic.visible
+			and kinematic.process_mode == Node.PROCESS_MODE_DISABLED
+			and place_gap < 0.5 and heading_gap < 2.0,
+			"%.2f m away, heading %.1f° off" % [place_gap, heading_gap])
+	report.check("...and the keyboard levers stay where they were (level 1 on the left)", physics_keys.left_level == 1)
+	await runner.wait_physics_frames(2)
+	var hud_text: String = (hud.get_child(0) as Label).text
+	report.check("Camera, HUD and Tab panel follow the physics tank",
+			chase.target == physics and hud.tank == physics and panel.tank == physics
+			and hud_text.contains("Tank: PHYSICS") and not panel.controls_for(&"base_mass").is_empty())
+	await _tap_key(KEY_V)
+	var physics_slit: DriverSlitCamera = physics.get_node(^"Visual/Hull/DriverSlitCamera")
+	report.check("V shows the physics tank's slit view", physics_slit.current and physics_slit.is_slit_visible())
+	await _tap_key(KEY_V)
+	var phone_source: PhoneDriverInput = physics.get_node(^"DriverStation/PhoneDriverInput")
+	report.check("The physics tank's phone input finds the phone server", phone_source._find_server() != null)
+	await _tap_key(KEY_1)
+	var heavy: TankFeel = load("res://tuning/presets/heavy.tres")
+	report.check("Presets set the knobs on both tanks (key 1: heavy)",
+			heavy.matches(physics.tuning) and heavy.matches(kinematic.tuning))
+	panel._on_reset_to_saved_pressed()
+	# Panel's Reset to saved only resets the shown tank's values; the hidden
+	# tank's knobs go back too.
+	report.check("Reset to saved puts the knobs back (both tanks)",
+			not heavy.matches(physics.tuning) and not heavy.matches(kinematic.tuning),
+			"physics weight %.2f, kinematic weight %.2f" % [physics.tuning.weight, kinematic.tuning.weight])
+	physics_keys.clear_levels()
+	physics.place_at(Transform3D(Basis.IDENTITY, Vector3(-30.0, 0.5, 15.0)))
+	await runner.wait_physics_frames(10)
+	await _tap_key(KEY_R)
+	report.check("R puts the active (physics) tank back at the start",
+			Vector2(physics.global_position.x, physics.global_position.z).length() < 0.3,
+			"at %s" % physics.global_position)
+	await _tap_key(KEY_T)
+	report.check("T again swaps back to the kinematic tank", rig.active_tank == kinematic and kinematic.visible
+			and not physics.visible and hud.tank == kinematic)
+	kinematic_keys.clear_levels()
+	await _tap_key(KEY_R)
+
+
+func _tap_key(code: Key) -> void:
+	for down: bool in [true, false]:
+		var event := InputEventKey.new()
+		event.physical_keycode = code
+		event.pressed = down
+		Input.parse_input_event(event)
+		Input.flush_buffered_events()
+		await runner.wait_physics_frames(2)
+
+
 # --- Rest -------------------------------------------------------------------
 
 func _rest_test() -> void:
