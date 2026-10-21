@@ -36,6 +36,13 @@ extends Resource
 ## rocks, leans and whether it rolls over.
 @export_range(0.0, 1.0, 0.01) var tippiness: float = 0.3
 
+## How long each tread's engine takes to warm up from nothing to full push,
+## in seconds, whenever you ask for more power. 0 = instant. From a standstill
+## or steady driving the push builds up over this time; if the tread is still
+## speeding up (the engine already pushing hard), more power comes at once.
+## Braking is never delayed. (Presets 1/2/3 don't change it.)
+@export_range(0.0, 2.0, 0.05, "or_greater") var warm_up_time: float = 0.0
+
 @export_group("Advanced (do not usually touch)")
 ## Mass of a tank of weight 1, in kilograms.
 @export var base_mass: float = 30000.0
@@ -143,6 +150,7 @@ func panel_settings() -> Array[Dictionary]:
 		TankFeel.panel_row(knobs, &"grip", 0.0, 80.0, 0.5, 0.0, 89.0),
 		TankFeel.panel_row(knobs, &"sideways_grip", 0.0, 1.0, 0.01, 0.0, 1.0),
 		TankFeel.panel_row(knobs, &"tippiness", 0.0, 1.0, 0.01, 0.0, 1.5),
+		TankFeel.panel_row(knobs, &"warm_up_time", 0.0, 2.0, 0.05),
 		TankFeel.panel_row(advanced, &"base_mass", 1000.0, 100000.0, 500.0, 1.0),
 		# Fractions of the spring: 0 would be infinitely stiff.
 		TankFeel.panel_row(advanced, &"target_sag", 0.02, 0.6, 0.01, 0.01, 0.9),

@@ -48,6 +48,10 @@ var probe_compression: Array[float] = []
 var left_grip_saturated: bool = false
 var right_grip_saturated: bool = false
 
+## How hard each tread's engine can push right now (left, right), in m/s per
+## second: climbs over warm_up_time when more power is asked for.
+var engine_output: Array[float] = [0.0, 0.0]
+
 var _probes: Array[RayCast3D] = []
 var _spawn_transform: Transform3D
 var _home_transform: Transform3D
@@ -137,8 +141,8 @@ func _physics_process(delta: float) -> void:
 	right_tread_speed = _tread_speed(1.0, centre)
 	forward_speed = linear_velocity.dot(forward)
 	var tread_accel: Array[float] = [
-		_tread_accel(driver_station.left_tread, left_tread_speed, forward, gravity, delta),
-		_tread_accel(driver_station.right_tread, right_tread_speed, forward, gravity, delta),
+		_tread_accel(0, driver_station.left_tread, left_tread_speed, forward, gravity, delta),
+		_tread_accel(1, driver_station.right_tread, right_tread_speed, forward, gravity, delta),
 	]
 	var saturated: Array[bool] = [false, false]
 	var sideways_rate: float = tuning.sideways_rate()
@@ -174,7 +178,7 @@ func _tread_speed(side: float, centre: Vector3) -> float:
 ## How hard one tread wants to push, in m/s per second (for its half of the
 ## mass). The same three states as the kinematic tank's treads:
 ## braking (brake held), idling (lever at 0) and driving.
-func _tread_accel(lever: float, speed: float, forward: Vector3, gravity: Vector3, delta: float) -> float:
+func _tread_accel(tread: int, lever: float, speed: float, forward: Vector3, gravity: Vector3, delta: float) -> float:
 	var strongest: float = tuning.max_drive_accel()
 	# Gravity's pull along the tank (negative = pulling it backwards, uphill).
 	var gravity_along: float = gravity.dot(forward)
@@ -184,6 +188,11 @@ func _tread_accel(lever: float, speed: float, forward: Vector3, gravity: Vector3
 		# Chase the target speed, and hold against gravity (so the brake holds
 		# the tank on slopes and the push fades as the treads reach top speed).
 		accel = clampf((target - speed) * tuning.throttle_response - gravity_along, -strongest, strongest)
+	if driver_station.brake or lever == 0.0:
+		# The engine isn't driving this tread, so it will need to warm up again.
+		engine_output[tread] = 0.0
+	else:
+		accel = _apply_warm_up(tread, accel, lever, strongest, delta)
 	# Rolling resistance, plus idle drag with the lever at 0: never past a stop.
 	var resistance: float = tuning.rolling_resistance
 	if lever == 0.0 and not driver_station.brake:
@@ -193,6 +202,25 @@ func _tread_accel(lever: float, speed: float, forward: Vector3, gravity: Vector3
 
 
 ## A sudden loss of speed means the tank hit something (for buzzing a phone).
+## Warm-up: when a tread's engine is asked to push the way its lever points,
+## it can only give as much as it has built up. Its output climbs toward what
+## is asked for (from nothing to full in warm_up_time seconds) and drops at
+## once. Pushes against the lever's direction (holding back to the lever's
+## speed, e.g. downhill) are not delayed. Same rule as the kinematic tank.
+func _apply_warm_up(tread: int, accel: float, lever: float, strongest: float, delta: float) -> float:
+	var asked: float = absf(accel)
+	var pushing_with_lever: bool = signf(accel) == signf(lever)
+	if tuning.warm_up_time <= 0.0 or not pushing_with_lever:
+		if pushing_with_lever:
+			engine_output[tread] = asked
+		return accel
+	if asked > engine_output[tread]:
+		engine_output[tread] = move_toward(engine_output[tread], asked, strongest / tuning.warm_up_time * delta)
+	else:
+		engine_output[tread] = asked
+	return signf(accel) * minf(asked, engine_output[tread])
+
+
 func _check_for_hit() -> void:
 	var lost: float = (_previous_velocity - linear_velocity).length()
 	var hit: bool = lost > 3.0 and _previous_velocity.length() > 1.0
@@ -216,6 +244,7 @@ func place_at(where: Transform3D) -> void:
 	forward_speed = 0.0
 	left_tread_speed = 0.0
 	right_tread_speed = 0.0
+	engine_output = [0.0, 0.0]
 
 
 func reset_to_spawn() -> void:
@@ -275,6 +304,8 @@ func debug_lines() -> PackedStringArray:
 		"Right tread: input %+.2f   speed %+5.1f m/s   grip %s" % [driver_station.right_tread,
 				right_tread_speed, "SATURATED" if right_grip_saturated else "ok"],
 		"Forward speed: %+5.1f m/s   Brake: %s" % [forward_speed, "ON" if driver_station.brake else "off"],
+		"Engine push available: L %.1f  R %.1f  (of %.1f; warm-up %.2f s)" % [
+				engine_output[0], engine_output[1], tuning.max_drive_accel(), tuning.warm_up_time],
 		"Hull pitch %+5.1f°   roll %+5.1f°" % [pitch_degrees(), roll_degrees()],
 		"Probes (front to back; # = touching, number = spring squash %):",
 	]

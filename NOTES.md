@@ -615,3 +615,13 @@ committed). To watch: open `tests/test_runner.tscn` and press F6.
   notches, reverse, brake, follows the keyboard), brake hold/release, unplug -> 3 s brake, the
   page receiving all 64 pads, and the Push driving the physics tank after T. 204 checks pass.
 - **Not tested:** a real Push (pads, lights, colours, unplugging), the relay page with this game.
+- **Physics tank warm-up** (2026-10-22, developer's request): `warm_up_time` added to
+  `PhysicsTankTuning`'s **feel knobs** group (default 0 = off), and to the Tab panel's knob rows.
+  The developer wants the feel-knob section to grow into "the variables I find most important",
+  not stay at six. Same rule as the kinematic tank: each tread's `engine_output` climbs toward
+  the push asked for (full in warm_up_time) and drops at once; pushes against the lever's
+  direction and the brake are never delayed. Presets don't set it (`TankFeel` still has six
+  knobs). F3 shows each tread's available push. Measured: 0.5 s warm-up -> 1.11 m/s after 0.5 s
+  (2.08 without); same 10 m/s after 3 s; brake from full speed 2.45 s either way. The physics
+  tank still has no engine power fade (only throttle_response easing in the last ~1 m/s).
+  207 checks pass.

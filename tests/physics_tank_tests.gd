@@ -21,6 +21,7 @@ func run() -> void:
 	report.heading("Physics tank: rest and flat ground")
 	await _rest_test()
 	await _flat_tests()
+	await _warm_up_tests()
 	await _controls_test()
 	await _slope_tests()
 	await _ledge_steps_and_crest()
@@ -150,6 +151,69 @@ func _flat_tests() -> void:
 	report.check("Opposite treads: spins with little travel",
 			absf(result.turned) > 90.0 and result.distance < 0.5,
 			"turned %.0f°, %.0f°/s by the end, moved %.2f m" % [result.turned, result.rate, result.distance])
+
+
+func _warm_up_tests() -> void:
+	var instant: float = await _physics_speed_after(0.5, 0.0)
+	var warming: float = await _physics_speed_after(0.5, 0.5)
+	report.check("Warm-up 0.5 s (physics): clearly slower off the line in the first 0.5 s",
+			warming < instant * 0.7, "%.2f m/s with warm-up, %.2f without" % [warming, instant])
+	var later: float = await _physics_speed_after(3.0, 0.5)
+	var later_instant: float = await _physics_speed_after(3.0, 0.0)
+	report.check("Warm-up (physics): still reaches the same speed, just later",
+			absf(later - later_instant) < 1.5, "after 3 s: %.1f m/s with warm-up, %.1f without" % [later, later_instant])
+	var stop_without: float = await _physics_seconds_to_stop(0.0)
+	var stop_with: float = await _physics_seconds_to_stop(0.5)
+	report.check("Warm-up never delays the brake (physics)", absf(stop_with - stop_without) < 0.1,
+			"stop from full speed: %.2f s with warm-up, %.2f without" % [stop_with, stop_without])
+
+
+## A physics tank with its own copy of the tuning and the given warm-up.
+func _physics_tank_with_warm_up(warm_up: float) -> Node3D:
+	var tank: Node3D = runner.spawn_test_physics_tank(FLAT_AREA)
+	var tuning: PhysicsTankTuning = (tank.get(&"tuning") as PhysicsTankTuning).duplicate()
+	tuning.warm_up_time = warm_up
+	tank.set(&"tuning", tuning)
+	runner.watch_tank(tank)
+	return tank
+
+
+## From rest, both levers full for `seconds`; returns the forward speed.
+func _physics_speed_after(seconds: float, warm_up: float) -> float:
+	var tank: Node3D = _physics_tank_with_warm_up(warm_up)
+	var station: DriverStation = tank.get(&"driver_station")
+	station.brake = true
+	await runner.wait_physics_frames(60)
+	station.brake = false
+	for frame: int in roundi(seconds * FPS):
+		station.left_tread = 1.0
+		station.right_tread = 1.0
+		await runner.get_tree().physics_frame
+	var speed: float = tank.get(&"forward_speed")
+	await runner.remove_test_tanks()
+	return speed
+
+
+## Full speed, then brake: seconds until (nearly) stopped.
+func _physics_seconds_to_stop(warm_up: float) -> float:
+	var tank: Node3D = _physics_tank_with_warm_up(warm_up)
+	var station: DriverStation = tank.get(&"driver_station")
+	station.brake = true
+	await runner.wait_physics_frames(60)
+	station.brake = false
+	for frame: int in 5 * FPS:
+		station.left_tread = 1.0
+		station.right_tread = 1.0
+		await runner.get_tree().physics_frame
+	station.left_tread = 0.0
+	station.right_tread = 0.0
+	station.brake = true
+	var frames: int = 0
+	while absf(tank.get(&"forward_speed")) > 0.1 and frames < 600:
+		await runner.get_tree().physics_frame
+		frames += 1
+	await runner.remove_test_tanks()
+	return frames / float(FPS)
 
 
 ## Drives a fresh tank (physics or kinematic) on flat ground.

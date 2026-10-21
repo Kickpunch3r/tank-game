@@ -90,6 +90,7 @@ pressing Play, not in the editor viewport.
 | `grip` | The steepest slope (degrees) it can hold, or climb from a standstill |
 | `sideways_grip` | 1 = no sliding in turns; lower = it drifts outward in turns at speed |
 | `tippiness` | 0 = rigid hull, 1 = the hull rocks back, dips and leans a lot (looks only) |
+| `warm_up_time` | **Physics tank only, in its feel knobs:** seconds for each tread's push to build up from nothing to full when you ask for more power (0 = instant). Never delays the brake; presets don't change it. (The kinematic tank has the same setting under Advanced.) |
 
 1. Change **one knob at a time** (Tab panel, or the Inspector to keep it).
 2. Watch the **F3 display**: it shows the six knobs, the preset they match, the slope you can
