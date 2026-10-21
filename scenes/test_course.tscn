@@ -35,6 +35,7 @@ current = true
 script = ExtResource("3_camera")
 target = NodePath("../Tank")
 
-[node name="DriverReadout" type="CanvasLayer" parent="." node_paths=PackedStringArray("station")]
+[node name="DriverReadout" type="CanvasLayer" parent="." node_paths=PackedStringArray("station", "tank")]
 script = ExtResource("4_readout")
 station = NodePath("../Tank/DriverStation")
+tank = NodePath("../Tank")

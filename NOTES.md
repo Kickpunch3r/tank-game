@@ -40,9 +40,35 @@
 - Later, for several stations or controllers: move input sources out of the tank into a separate
   "Controls" node, and give each gamepad source a device number.
 
+## Movement model
+- `Tank` (`CharacterBody3D`) only ever turns left/right; it never tilts. `HullTilt` on
+  `Visual/Hull` tilts the picture to the ground.
+- Each tread is a `TankTread` (`scripts/tank_tread.gd`). Per physics frame:
+  push needed = (target speed − speed) / delta + g·sin(slope) (so letting go brakes and holds),
+  capped at `max_drive_accel`, then at the grip limit `traction_coeff·g·cos(slope)`;
+  then speed += (push − g·sin(slope))·delta, minus a little rolling resistance.
+- Forward speed = average of the treads. Turn rate = (right − left) / `track_width` ×
+  (1 − `turn_resistance`). Left tread only = turns right.
+- Slope = angle of the ground along the tank's facing, from Godot's floor normal.
+- **Collision shape is a capsule** (radius 1.7, a sphere in practice), not a box, so it touches
+  slopes near its centre and the tilted hull sits flush. Walls see a round tank. `HullTilt`'s
+  `contact_radius` must match the capsule radius.
+- **Ground press:** while driving, the tank is pushed 1 m/s into the ground
+  (`GROUND_PRESS_SPEED`). Without it, floor contact flickered on/off every other frame on
+  any slope (measured: 240 of 480 frames off the floor on 15° and 25°; 0 after the fix).
+- No sideways sliding on slopes that lean left/right (could be added later).
+- Hitting a wall stops the body but the treads keep their speed (they spin against it).
+- Tuning lives in `tuning/tank_tuning.tres`; defaults in `scripts/tank_tuning.gd`.
+
 ## Milestone log
 1. **Skeleton** (2026-10-21): project, folders, `.gitignore`, flat ground, placeholder tank,
    chase camera. Headless run: no errors; tank settles on the ground (y = 0.001, on floor).
 2. **Input stations** (2026-10-21): `DriverStation`, keyboard and gamepad sources, Input Map,
    reset to spawn, temporary readout. Headless check with simulated key, stick and button events:
    10/10 passed (keys, sticks, deadzone, hardest-push-wins, both resets, direct writes, readout).
+3. **Movement model** (2026-10-21): tread dynamics, turning, ground alignment, hull tilt,
+   airborne fall, `TankTuning`. Headless check on temporary test slopes: flat straight 39.7 m in
+   5 s; left only turns right; spin in place moves 0.0 m; holds still on 20°; slides back on 35°
+   and 55°; climbs 25° slowly from rest (5.1 m/s); fails 30° from rest. Turn resistance raised
+   0.4 → 0.75 after the first run (spinning was ~230°/s; now ~95°/s at full tread speed).
+   Untested: driving off a ledge (no ledges until milestone 4), how it feels by hand.

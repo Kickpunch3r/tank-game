@@ -1,0 +1,14 @@
+[gd_resource type="Resource" script_class="TankTuning" format=3]
+
+[ext_resource type="Script" path="res://scripts/tank_tuning.gd" id="1_tuning"]
+
+[resource]
+script = ExtResource("1_tuning")
+max_tread_speed = 10.0
+max_drive_accel = 5.0
+rolling_resistance = 0.1
+traction_coeff = 0.55
+g = 9.8
+track_width = 3.0
+turn_resistance = 0.75
+tilt_smoothing = 8.0
