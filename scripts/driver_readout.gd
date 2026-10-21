@@ -20,7 +20,7 @@ func _ready() -> void:
 
 
 func _physics_process(_delta: float) -> void:
-	if station == null or tank == null:
+	if not is_instance_valid(station) or not is_instance_valid(tank):
 		return
 	if station.reset_requested:
 		_reset_count += 1

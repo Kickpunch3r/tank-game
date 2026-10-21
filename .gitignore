@@ -4,3 +4,6 @@
 
 # Exports
 *.tmp
+
+# Test report, rewritten every test run
+tests/last_results.txt

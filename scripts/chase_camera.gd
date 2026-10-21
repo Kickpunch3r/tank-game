@@ -28,7 +28,7 @@ func _ready() -> void:
 
 
 func _physics_process(delta: float) -> void:
-	if target == null:
+	if not is_instance_valid(target):
 		return
 	# Frame-rate independent smoothing: move a fraction of the remaining gap each frame.
 	var catch_up: float = 1.0 - exp(-follow_smoothing * delta)

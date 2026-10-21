@@ -106,3 +106,46 @@
   tuning values move which ramps from "climbs" to "fails".
 - Improve the feel of launching off a "no ledge" crest (2026-10-21): e.g. hang time, nose
   dipping in the air, a landing thump or camera shake.
+5. **Tests and tuning** (2026-10-21): `tests/test_runner.tscn` runs 42 checks in about 4 s
+   (input, course shape, flat driving, kill-plane, every ramp standing and with run-up, sanity).
+   All targets met with the starting tuning values, so **no tuning changes were needed**.
+   One test fix on the way: "standing start" first began 2.5 m in front of the ramp, which gave
+   the tank a small run-in and let it climb 30°. It now starts at rest already touching the slope.
+
+## Running the tests
+```
+C:\Users\Laptop\Documents\Godot_v4.6.3-stable_win64_console.exe --headless --fixed-fps 60 --path . res://tests/test_runner.tscn
+```
+- `--fixed-fps 60` runs physics as fast as possible instead of in real time (confirmed in
+  `--help` for 4.6.3). Exit code 0 = all passed, 1 = something failed.
+- Report is printed and saved to `tests/last_results.txt` (not committed: rewritten each run).
+- To watch: open `tests/test_runner.tscn` in the editor and press F6. The camera follows one
+  test tank; the window stays open at the end with a summary.
+
+## Final tuning and test results
+Tuning (`tuning/tank_tuning.tres`): max_tread_speed 10, max_drive_accel 5, rolling_resistance 0.1,
+traction_coeff 0.55, g 9.8, track_width 3, turn_resistance 0.75, tilt_smoothing 8.
+
+| Ramp | Standing start | With run-up (70 m) | Target |
+|---|---|---|---|
+| 5° ledge | climbs, 3.2 s | climbs, 10.0 s | climbs / climbs |
+| 10° no ledge | climbs, 3.5 s | climbs, 10.0 s | climbs / climbs |
+| 15° ledge | climbs, 4.0 s | climbs, 10.0 s | climbs / climbs |
+| 20° no ledge | climbs, 4.8 s | climbs, 10.0 s | climbs / climbs |
+| 25° ledge | climbs slowly, 7.0 s | climbs, 10.0 s | climbs / climbs |
+| 30° no ledge | fails (4% up) | climbs, 10.1 s | fails / climbs |
+| 35° ledge | fails (3% up) | climbs, 10.4 s | fails / climbs |
+| 40° no ledge | fails (4% up) | **climbs**, 11.2 s | fails / either |
+| 45° ledge | fails (3% up) | fails (78% up) | fails / fails |
+| 55° no ledge | fails (5% up) | fails (49% up) | fails / fails |
+
+Run-up times are mostly the 70 m approach (about 8 s at full speed).
+
+### Which numbers change slope difficulty
+- **Steepest slope climbable from a standstill** is set by `traction_coeff`: about
+  atan(traction_coeff). 0.55 gives ~29°. (Also needs `max_drive_accel` ≥ g × sin(angle), which
+  5.0 satisfies up to ~30°.)
+- **How much a run-up helps** is set by `max_tread_speed`: faster arrival = coasts further up.
+  Steeper ramps slow the tank faster, so there is always an angle no run-up can beat.
+- **Grip on steep slopes**: lowering `traction_coeff` makes every steep ramp harder at once.
+- Change a value, run the tests, and read the table.
