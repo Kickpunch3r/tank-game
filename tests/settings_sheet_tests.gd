@@ -88,6 +88,9 @@ func _read_sheet() -> void:
 	if file == null:
 		return
 	var header: PackedStringArray = file.get_csv_line()
+	# Excel's "CSV UTF-8" adds an invisible marker before the first heading.
+	if not header.is_empty():
+		header[0] = header[0].trim_prefix(char(0xFEFF))
 	var thing_column: int = header.find("Thing")
 	var section_column: int = header.find("Section")
 	var code_column: int = header.find("Code name")

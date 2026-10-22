@@ -635,3 +635,6 @@ committed). To watch: open `tests/test_runner.tscn` and press F6.
   ASCII. `tests/settings_sheet_tests.gd` fails if a physics setting or Tab panel setting is
   missing, in the wrong section, or its default doesn't match the saved file (loaded by path in
   the runner, so it works before Godot registers the class). 211 checks pass.
+- **Fix:** Godot imports any `.csv` as a translation table, so the spreadsheet had spawned nine
+  `.translation` files (committed by mistake). Now `docs/tuning_settings.csv.import` says
+  `importer="keep"` (no import) and those files are deleted. Add the same for any future CSV.

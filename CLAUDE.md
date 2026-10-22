@@ -2,7 +2,8 @@
 
 A co-operative tank crew game for a large physical installation: several players run different
 stations of one tank (driver, gunner, engineer) with big custom controllers and separate screens or
-vision slits. The current build covers **driving only**; the full build plan is `TANK_PLAN.md`.
+vision slits. The current build covers **driving only**. (The original plans were deleted on 2026-10-22; they are in git
+history. NOTES.md records what was built and why.)
 Developer background: art, storytelling, design, folk games, not programming. Learning GDScript.
 
 ## How to work with me
@@ -16,7 +17,6 @@ Developer background: art, storytelling, design, folk games, not programming. Le
 - Test headlessly before handing over, and say plainly what is untested.
 - Finish with clear step-by-step instructions for anything I need to do in the editor.
 - After moving files, check `preload("res://...")` paths in scripts and tests (Godot doesn't update them).
-- Where this file and `TANK_PLAN.md` disagree, **this file wins**.
 
 ## Scene and resource files (.tscn / .tres)
 In this project Claude **may create and edit** `.tscn` / `.tres` files as text (decided 2026-10-21,
@@ -60,6 +60,11 @@ While **OFF**: the "How to work with me" rules apply, and commits happen at the 
   check it.
 - Tests (run before handing over; all must pass):
   `C:\Users\Laptop\Documents\Godot_v4.6.3-stable_win64_console.exe --headless --fixed-fps 60 --path . res://tests/test_runner.tscn`
+  - While working, run only the relevant suites (add `-- --only=push,phone`; names are listed
+    at the top of `tests/test_runner.gd`). The full suite (~2.5 min) runs once before committing.
+- Keep the routine cheap (agreed 2026-10-22): NOTES entries of a few lines (what, why, result;
+  longer only for real design decisions); commit at the end of a session; short closing
+  messages that don't repeat the docs.
 
 ## Project facts
 - 3D, GDScript with static typing.

@@ -6,6 +6,10 @@ extends Node
 ##
 ## Headless (fast):
 ##   <godot console exe> --headless --fixed-fps 60 --path . res://tests/test_runner.tscn
+## Only some suites, while working (run everything before committing):
+##   ... res://tests/test_runner.tscn -- --only=push,phone
+## Suite names: sheet, input, views, panel, feel, physics, phone, usb, push,
+## course, driving, brake, terrain, levels.
 ## To watch: open tests/test_runner.tscn in the editor and press F6.
 
 const COURSE_SCENE: PackedScene = preload("res://scenes/test_course.tscn")
@@ -22,6 +26,18 @@ var sanity_broken_position: bool = false
 var sanity_fell_through: bool = false
 # Kinematic and physics test tanks.
 var _watched_tanks: Array[Node3D] = []
+# Suite names given with -- --only=..., empty = run everything.
+var _only: PackedStringArray = []
+
+
+func _read_only_list() -> void:
+	for argument: String in OS.get_cmdline_user_args():
+		if argument.begins_with("--only="):
+			_only = argument.trim_prefix("--only=").split(",", false)
+
+
+func _wanted(suite: String) -> bool:
+	return _only.is_empty() or _only.has(suite)
 
 
 func _ready() -> void:
@@ -41,23 +57,42 @@ func _ready() -> void:
 	await wait_physics_frames(5)
 
 	report.add_line("Tank game tests  (%s)" % Time.get_datetime_string_from_system(false, true))
+	_read_only_list()
+	if not _only.is_empty():
+		report.add_line("ONLY these suites (a partial run): %s" % ", ".join(_only))
 	# Loaded by path, so it runs even before Godot has registered the class.
-	preload("res://tests/settings_sheet_tests.gd").new(self).run()
-	await InputTests.new(self).run()
-	await ViewTests.new(self).run()
-	await PanelTests.new(self).run()
-	await FeelTests.new(self).run_preset_keys()
-	await PhysicsTankTests.new(self).run_swap()
-	await PhoneTests.new(self).run()
-	UsbLinkTests.new(self).run()
-	await PushTests.new(self).run()
-	CourseTests.new(self).run()
-	await DrivingTests.new(self).run()
-	await BrakeTests.new(self).run()
-	await FeelTests.new(self).run()
-	await PhysicsTankTests.new(self).run()
-	await TerrainTests.new(self).run()
-	await LevelTests.new(self).run()
+	if _wanted("sheet"):
+		preload("res://tests/settings_sheet_tests.gd").new(self).run()
+	if _wanted("input"):
+		await InputTests.new(self).run()
+	if _wanted("views"):
+		await ViewTests.new(self).run()
+	if _wanted("panel"):
+		await PanelTests.new(self).run()
+	if _wanted("feel"):
+		await FeelTests.new(self).run_preset_keys()
+	if _wanted("physics"):
+		await PhysicsTankTests.new(self).run_swap()
+	if _wanted("phone"):
+		await PhoneTests.new(self).run()
+	if _wanted("usb"):
+		UsbLinkTests.new(self).run()
+	if _wanted("push"):
+		await PushTests.new(self).run()
+	if _wanted("course"):
+		CourseTests.new(self).run()
+	if _wanted("driving"):
+		await DrivingTests.new(self).run()
+	if _wanted("brake"):
+		await BrakeTests.new(self).run()
+	if _wanted("feel"):
+		await FeelTests.new(self).run()
+	if _wanted("physics"):
+		await PhysicsTankTests.new(self).run()
+	if _wanted("terrain"):
+		await TerrainTests.new(self).run()
+	if _wanted("levels"):
+		await LevelTests.new(self).run()
 
 	report.heading("Sanity")
 	report.check("No NaN or infinite positions", not sanity_broken_position)

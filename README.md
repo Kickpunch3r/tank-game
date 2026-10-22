@@ -242,4 +242,4 @@ row 0   L  L  .  .  .  .  R  R     full back
 | `docs/` | Design documents |
 
 More detail (architecture, decisions, test results, known issues, things to check by hand) is
-in [NOTES.md](NOTES.md). The original build plan is [TANK_PLAN.md](TANK_PLAN.md).
+in [NOTES.md](NOTES.md).
