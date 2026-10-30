@@ -22,6 +22,10 @@ extends RefCounted
 ## - Goal plateau (north): where both routes meet; steep sides elsewhere.
 ## - Impassable: the mountain rim, the ridge's cliff, the river's steep banks,
 ##   a steep cone hill and a cliff-sided mesa.
+## - Dressing (2026-10-31): a dune sea (south-west), a big lake the river runs
+##   into (too deep = back to the start), big rocks along the high road, a
+##   misty pine forest (north-east), a boulder field, small rocks to drive
+##   over, and scattered trees and bushes. See scenery().
 
 ## Image size in pixels (= metres).
 const WIDTH: int = 448
@@ -79,8 +83,13 @@ const RIVER: Array[Vector2] = [
 	Vector2(-10.0, -55.0), Vector2(-60.0, -45.0), Vector2(-105.0, -32.0),
 ]
 const RIVER_HALF_WIDTH: float = 7.0
-const LAKE := Vector2(-120.0, -32.0)
-const LAKE_RADIUS: float = 22.0
+## The lake the river runs into: deepest inside LAKE_RADIUS, its bed shelving
+## gently up to normal ground at LAKE_SHORE (so you can drive in), and deeper
+## than DEEP_WATER_RADIUS sends the tank back to the start.
+const LAKE := Vector2(-100.0, -25.0)
+const LAKE_RADIUS: float = 24.0
+const LAKE_SHORE: float = 42.0
+const DEEP_WATER_RADIUS: float = 29.0
 ## Within this distance of the ford, the river banks are gentle.
 const FORD_REACH: float = 16.0
 
@@ -106,6 +115,19 @@ const DUNES := Rect2(-38.0, -98.0, 66.0, 26.0)
 ## Width of the mountain rim, from the edge inward.
 const RIM: float = 24.0
 
+## The dune sea: big sand dunes filling the south-west.
+const DUNE_SEA := Rect2(-198.0, 90.0, 152.0, 78.0)
+const DUNE_SEA_HEIGHT: float = 2.6
+## The misty pine forest (north-east), and the boulder field near the cone.
+const FOREST := Rect2(106.0, -166.0, 90.0, 58.0)
+## Kept clear of scenery: the flat run-up east of the cone.
+const CONE_RUN_UP := Rect2(-85.0, -98.0, 55.0, 12.0)
+const BOULDER_FIELD := Vector2(-55.0, -108.0)
+const BOULDER_FIELD_RADIUS: float = 13.0
+## A patch of small rocks to drive over, in the test area.
+const RUBBLE := Vector2(40.0, 100.0)
+const RUBBLE_HALF: float = 7.0
+
 var _noise := FastNoiseLite.new()
 
 
@@ -125,8 +147,10 @@ func height_at(x: float, z: float) -> float:
 	h = maxf(h, _goal_plateau(at))
 	h = _flatten_for_paths(at, h)
 	h = _dunes(at, h)
+	h = _dune_sea(at, h)
 	h = _flat_areas(at, h)
 	h = _river(at, h)
+	h = _lake(at, h)
 	h = maxf(h, _rim(at))
 	return clampf(h, 0.0, MAX_HEIGHT)
 
@@ -136,7 +160,7 @@ func terrain_at(x: float, z: float) -> String:
 	var at := Vector2(x, z)
 	if _in_square(at, TEST_MUD) or at.distance_to(MUD_BASIN) < MUD_BASIN_RADIUS or at.distance_to(FORD) < FORD_REACH:
 		return "mud"
-	if _in_square(at, TEST_SAND) or DUNES.has_point(at):
+	if _in_square(at, TEST_SAND) or DUNES.has_point(at) or DUNE_SEA.grow(-3.0).has_point(at):
 		return "sand"
 	# The ridge ledge: sand on the high route's narrow stretch.
 	var ledge: Dictionary = _nearest_on_path(at, HIGH_ROUTE.slice(3, 5))
@@ -229,9 +253,9 @@ func _flat_areas(at: Vector2, h: float) -> float:
 	return lerpf(h, BASE, smoothstep(-8.0, 0.0, inside))
 
 
-## The river and lake: deep, with steep banks, except at the shallow ford.
+## The river: deep, with steep banks, except at the shallow ford.
 func _river(at: Vector2, h: float) -> float:
-	var distance: float = at.distance_to(LAKE) - (LAKE_RADIUS - RIVER_HALF_WIDTH)
+	var distance: float = INF
 	for index: int in RIVER.size() - 1:
 		distance = minf(distance, _distance_to_segment(at, RIVER[index], RIVER[index + 1]))
 	var near_ford: float = smoothstep(FORD_REACH, FORD_REACH * 0.5, at.distance_to(FORD))
@@ -244,6 +268,28 @@ func _river(at: Vector2, h: float) -> float:
 		var rise: float = (distance - RIVER_HALF_WIDTH) / bank
 		return minf(h, lerpf(bed, maxf(h, bed), rise))
 	return h
+
+
+## The lake: a deep middle, and a bed shelving gently (about 11°) up to the shore.
+func _lake(at: Vector2, h: float) -> float:
+	var distance: float = at.distance_to(LAKE)
+	if distance >= LAKE_SHORE:
+		return h
+	var rise: float = smoothstep(LAKE_RADIUS, LAKE_SHORE, distance)
+	return minf(h, lerpf(RIVER_BED, BASE, rise))
+
+
+## Big rolling sand dunes, fading out at the edges of the dune sea.
+func _dune_sea(at: Vector2, h: float) -> float:
+	var inside: float = minf(minf(at.x - DUNE_SEA.position.x, DUNE_SEA.end.x - at.x),
+			minf(at.y - DUNE_SEA.position.y, DUNE_SEA.end.y - at.y))
+	if inside <= 0.0:
+		return h
+	var fade: float = smoothstep(0.0, 14.0, inside)
+	# Crests running roughly north-south, wandering with the noise; peaky tops.
+	var phase: float = at.x * 0.15 + at.y * 0.04 + 1.6 * _noise.get_noise_2d(at.x * 0.7, at.y * 0.7)
+	var crest: float = pow(0.5 + 0.5 * sin(phase), 1.5)
+	return h + fade * DUNE_SEA_HEIGHT * crest
 
 
 func _in_square(at: Vector2, centre: Vector2) -> bool:
@@ -274,3 +320,132 @@ func _segment_fraction(at: Vector2, a: Vector2, b: Vector2) -> float:
 
 func _distance_to_segment(at: Vector2, a: Vector2, b: Vector2) -> float:
 	return at.distance_to(a.lerp(b, _segment_fraction(at, a, b)))
+
+
+# --- Scenery -------------------------------------------------------------------
+
+## Everything placed on the ground, the same every time (fixed random seed).
+## Each list holds dictionaries with "at" (Vector2, x and z) and sizes:
+## - pines (forest) and trees (scattered): "height", "radius" (canopy); solid.
+## - bushes: "size"; drive-through.
+## - big_rocks (high road), boulders (boulder field), small_rocks (rubble patch
+##   and scattered): "size" (Vector3, metres), "turn" (radians); solid.
+## - buoys: on the lake, marking the deep water.
+func scenery() -> Dictionary:
+	var random := RandomNumberGenerator.new()
+	random.seed = 31
+	var result: Dictionary = {"pines": [], "trees": [], "bushes": [], "big_rocks": [],
+			"boulders": [], "small_rocks": [], "buoys": []}
+	_place_pines(random, result.pines)
+	_place_big_rocks(random, result.big_rocks)
+	for index: int in 26:
+		var angle: float = random.randf() * TAU
+		var at: Vector2 = BOULDER_FIELD + Vector2(cos(angle), sin(angle)) * sqrt(random.randf()) * BOULDER_FIELD_RADIUS
+		if _open_ground(at, 2.0):
+			result.boulders.append(_rock(random, at, 1.0, 2.2))
+	for index: int in 40:
+		var at := RUBBLE + Vector2(random.randf_range(-RUBBLE_HALF, RUBBLE_HALF), random.randf_range(-RUBBLE_HALF, RUBBLE_HALF))
+		result.small_rocks.append(_rock(random, at, 0.25, 0.5))
+	# Scattered over the open lowland, on a jittered grid.
+	for item: Array in [["trees", 20.0, 0.55], ["bushes", 9.0, 0.45], ["small_rocks", 15.0, 0.25]]:
+		var spacing: float = item[1]
+		for gx: int in int(WIDTH / spacing):
+			for gz: int in int(DEPTH / spacing):
+				if random.randf() > item[2]:
+					continue
+				var at := Vector2(-WIDTH / 2.0 + (gx + random.randf()) * spacing, -DEPTH / 2.0 + (gz + random.randf()) * spacing)
+				if not _open_ground(at, 3.0 if item[0] == "trees" else 1.5) or FOREST.grow(4.0).has_point(at):
+					continue
+				match item[0]:
+					"trees":
+						result.trees.append({"at": at, "height": random.randf_range(5.0, 8.0), "radius": random.randf_range(2.0, 3.0)})
+					"bushes":
+						result.bushes.append({"at": at, "size": random.randf_range(0.6, 1.3)})
+					"small_rocks":
+						result.small_rocks.append(_rock(random, at, 0.25, 0.5))
+	for index: int in 24:
+		var angle: float = TAU * index / 24.0
+		result.buoys.append({"at": LAKE + Vector2(cos(angle), sin(angle)) * (DEEP_WATER_RADIUS + 1.0)})
+	return result
+
+
+func _rock(random: RandomNumberGenerator, at: Vector2, smallest: float, largest: float) -> Dictionary:
+	var radius: float = random.randf_range(smallest, largest)
+	return {"at": at, "size": Vector3(radius * random.randf_range(0.9, 1.4), radius * random.randf_range(0.6, 1.0),
+			radius * random.randf_range(0.9, 1.4)), "turn": random.randf() * TAU}
+
+
+## The pine forest: a jittered grid with clearings to drive through, kept
+## back from the river.
+func _place_pines(random: RandomNumberGenerator, pines: Array) -> void:
+	var spacing: float = 7.5
+	for gx: int in int(FOREST.size.x / spacing):
+		for gz: int in int(FOREST.size.y / spacing):
+			var at: Vector2 = FOREST.position + Vector2((gx + random.randf()) * spacing, (gz + random.randf()) * spacing)
+			# Clearings where the noise is high.
+			if _noise.get_noise_2d(at.x * 3.0, at.y * 3.0) > 0.25 or _river_distance(at) < RIVER_HALF_WIDTH + 8.0:
+				continue
+			if height_at(at.x, at.y) > BASE + 6.0:
+				continue
+			pines.append({"at": at, "height": random.randf_range(7.0, 12.0), "radius": random.randf_range(1.6, 2.4)})
+
+
+## Big rocks around the foot of the high road's raised stretches, and two on
+## top beside the road (leaving a lane wider than the tank).
+func _place_big_rocks(random: RandomNumberGenerator, rocks: Array) -> void:
+	for segment: int in [0, 1, 2, 4, 5, 6]:
+		var a := Vector2(HIGH_ROUTE[segment].x, HIGH_ROUTE[segment].y)
+		var b := Vector2(HIGH_ROUTE[segment + 1].x, HIGH_ROUTE[segment + 1].y)
+		var along: Vector2 = (b - a).normalized()
+		var side := Vector2(-along.y, along.x)
+		var count: int = int(a.distance_to(b) / 18.0)
+		for step: int in count:
+			var at: Vector2 = a.lerp(b, (step + random.randf_range(0.2, 0.8)) / count)
+			var away: float = PATH_WIDTH / 2.0 + PATH_SHOULDER + random.randf_range(1.5, 4.0)
+			at += side * away * (1.0 if (step + segment) % 2 == 0 else -1.0)
+			if _open_ground(at, 2.5, 0.0):
+				rocks.append(_rock(random, at, 1.8, 3.2))
+	# The two on top: to one side of the road, about 4.2 m from its middle.
+	for item: Array in [[1, 0.5, 1.0], [5, 0.5, -1.0]]:
+		var a := Vector2(HIGH_ROUTE[item[0]].x, HIGH_ROUTE[item[0]].y)
+		var b := Vector2(HIGH_ROUTE[item[0] + 1].x, HIGH_ROUTE[item[0] + 1].y)
+		var along: Vector2 = (b - a).normalized()
+		var at: Vector2 = a.lerp(b, item[1]) + Vector2(-along.y, along.x) * 4.2 * item[2]
+		rocks.append({"at": at, "size": Vector3(1.4, 1.2, 1.6), "turn": random.randf() * TAU})
+
+
+## Somewhere free for scenery: clear of the routes (by `clearance` beyond
+## their shoulders), the test area, the spawn, water, steep ground, the hills,
+## the dunes and the mud. route_margin: how far beyond a path's edge to keep.
+func _open_ground(at: Vector2, clearance: float, route_margin: float = PATH_SHOULDER) -> bool:
+	var to_edge: float = minf(minf(at.x + WIDTH / 2.0, WIDTH / 2.0 - at.x), minf(at.y + DEPTH / 2.0, DEPTH / 2.0 - at.y))
+	if to_edge < RIM + 6.0:
+		return false
+	for route: Array[Vector3] in [ROAD, HIGH_ROUTE, LOW_ROUTE]:
+		if _nearest_on_path(at, route).distance < PATH_WIDTH / 2.0 + route_margin + clearance:
+			return false
+	if TEST_AREA.grow(8.0).has_point(at) or at.distance_to(SPAWN) < 30.0:
+		return false
+	if at.distance_to(LAKE) < LAKE_SHORE + clearance or _river_distance(at) < RIVER_HALF_WIDTH + 6.0 + clearance:
+		return false
+	# A clear run-up east of the cone, so you can try (and fail) to drive up it.
+	if CONE_RUN_UP.grow(clearance).has_point(at):
+		return false
+	if at.distance_to(GOAL) < GOAL_RADIUS + 14.0 or at.distance_to(CONE) < 16.0 or at.distance_to(MESA) < MESA_RADIUS + 6.0:
+		return false
+	if at.x < RIDGE_EAST_EDGE + 8.0 and at.y > RIDGE_Z_FROM - 30.0 and at.y < RIDGE_Z_TO + 30.0:
+		return false
+	if DUNE_SEA.grow(4.0).has_point(at) or DUNES.grow(4.0).has_point(at) or at.distance_to(MUD_BASIN) < MUD_BASIN_RADIUS + 4.0:
+		return false
+	# Not on slopes steeper than about 20°.
+	var h: float = height_at(at.x, at.y)
+	if absf(height_at(at.x + 2.0, at.y) - h) > 0.75 or absf(height_at(at.x, at.y + 2.0) - h) > 0.75:
+		return false
+	return h > WATER_LEVEL + 0.6
+
+
+func _river_distance(at: Vector2) -> float:
+	var distance: float = INF
+	for index: int in RIVER.size() - 1:
+		distance = minf(distance, _distance_to_segment(at, RIVER[index], RIVER[index + 1]))
+	return distance

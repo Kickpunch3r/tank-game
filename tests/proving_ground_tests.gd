@@ -39,6 +39,9 @@ func run() -> void:
 	_start_and_test_area()
 	_terrain_and_water()
 	_steepness()
+	_scenery()
+	await _solid_scenery()
+	await _deep_water_and_haze()
 	await _cliffs_stop_the_tank()
 	await _routes()
 	level.queue_free()
@@ -149,6 +152,142 @@ func _cliffs_stop_the_tank() -> void:
 			"came within %.1f m of the cone's foot and %.1f m of the cliff's foot; highest: cone %.1f m (top %.0f m), ridge %.1f m (top %.0f m)" % [
 				cone_foot_gap, ridge.closest_to_foot, cone.highest, ProvingGroundLayout.CONE_HEIGHT,
 				ridge.highest, ProvingGroundLayout.RIDGE_HEIGHT])
+
+
+## The dressing: dune sea, lake with buoys, rocks along the high road, the
+## misty pine forest, scattered trees, bushes and small rocks.
+func _scenery() -> void:
+	var items: Dictionary = layout.scenery()
+	var sand: TerrainType = load("res://terrain/sand.tres")
+	var dune_heights: Array[float] = []
+	for step: int in 40:
+		var spot := Vector2(ProvingGroundLayout.DUNE_SEA.position.x + 20.0 + step * 2.8,
+				ProvingGroundLayout.DUNE_SEA.get_center().y)
+		dune_heights.append(_ground(spot))
+	var dune_middle: Vector2 = ProvingGroundLayout.DUNE_SEA.get_center()
+	var dune_terrain: TerrainType = TerrainPatch.terrain_at(runner.get_tree(),
+			Vector3(dune_middle.x, _ground(dune_middle), dune_middle.y))
+	report.check("Dune sea: sand, rising and falling in dunes",
+			dune_terrain == sand and dune_heights.max() - dune_heights.min() > 2.0,
+			"heights %.1f to %.1f m" % [dune_heights.min(), dune_heights.max()])
+	var lake := ProvingGroundLayout.LAKE
+	report.check("The river opens into a lake, ringed by buoys over the deep water",
+			_ground(lake) < ProvingGroundLayout.WATER_LEVEL - 1.0
+			and _ground(lake + Vector2(ProvingGroundLayout.LAKE_RADIUS - 2.0, 0.0)) < ProvingGroundLayout.WATER_LEVEL
+			and items.buoys.size() >= 16,
+			"middle %.1f m deep, %d buoys" % [ProvingGroundLayout.WATER_LEVEL - _ground(lake), items.buoys.size()])
+	var high_route: Array[Vector3] = ProvingGroundLayout.HIGH_ROUTE
+	var on_top: int = 0
+	for rock: Dictionary in items.big_rocks:
+		if absf(_ground(rock.at) - layout._nearest_on_path(rock.at, high_route).height) < 0.5 \
+				and layout._nearest_on_path(rock.at, high_route).distance < ProvingGroundLayout.PATH_WIDTH:
+			on_top += 1
+	report.check("Big rocks along the foot of the high road, and a couple on top (leaving room to pass)",
+			items.big_rocks.size() >= 8 and on_top == 2, "%d big rocks, %d on top" % [items.big_rocks.size(), on_top])
+	var forest: Rect2 = ProvingGroundLayout.FOREST
+	var pines_inside: int = 0
+	for pine: Dictionary in items.pines:
+		pines_inside += 1 if forest.has_point(pine.at) else 0
+	var haze: HazeZone = level.get_node(^"MistyForest")
+	report.check("A misty pine forest: pines in the forest area, inside the haze zone",
+			pines_inside >= 40 and pines_inside == items.pines.size()
+			and Rect2(Vector2(haze.global_position.x, haze.global_position.z) - haze.size / 2.0, haze.size).encloses(forest),
+			"%d pines" % pines_inside)
+	report.check("Trees, bushes, boulders and small rocks are scattered about",
+			items.trees.size() >= 15 and items.bushes.size() >= 60 and items.boulders.size() >= 8
+			and items.small_rocks.size() >= 40,
+			"%d trees, %d bushes, %d boulders, %d small rocks" % [items.trees.size(), items.bushes.size(),
+				items.boulders.size(), items.small_rocks.size()])
+	var clear: bool = true
+	for kind: String in ["pines", "trees", "big_rocks", "boulders", "small_rocks", "bushes"]:
+		for item: Dictionary in items[kind]:
+			if kind == "big_rocks" and _ground(item.at) > ProvingGroundLayout.BASE + 3.0:
+				continue  # the two on top of the high road sit beside its lane
+			for route: Array[Vector3] in [ProvingGroundLayout.ROAD, ProvingGroundLayout.LOW_ROUTE]:
+				clear = clear and layout._nearest_on_path(item.at, route).distance > ProvingGroundLayout.PATH_WIDTH / 2.0
+	report.check("Nothing stands on the road or the low route", clear)
+
+
+## Trees and rocks are solid (small rocks too); bushes are not.
+func _solid_scenery() -> void:
+	var items: Dictionary = layout.scenery()
+	var space: PhysicsDirectSpaceState3D = level.get_world_3d().direct_space_state
+	var small_rock: Dictionary = items.small_rocks[0]
+	var bush: Dictionary = items.bushes[0]
+	var rock_top: float = _ray_down(space, small_rock.at)
+	var bush_top: float = _ray_down(space, bush.at)
+	report.check("Small rocks can be hit (you drive over them); bushes can't (you drive through)",
+			rock_top > _ground(small_rock.at) + 0.05 and absf(bush_top - _ground(bush.at)) < 0.3,
+			"rock top %.2f m above ground, bush ray stops %.2f m above ground" % [
+				rock_top - _ground(small_rock.at), bush_top - _ground(bush.at)])
+	# Drive straight at a tree with a clear run-up from the east.
+	var tank: PhysicsTank = (level.get_node(^"PlayerRig") as PlayerRig).active_tank
+	var tree: Vector2 = Vector2.INF
+	for item: Dictionary in items.trees:
+		var start: Vector2 = item.at + Vector2(25.0, 0.0)
+		var open: bool = true
+		for step: int in 8:
+			open = open and layout._open_ground(item.at + Vector2(4.0 + step * 3.0, 0.0), 1.5, 0.0)
+		for other: Dictionary in items.trees + items.big_rocks + items.boulders:
+			if other != item and _distance_to_segment(other.at, item.at, start) < 4.0:
+				open = false
+		if open:
+			tree = item.at
+			break
+	var result: Dictionary = await _drive_at(tank, tree + Vector2(25.0, 0.0), tree + Vector2(-20.0, 0.0))
+	var got_past: bool = tank.global_position.x < tree.x - 2.0
+	report.check("Trees are solid: driving at one, the tank stops against it",
+			tree.is_finite() and not got_past and tank.global_position.x < tree.x + 6.0,
+			"tree at %s, tank ended %.1f m east of it" % [tree, tank.global_position.x - tree.x])
+	tank.reset_to_spawn()
+
+
+## Driving into the deep water sends the tank back to the start; the misty
+## forest thickens the fog while the camera is inside it.
+func _deep_water_and_haze() -> void:
+	var rig: PlayerRig = level.get_node(^"PlayerRig")
+	var tank: PhysicsTank = rig.active_tank
+	var lake := ProvingGroundLayout.LAKE
+	tank.place_at(Transform3D(Basis.IDENTITY, Vector3(lake.x, ProvingGroundLayout.WATER_LEVEL + 0.5, lake.y)))
+	await runner.wait_physics_frames(30)
+	var home: Vector3 = tank.get_home().origin
+	report.check("Deep water in the lake sends the tank back to the start",
+			tank.global_position.distance_to(home) < 2.0, "ended at %s" % tank.global_position)
+	var environment: Environment = (level.find_children("*", "WorldEnvironment", true, false)[0] as WorldEnvironment).environment
+	var outside: float = environment.fog_density
+	var haze: HazeZone = level.get_node(^"MistyForest")
+	var middle := Vector2(haze.global_position.x, haze.global_position.z)
+	# The spot near the middle furthest from any pine, so the tank isn't put inside one.
+	var pines: Array = layout.scenery().pines
+	var clearing: Vector2 = middle
+	var best_gap: float = -1.0
+	for gx: int in range(-5, 6):
+		for gz: int in range(-5, 6):
+			var spot: Vector2 = middle + Vector2(gx, gz) * 2.0
+			var gap: float = INF
+			for pine: Dictionary in pines:
+				gap = minf(gap, spot.distance_to(pine.at))
+			if gap > best_gap:
+				best_gap = gap
+				clearing = spot
+	tank.place_at(Transform3D(Basis.IDENTITY, Vector3(clearing.x, _ground(clearing) + 0.5, clearing.y)))
+	await runner.wait_physics_frames(90)
+	var inside: float = environment.fog_density
+	tank.reset_to_spawn()
+	await runner.wait_physics_frames(90)
+	report.check("The misty forest is always foggy inside, and clears as you leave",
+			inside > outside * 5.0 and absf(environment.fog_density - outside) < 0.0005,
+			"fog %.4f outside, %.4f inside, %.4f after leaving" % [outside, inside, environment.fog_density])
+
+
+func _ray_down(space: PhysicsDirectSpaceState3D, at: Vector2) -> float:
+	var query := PhysicsRayQueryParameters3D.create(Vector3(at.x, 80.0, at.y), Vector3(at.x, -10.0, at.y))
+	var hit: Dictionary = space.intersect_ray(query)
+	return (hit.position as Vector3).y if not hit.is_empty() else -INF
+
+
+func _distance_to_segment(point: Vector2, a: Vector2, b: Vector2) -> float:
+	return point.distance_to(Geometry2D.get_closest_point_to_segment(point, a, b))
 
 
 ## Full speed from `from` toward `to` for 15 s. Returns the highest it got,

@@ -10,6 +10,8 @@
 [ext_resource type="Script" path="res://levels/proving_ground/route_markers.gd" id="8_markers"]
 [ext_resource type="Script" path="res://scripts/objective_marker.gd" id="9_objective"]
 [ext_resource type="Shader" path="res://art/water.gdshader" id="10_water"]
+[ext_resource type="Script" path="res://levels/proving_ground/proving_ground_scenery.gd" id="11_scenery"]
+[ext_resource type="Script" path="res://scripts/haze_zone.gd" id="12_haze"]
 
 [sub_resource type="ProceduralSkyMaterial" id="SkyMaterial_main"]
 sky_top_color = Color(0.3, 0.48, 0.76, 1)
@@ -106,3 +108,12 @@ level_terrain = NodePath("../LevelTerrain")
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -40, 22, -145)
 mesh = SubResource("BoxMesh_goal")
 script = ExtResource("9_objective")
+
+[node name="Scenery" type="Node3D" parent="." node_paths=PackedStringArray("level_terrain")]
+script = ExtResource("11_scenery")
+level_terrain = NodePath("../LevelTerrain")
+
+[node name="MistyForest" type="Node3D" parent="."]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 151, 4, -137)
+script = ExtResource("12_haze")
+size = Vector2(106, 74)
