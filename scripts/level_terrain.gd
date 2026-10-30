@@ -15,7 +15,7 @@ extends Node3D
 ## Group the level's terrain joins, so the player rig and Tab panel can find it.
 const GROUP: StringName = &"level_terrain"
 
-const GROUND_SHADER: Shader = preload("res://art/checker_ground.gdshader")
+const GROUND_SHADER: Shader = preload("res://art/level_ground.gdshader")
 
 ## Seconds to wait after the last setting change before rebuilding.
 const REBUILD_DELAY: float = 0.4

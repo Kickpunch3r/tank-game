@@ -688,3 +688,16 @@ committed). To watch: open `tests/test_runner.tscn` and press F6.
     Throttle bars twice as big; the turbo notch has no text or flames, it flashes (3 a second)
     between orange and bright yellow. Gold cube 9 m (was 3), 10 m above the goal.
     235 checks pass.
+24. **Graphics round 1** (2026-10-30, developer's choice from a ranked plan): Proving Ground only.
+    - Light: warmer sun, softer shadows, ambient mostly from the sky (60%) plus a warm grey, a
+      warm-grey haze (fog 0.0012, some aerial perspective), slightly more contrast and colour.
+      No costly effects (no SSAO, SSR or volumetric fog), for the laptop's Intel HD 520.
+    - `art/level_ground.gdshader` (painted levels; the old course keeps the checker): grass with
+      patches, rock on slopes over ~32°, pale rock high up, painted terrain on top, faint 4 m
+      grid for judging speed. Colours are editable on the material.
+    - `art/water.gdshader`: colour by depth (depth buffer), shore foam, moving ripples in the
+      shading only (the plane stays flat, so it is cheap).
+    - Mud colour lightened (it was nearly black). Found: Godot already converts vertex colours
+      to linear, so converting again darkened mud twice; removed.
+    - Checked only in software-rendered screenshots (Compatibility renderer); the laptop uses
+      Forward+, so it may look slightly different. Frame rate not measured. 235 checks pass.

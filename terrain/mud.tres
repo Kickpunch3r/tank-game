@@ -5,7 +5,7 @@
 [resource]
 script = ExtResource("1_terrain")
 display_name = "Mud"
-colour = Color(0.33, 0.24, 0.15, 1)
+colour = Color(0.5, 0.38, 0.25, 1)
 grip = 0.7
 drag = 1.5
 top_speed = 0.5

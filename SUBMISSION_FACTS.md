@@ -210,6 +210,8 @@ Started or built, but off, unreachable or unfinished in the game as shipped:
   `c79b3e0`, `ec5a114`) 22. Physics tank chosen, Heavy tuning, presets and T removed
   (30 Oct) 23. Physics tank on terrain, painted terrain map, Proving Ground level as the main
   scene (30 Oct) 24. Throttle bars with a flashing turbo notch, gold goal cube, test labels and debug display hidden by default
+  (30 Oct) 25. Graphics round 1: lighting and haze, ground shader (grass, rock, terrain), water
+  shader (depth colour, foam, ripples)
   (30 Oct).
 
 ---

@@ -27,6 +27,10 @@ the cliffs, the steep cone hill, the mesa and the river's deep water can't be dr
 **The old test course** (`scenes/test_course.tscn`, open it and press F6) is still there for
 development.
 
+**Look:** the ground colours (grass, rock, high rock, grid strength) are on the ground shader
+`art/level_ground.gdshader`; the water's colours and ripples on `art/water.gdshader`; the sky,
+sun, haze and colour grading on the `WorldEnvironment` and `Sun` nodes in the level scene.
+
 ## Controls
 
 | Key | What it does |

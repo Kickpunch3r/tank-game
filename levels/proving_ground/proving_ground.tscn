@@ -9,8 +9,14 @@
 [ext_resource type="Script" path="res://scripts/comparison_features.gd" id="7_features"]
 [ext_resource type="Script" path="res://levels/proving_ground/route_markers.gd" id="8_markers"]
 [ext_resource type="Script" path="res://scripts/objective_marker.gd" id="9_objective"]
+[ext_resource type="Shader" path="res://art/water.gdshader" id="10_water"]
 
 [sub_resource type="ProceduralSkyMaterial" id="SkyMaterial_main"]
+sky_top_color = Color(0.3, 0.48, 0.76, 1)
+sky_horizon_color = Color(0.8, 0.8, 0.77, 1)
+ground_bottom_color = Color(0.3, 0.3, 0.26, 1)
+ground_horizon_color = Color(0.8, 0.8, 0.77, 1)
+sun_angle_max = 20.0
 
 [sub_resource type="Sky" id="Sky_main"]
 sky_material = SubResource("SkyMaterial_main")
@@ -18,13 +24,24 @@ sky_material = SubResource("SkyMaterial_main")
 [sub_resource type="Environment" id="Environment_main"]
 background_mode = 2
 sky = SubResource("Sky_main")
+ambient_light_source = 3
+ambient_light_sky_contribution = 0.6
+ambient_light_color = Color(0.62, 0.6, 0.55, 1)
+ambient_light_energy = 0.8
 tonemap_mode = 2
+tonemap_white = 6.0
+fog_enabled = true
+fog_light_color = Color(0.8, 0.8, 0.77, 1)
+fog_density = 0.0012
+fog_aerial_perspective = 0.35
+fog_sky_affect = 0.3
+adjustment_enabled = true
+adjustment_contrast = 1.05
+adjustment_saturation = 1.1
 
-[sub_resource type="StandardMaterial3D" id="Material_water"]
-transparency = 1
-albedo_color = Color(0.16, 0.36, 0.62, 0.75)
-roughness = 0.1
-metallic_specular = 0.8
+[sub_resource type="ShaderMaterial" id="Material_water"]
+render_priority = 0
+shader = ExtResource("10_water")
 
 [sub_resource type="PlaneMesh" id="PlaneMesh_water"]
 material = SubResource("Material_water")
@@ -50,8 +67,11 @@ environment = SubResource("Environment_main")
 
 [node name="Sun" type="DirectionalLight3D" parent="."]
 transform = Transform3D(0.866, 0, -0.5, -0.383, 0.6428, -0.6634, 0.3214, 0.766, 0.5567, 0, 40, 0)
+light_color = Color(1, 0.94, 0.84, 1)
+light_energy = 1.15
 shadow_enabled = true
-directional_shadow_max_distance = 250.0
+shadow_blur = 1.5
+directional_shadow_max_distance = 200.0
 
 [node name="LevelTerrain" type="Node3D" parent="."]
 script = ExtResource("2_level_terrain")
