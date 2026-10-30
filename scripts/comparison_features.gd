@@ -159,4 +159,5 @@ func _add_label(body: StaticBody3D, text: String, where: Vector3) -> void:
 	label.outline_size = 24
 	label.pixel_size = 0.015
 	label.position = where
+	TestLabels.add(label)
 	body.add_child(label)

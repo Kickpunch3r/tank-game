@@ -20,7 +20,8 @@ appear after pressing Play, not in the editor viewport.
 strip, steps, crest, a mud and a sand square) is just to your right. The road leads to a fork:
 the **high route** (orange posts, west) climbs onto a ridge and runs along a sandy ledge above a
 cliff and a lake; the **low route** (blue posts) goes through a mud basin, across a river at a
-shallow ford and over sand dunes. Both end at the **goal** plateau in the north. The mountains,
+shallow ford and over sand dunes. Both end at the **goal** plateau in the north, marked by a
+big turning gold cube. The mountains,
 the cliffs, the steep cone hill, the mesa and the river's deep water can't be driven through.
 
 **The old test course** (`scenes/test_course.tscn`, open it and press F6) is still there for
@@ -41,6 +42,10 @@ development.
 
 - **Levels:** each tread has 3 levels forward and 3 back: **0.25, 0.5 and full** (the phone's
   levers use the same notches).
+- **Throttle bars** (bottom-left = left tread, bottom-right = right tread) show each lever's
+  notch: green forward, blue back, white at stop, red **BRAKE**. The top notch is **TURBO**
+  (orange, with flickering flames when engaged). It is the full level as before: it looks
+  special but pushes no harder. The bars show in the slit view too.
 - **Level 0 = engine idling:** that tread doesn't push and is held back by **Idle Drag**, so it
   slows by itself. With both levers at 0 the tank stops in about 3 s. On slopes steeper than
   about 18° it rolls back unless you **brake**.
@@ -68,6 +73,8 @@ development.
   - **Reset point** chooses where `R` puts you: "Start field", or in front of any ramp, with a
     **Distance back** slider from 0 m (touching the ramp, at rest) to 70 m (full run-up).
     **Reset now** goes there straight away.
+  - **Debug:** "Show test labels" shows the floating labels on the test ramps and course
+    pieces (hidden at the start), and "Swap to kinematic tank (old)".
 - **Terrain (mud, sand):** each terrain is a file in `terrain/` (`mud.tres`, `sand.tres`) with
   grip, drag, top speed and sink depth; click it to edit, or use the Tab panel. To add a patch
   of terrain to a scene, add a `TerrainPatch` node, give it a terrain and a size, and move,

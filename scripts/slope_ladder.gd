@@ -182,6 +182,7 @@ func _build_ramp(ramp: RampInfo, index: int) -> void:
 	label.outline_size = 24
 	label.pixel_size = 0.015
 	label.position = local_base + Vector3(0.0, 4.0, 3.0)
+	TestLabels.add(label)
 	body.add_child(label)
 
 

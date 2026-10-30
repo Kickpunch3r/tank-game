@@ -46,6 +46,8 @@ func run() -> void:
 		tank.reset_to_spawn()
 		await runner.wait_physics_frames(30)
 
+	await _throttle_display(tank)
+
 	report.check("Debug display shows at the start", hud.visible)
 	await _tap_key(KEY_F3)
 	report.check("F3 hides the debug display", not hud.visible)
@@ -61,3 +63,24 @@ func _tap_key(code: Key) -> void:
 		Input.parse_input_event(event)
 		Input.flush_buffered_events()
 		await runner.wait_physics_frames(2)
+
+
+## The throttle bars follow the levers, mark the top level as turbo, and show
+## over the driver's slit too.
+func _throttle_display(tank: Tank) -> void:
+	var report: TestReport = runner.report
+	var display: ThrottleDisplay = runner.course.get_node(^"PlayerRig/ThrottleDisplay")
+	var keyboard: KeyboardDriverInput = tank.driver_station.get_node(^"KeyboardDriverInput")
+	var slit: DriverSlitCamera = tank.get_node(^"Visual/Hull/DriverSlitCamera")
+	keyboard.clear_levels()
+	for i: int in 3:
+		await _tap_key(KEY_W)
+	await _tap_key(KEY_DOWN)
+	report.check("Throttle bars show each lever's level (left turbo = 3, right one back = -1)",
+			display.levels() == Vector2i(3, -1), "levels %s" % display.levels())
+	report.check("Throttle bars sit above the driver's slit mask, so they show in both views",
+			display.visible and display.layer > (slit.get_node(^"SlitOverlay") as CanvasLayer).layer)
+	report.check("A lever between notches (a gamepad stick) shows the nearest notch",
+			ThrottleDisplay.level_for(0.9) == 3 and ThrottleDisplay.level_for(-0.3) == -1 and ThrottleDisplay.level_for(0.05) == 0)
+	keyboard.clear_levels()
+	await runner.wait_physics_frames(2)

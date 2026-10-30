@@ -2,7 +2,7 @@ class_name RouteMarkers
 extends Node3D
 ## Marks the Proving Ground's routes on the ground: a short post on each side
 ## of the path every few metres (orange for the high route, blue for the low
-## route, white for the road), and signs at the spawn, the fork and the goal.
+## route, white for the road).
 ## Built from the level's plan (ProvingGroundLayout) when the ground is built,
 ## and again whenever it is rebuilt.
 
@@ -29,12 +29,9 @@ func _build() -> void:
 	_mark_route(ProvingGroundLayout.ROAD, ROAD_COLOUR, ProvingGroundLayout.PATH_WIDTH)
 	_mark_route(ProvingGroundLayout.HIGH_ROUTE, HIGH_COLOUR, ProvingGroundLayout.PATH_WIDTH)
 	_mark_route(ProvingGroundLayout.LOW_ROUTE, LOW_COLOUR, ProvingGroundLayout.PATH_WIDTH)
-	_sign("TEST AREA  →", ProvingGroundLayout.SPAWN + Vector2(14.0, -6.0))
-	_sign("HIGH ROUTE  ←      →  LOW ROUTE", ProvingGroundLayout.FORK + Vector2(0.0, -4.0))
-	_sign("GOAL", ProvingGroundLayout.GOAL)
 
 
-## Posts on both sides of a route, skipping the fork's crowded start.
+## Posts on both sides of a route.
 func _mark_route(route: Array[Vector3], colour: Color, width: float) -> void:
 	var material := StandardMaterial3D.new()
 	material.albedo_color = colour
@@ -59,17 +56,6 @@ func _mark_route(route: Array[Vector3], colour: Color, width: float) -> void:
 				var where: Vector2 = at + offset
 				post.position = Vector3(where.x, _ground(where) + 0.7, where.y)
 				add_child(post)
-
-
-func _sign(text: String, where: Vector2) -> void:
-	var label := Label3D.new()
-	label.text = text
-	label.billboard = BaseMaterial3D.BILLBOARD_ENABLED
-	label.font_size = 160
-	label.outline_size = 24
-	label.pixel_size = 0.02
-	label.position = Vector3(where.x, _ground(where) + 5.0, where.y)
-	add_child(label)
 
 
 func _ground(where: Vector2) -> float:

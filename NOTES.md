@@ -675,3 +675,11 @@ committed). To watch: open `tests/test_runner.tscn` and press F6.
       gets 2.5 m and 1.3 m up. 227 checks pass (~2 min).
     - Found in testing: the starter level's test never removed its level, which then blocked
       the Proving Ground's routes; fixed.
+22. **HUD and markers** (2026-10-30, developer's requests): route signs removed; ramp and
+    course-piece labels start hidden (`TestLabels` group; Tab panel Debug "Show test labels").
+    Gold cube over the goal (`GoalCube` + `ObjectiveMarker`: turns and bobs). Throttle bars
+    (`ThrottleDisplay`, CanvasLayer 6 in the player rig, above the slit mask): 7 notches per
+    tread from the active tank's station, top notch drawn as TURBO with flicker and flames;
+    look only (developer's choice). Checked in software-rendered screenshots (chase and slit).
+    Known: with F3 on (default), the debug text's lowest lines overlap the left bar.
+    234 checks pass.

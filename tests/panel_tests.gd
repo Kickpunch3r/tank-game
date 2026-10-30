@@ -45,6 +45,7 @@ func run() -> void:
 			is_equal_approx(tank.tuning.max_tread_speed, 10.0) and is_equal_approx(slit.slit_height, 0.18))
 
 	await _wheel_and_typing_tests(panel, tank)
+	_test_labels_box(panel)
 
 	# Reset point.
 	var index_30: int = _ramp_index(ladder, 30.0)
@@ -64,6 +65,21 @@ func run() -> void:
 
 	await _air_and_landing_tests()
 	await _engine_power_tests()
+
+
+## The test pieces' floating labels start hidden; the Debug tick box shows them.
+func _test_labels_box(panel: TuningPanel) -> void:
+	var tree: SceneTree = runner.get_tree()
+	report.check("Test labels (ramp angles etc.) start hidden, tick box unticked",
+			TestLabels.exist(tree) and not TestLabels.are_shown(tree)
+			and panel.labels_box != null and not panel.labels_box.button_pressed)
+	panel.labels_box.button_pressed = true
+	var shown: bool = TestLabels.are_shown(tree)
+	panel.rebuild()
+	report.check("Ticking it shows them, and the panel remembers after a rebuild",
+			shown and panel.labels_box.button_pressed)
+	panel.labels_box.button_pressed = false
+	report.check("Unticking hides them again", not TestLabels.are_shown(tree))
 
 
 func _wheel_and_typing_tests(panel: TuningPanel, tank: Tank) -> void:
@@ -116,7 +132,8 @@ func _wheel_and_typing_tests(panel: TuningPanel, tank: Tank) -> void:
 	field.grab_focus()
 	await _tap_key(KEY_W)
 	report.check("While typing, W doesn't drive the tank", keyboard.left_level == 0)
-	await _send_mouse(MOUSE_BUTTON_LEFT, Vector2(20.0, 400.0))
+	# Far away from the panel (in any window size), so it is never on a box.
+	await _send_mouse(MOUSE_BUTTON_LEFT, Vector2(20.0, 4000.0))
 	report.check("Clicking outside the box finishes typing", panel.get_viewport().gui_get_focus_owner() == null)
 	await _tap_key(KEY_W)
 	report.check("After typing, W drives again", keyboard.left_level == 1)

@@ -67,7 +67,20 @@ func _start_and_test_area() -> void:
 	report.check("Test area beside the spawn: 10 ramps and the ledge strip, steps and crest, on flat ground",
 			ladder.ramps.size() == 10 and flat and ladder.ramps[0].base_position.x - spawn.x < 80.0,
 			"nearest ramp %.0f m east of the spawn" % (ladder.ramps[0].base_position.x - spawn.x))
-	report.check("Route markers and signs are built", level.get_node(^"RouteMarkers").get_child_count() > 40)
+	var labels_3d: Array[Node] = level.find_children("*", "Label3D", true, false)
+	var shown: int = 0
+	for label: Node in labels_3d:
+		if (label as Label3D).is_visible_in_tree():
+			shown += 1
+	report.check("Route markers are built, and no floating text shows (test labels start hidden)",
+			level.get_node(^"RouteMarkers").get_child_count() > 40 and shown == 0 and not labels_3d.is_empty(),
+			"%d labels, %d showing" % [labels_3d.size(), shown])
+	var cube: Node3D = level.get_node(^"GoalCube")
+	var goal := ProvingGroundLayout.GOAL
+	report.check("A gold cube floats above the goal",
+			cube is ObjectiveMarker and Vector2(cube.global_position.x, cube.global_position.z).distance_to(goal) < 1.0
+			and cube.global_position.y > ProvingGroundLayout.GOAL_HEIGHT + 3.0,
+			"at %s" % cube.global_position)
 
 
 func _terrain_and_water() -> void:

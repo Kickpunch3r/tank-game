@@ -35,7 +35,8 @@ To make the Windows build (Godot 4.6.3):
 Drive a heavy tank (a physics body on 8 springs) by controlling its left and right treads
 separately, through the Proving Ground: from the spawn, a road leads to a fork; the high route
 climbs onto a ridge and runs along a sandy ledge above a cliff and a lake, the low route crosses
-a mud basin, a river at a shallow ford and sand dunes, and both reach a goal plateau. Cliffs,
+a mud basin, a river at a shallow ford and sand dunes, and both reach a goal plateau marked by
+a big gold cube. Cliffs,
 steep hills, mountains and deep water can't be driven through. Beside the spawn, a test area
 has ramps from 5° to 55° (up to 20° climbable from a standstill, 25° only with a run-up, 30° and
 steeper not at all), a ledge strip, steps, a crest and squares of mud and sand. There is no win
@@ -50,6 +51,7 @@ planned co-operative tank crew game.
 | Both treads forward / one tread / opposite treads | Straight / pivot round the idle tread / spin on the spot |
 | `Space` (hold) | Brake: both levels to 0, stops the tank and holds it on slopes |
 | `R` | Reset the tank to the reset point (default: the start) |
+| (on screen) | Throttle bars, bottom corners: each tread's lever notch; the top notch is "TURBO" (the full level, shown with flames; no extra power) |
 | `V` | Switch view: chase camera / driver's vision slit |
 | `F11` | Full screen / window (starts full screen) |
 | Ableton Push 3 (optional) | Pads: two lever columns each side (7 notches), 2×2 brake square in the middle (setup below) |
@@ -79,12 +81,13 @@ everything in game below also works in an exported release build.
 |---|---|---|
 | `F3` | Debug display: inputs, tread speeds, slope, grip, preset, knobs, climbable limit, phone/Push status; physics tank: probe diagram, pitch/roll | Yes (shown by default) |
 | `Tab` | Tuning panel: live sliders for every driving, camera and terrain value; Copy values; Reset to saved; Reset point (any ramp, distance back 0–70 m, ledge strip, steps, crest); Reset now; Debug tank swap | Yes |
+| Tab panel > Debug > "Show test labels" | Shows the floating labels on the test ramps and course pieces (hidden at the start) | Yes |
 | Tab panel > Debug > "Swap to kinematic tank (old)" | Swap to the older kinematic tank (green) at the same spot, and back | Yes |
 | `R` + Tab "Reset point" | Teleport to a chosen ramp or feature, at rest | Yes |
 | Phone controller | Two on-screen levers and a BRAKE button (USB + adb, or Wi-Fi off by default). Still in the game, not documented for markers | Yes |
 | Gamepad | Sticks drive the treads (never tested on a real gamepad) | Yes |
 | Hold-to-drive mode | Untick `Use Tread Levels` on `DriverStation/KeyboardDriverInput` | Editor setting only |
-| Test runner `tests/test_runner.tscn` | 227 automated checks, headless or watched (F6); `--only=<suites>` runs some suites | Editor / console only |
+| Test runner `tests/test_runner.tscn` | 234 automated checks, headless or watched (F6); `--only=<suites>` runs some suites | Editor / console only |
 | Old test course `scenes/test_course.tscn` | The original ramps, bumps, mud/sand and terrain ramps; run with F6 | Editor only |
 | Starter level `levels/starter/starter.tscn` | First painted-height level, run with F6 | Editor only |
 
@@ -186,7 +189,7 @@ Started or built, but off, unreachable or unfinished in the game as shipped:
   merged.
 - **Testing:**
   - Automated headless test runner (`tests/test_runner.tscn`), driving tanks by writing into
-    their `DriverStation`. Grew from 42 checks (milestone 5) to **227 checks, all passing**
+    their `DriverStation`. Grew from 42 checks (milestone 5) to **234 checks, all passing**
     (2026-10-30). Covers input, views/HUD, tuning panel, starting tank, tank swap, phone
     (local ports, pretend adb), Push 3 (pretend MIDI), course shape, flat driving, every ramp
     standing and with a run-up for both tanks (physics: 3 runs, majority), brake/idle/warm-up/
@@ -206,7 +209,8 @@ Started or built, but off, unreachable or unfinished in the game as shipped:
   `05492d2`, `98798f3`) 21. Physics feel knobs and settings spreadsheet (22 Oct, `9cdf93c`,
   `c79b3e0`, `ec5a114`) 22. Physics tank chosen, Heavy tuning, presets and T removed
   (30 Oct) 23. Physics tank on terrain, painted terrain map, Proving Ground level as the main
-  scene (30 Oct).
+  scene (30 Oct) 24. Throttle bars with TURBO, gold goal cube, test labels hidden by default
+  (30 Oct).
 
 ---
 

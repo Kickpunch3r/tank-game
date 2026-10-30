@@ -39,6 +39,8 @@ var _copy_button: Button
 var _panel: PanelContainer
 ## The debug button that swaps tanks (null when there is only one tank).
 var swap_button: Button
+## The debug tick box that shows the test labels (null when there are none).
+var labels_box: CheckBox
 # Value at the start of the game, by target and property (see _saved_key):
 # {"target": Object, "property": StringName, "value": Variant}.
 var _saved_values: Dictionary = {}
@@ -232,7 +234,7 @@ func _build_panel() -> void:
 	list.add_child(buttons)
 
 	_build_reset_point(list)
-	_build_tank_swap(list)
+	_build_debug(list)
 
 	var current_group: String = ""
 	for index: int in _settings.size():
@@ -243,14 +245,26 @@ func _build_panel() -> void:
 		list.add_child(_setting_row(index))
 
 
-## Debug: swap between the physics tank and the old kinematic tank (kept for
-## comparison). Only shown when the panel is in a player rig with two tanks.
-func _build_tank_swap(list: VBoxContainer) -> void:
+## Debug section: show or hide the test pieces' labels, and swap between the
+## physics tank and the old kinematic tank (kept for comparison).
+func _build_debug(list: VBoxContainer) -> void:
+	swap_button = null
+	labels_box = null
 	var rig := get_parent() as PlayerRig
-	if rig == null or rig.tanks.size() < 2:
-		swap_button = null
+	var can_swap: bool = rig != null and rig.tanks.size() >= 2
+	if not can_swap and not TestLabels.exist(get_tree()):
 		return
 	list.add_child(_heading("Debug"))
+	if TestLabels.exist(get_tree()):
+		labels_box = CheckBox.new()
+		labels_box.text = "Show test labels (ramp angles, course pieces)"
+		labels_box.focus_mode = Control.FOCUS_NONE
+		# Shown as the labels are now (rebuilt from state).
+		labels_box.button_pressed = TestLabels.are_shown(get_tree())
+		labels_box.toggled.connect(func(on: bool) -> void: TestLabels.set_shown(get_tree(), on))
+		list.add_child(labels_box)
+	if not can_swap:
+		return
 	var text: String = "Swap to kinematic tank (old)" if tank is PhysicsTank else "Swap back to physics tank"
 	# Deferred: the swap rebuilds this panel, button included.
 	swap_button = _button(text, func() -> void: rig.swap_tank.call_deferred())

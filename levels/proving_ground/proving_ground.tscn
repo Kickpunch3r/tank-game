@@ -8,6 +8,7 @@
 [ext_resource type="Script" path="res://scripts/slope_ladder.gd" id="6_ladder"]
 [ext_resource type="Script" path="res://scripts/comparison_features.gd" id="7_features"]
 [ext_resource type="Script" path="res://levels/proving_ground/route_markers.gd" id="8_markers"]
+[ext_resource type="Script" path="res://scripts/objective_marker.gd" id="9_objective"]
 
 [sub_resource type="ProceduralSkyMaterial" id="SkyMaterial_main"]
 
@@ -28,6 +29,18 @@ metallic_specular = 0.8
 [sub_resource type="PlaneMesh" id="PlaneMesh_water"]
 material = SubResource("Material_water")
 size = Vector2(440, 376)
+
+[sub_resource type="StandardMaterial3D" id="Material_gold"]
+albedo_color = Color(1, 0.78, 0.2, 1)
+metallic = 0.8
+roughness = 0.25
+emission_enabled = true
+emission = Color(1, 0.7, 0.15, 1)
+emission_energy_multiplier = 0.6
+
+[sub_resource type="BoxMesh" id="BoxMesh_goal"]
+material = SubResource("Material_gold")
+size = Vector3(3, 3, 3)
 
 [node name="ProvingGround" type="Node3D"]
 script = ExtResource("1_level_root")
@@ -68,3 +81,8 @@ script = ExtResource("7_features")
 [node name="RouteMarkers" type="Node3D" parent="." node_paths=PackedStringArray("level_terrain")]
 script = ExtResource("8_markers")
 level_terrain = NodePath("../LevelTerrain")
+
+[node name="GoalCube" type="MeshInstance3D" parent="."]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -40, 18, -145)
+mesh = SubResource("BoxMesh_goal")
+script = ExtResource("9_objective")

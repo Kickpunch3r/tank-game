@@ -12,6 +12,7 @@
 [ext_resource type="Script" path="res://scripts/player_rig.gd" id="14_rig"]
 [ext_resource type="Script" path="res://scripts/push/push_controller.gd" id="15_push_controller"]
 [ext_resource type="Script" path="res://scripts/push/push_light_sender.gd" id="16_push_lights"]
+[ext_resource type="Script" path="res://scripts/throttle_display.gd" id="17_throttle"]
 
 [node name="PlayerRig" type="Node3D" node_paths=PackedStringArray("tanks", "chase_camera", "view_switcher", "debug_hud", "tuning_panel", "controller_server")]
 script = ExtResource("14_rig")
@@ -66,4 +67,8 @@ script = ExtResource("15_push_controller")
 
 [node name="PushLightSender" type="Node" parent="." node_paths=PackedStringArray("rig")]
 script = ExtResource("16_push_lights")
+rig = NodePath("..")
+
+[node name="ThrottleDisplay" type="CanvasLayer" parent="." node_paths=PackedStringArray("rig")]
+script = ExtResource("17_throttle")
 rig = NodePath("..")
