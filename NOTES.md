@@ -651,3 +651,27 @@ committed). To watch: open `tests/test_runner.tscn` and press F6.
     - Found: running a scene outside the tests crashes in the Linux cloud container at
       `OS.open_midi_inputs()` (Push 3 code; already so before this change, no MIDI system
       there). Fine on the developer's Windows laptop; untested on other machines.
+21. **Proving Ground level, painted terrain, physics tank on terrain** (2026-10-30; developer's
+    brief: branching path through high and low areas, varied terrain, a river, cliffs and hills
+    that clearly can't be climbed, test area beside the spawn, make it the main scene):
+    - Physics tank reads terrain per probe: grip per probe; drag and top speed per tread
+      (averaged over grounded probes); soft ground sinks the hull picture. Mud 3.7 m/s, sand
+      6.2, firm 8.0 (Heavy, after 3 s); one tread in mud pulls toward it.
+    - Painted terrain map: `LevelTerrain.terrain_image_path` + `terrain_types`; each
+      `TerrainType` has a `paint_colour` (mud pure red, sand pure yellow; nearest within 0.35,
+      else firm). Ground tinted per vertex (`checker_ground.gdshader`, `use_vertex_tint`).
+      `TerrainPatch.terrain_at` falls back to it, so both tanks use it.
+    - Level images are imported as **Image** (lossless): the exported game loads them as
+      resources; the editor still reads the PNG file directly (live Photoshop updates). Godot had
+      warned that the old raw-file read "will not work on export". Starter level switched too.
+    - `levels/proving_ground/`: plan in `proving_ground_layout.gd` (single source for the
+      generator, route markers and tests), images from `tools/generate_proving_ground.gd`,
+      448 × 384 m, max height 51 m (0.2 m per grey step, so flat areas are exact). River and lake
+      = channels below a `Water` plane at 2.6 m; shallow muddy ford. Route posts and signs built
+      by `RouteMarkers`. Main scene changed to it.
+    - Measured: routes' steepest stretch 9.4° (high) and 14.4° (low; the dunes first sat on the
+      climb and made 20.6°, so they were moved); cliffs and hills 42–70°. Autopilot (Heavy):
+      high route 64 s, low route 53 s. Driving at the cone and the ridge cliff: reaches the foot,
+      gets 2.5 m and 1.3 m up. 227 checks pass (~2 min).
+    - Found in testing: the starter level's test never removed its level, which then blocked
+      the Proving Ground's routes; fixed.

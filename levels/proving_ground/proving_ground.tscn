@@ -1,0 +1,70 @@
+[gd_scene format=3]
+
+[ext_resource type="Script" path="res://scripts/level_root.gd" id="1_level_root"]
+[ext_resource type="Script" path="res://scripts/level_terrain.gd" id="2_level_terrain"]
+[ext_resource type="Script" path="res://scripts/level_start.gd" id="3_level_start"]
+[ext_resource type="Resource" path="res://terrain/mud.tres" id="4_mud"]
+[ext_resource type="Resource" path="res://terrain/sand.tres" id="5_sand"]
+[ext_resource type="Script" path="res://scripts/slope_ladder.gd" id="6_ladder"]
+[ext_resource type="Script" path="res://scripts/comparison_features.gd" id="7_features"]
+[ext_resource type="Script" path="res://levels/proving_ground/route_markers.gd" id="8_markers"]
+
+[sub_resource type="ProceduralSkyMaterial" id="SkyMaterial_main"]
+
+[sub_resource type="Sky" id="Sky_main"]
+sky_material = SubResource("SkyMaterial_main")
+
+[sub_resource type="Environment" id="Environment_main"]
+background_mode = 2
+sky = SubResource("Sky_main")
+tonemap_mode = 2
+
+[sub_resource type="StandardMaterial3D" id="Material_water"]
+transparency = 1
+albedo_color = Color(0.16, 0.36, 0.62, 0.75)
+roughness = 0.1
+metallic_specular = 0.8
+
+[sub_resource type="PlaneMesh" id="PlaneMesh_water"]
+material = SubResource("Material_water")
+size = Vector2(440, 376)
+
+[node name="ProvingGround" type="Node3D"]
+script = ExtResource("1_level_root")
+
+[node name="WorldEnvironment" type="WorldEnvironment" parent="."]
+environment = SubResource("Environment_main")
+
+[node name="Sun" type="DirectionalLight3D" parent="."]
+transform = Transform3D(0.866, 0, -0.5, -0.383, 0.6428, -0.6634, 0.3214, 0.766, 0.5567, 0, 40, 0)
+shadow_enabled = true
+directional_shadow_max_distance = 250.0
+
+[node name="LevelTerrain" type="Node3D" parent="."]
+script = ExtResource("2_level_terrain")
+height_image_path = "res://levels/proving_ground/height.png"
+max_height = 51.0
+smoothing = 1
+terrain_image_path = "res://levels/proving_ground/terrain.png"
+terrain_types = Array[Resource]([ExtResource("4_mud"), ExtResource("5_sand")])
+
+[node name="Water" type="MeshInstance3D" parent="."]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 2.6, 0)
+mesh = SubResource("PlaneMesh_water")
+
+[node name="LevelStart" type="Marker3D" parent="."]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -10, 4, 150)
+script = ExtResource("3_level_start")
+
+[node name="SlopeLadder" type="Node3D" parent="."]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 110, 4, 120)
+script = ExtResource("6_ladder")
+run_up_length = 45.0
+
+[node name="ComparisonFeatures" type="Node3D" parent="."]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 110, 4, 10)
+script = ExtResource("7_features")
+
+[node name="RouteMarkers" type="Node3D" parent="." node_paths=PackedStringArray("level_terrain")]
+script = ExtResource("8_markers")
+level_terrain = NodePath("../LevelTerrain")

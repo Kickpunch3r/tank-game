@@ -1,7 +1,8 @@
 # Making levels
 
-A level is a folder in `levels/` with a height image you paint and a scene that turns it into
-ground. The starter level (`levels/starter/`) is a working example to copy.
+A level is a folder in `levels/` with a height image you paint (and, optionally, a terrain
+image) and a scene that turns it into ground. The **Proving Ground** (`levels/proving_ground/`,
+the game's main scene) is the full example; the starter level (`levels/starter/`) is a simpler one.
 
 ## The height image (`height.png`)
 - **Greyscale PNG.** Black = lowest ground, white = the level's **Max Height** (30 m by default).
@@ -20,6 +21,25 @@ ground. The starter level (`levels/starter/`) is a working example to copy.
   is about a 7° slope; 4 levels per pixel is about 25°; 6 is about 35°.
 - Hard edges make cliffs. Smoothing rounds them a little.
 - Save over the same file: Godot notices within a second and rebuilds the ground in the editor.
+
+## The terrain image (`terrain.png`, optional)
+- Same shape as the height image (it is stretched over the same ground), in colour.
+- **Pure red (255, 0, 0) = mud, pure yellow (255, 255, 0) = sand.** Any other colour (black,
+  grey, white...) is ordinary firm ground. Slightly-off colours still count.
+- Each colour comes from a terrain file's **Paint Colour** (`terrain/mud.tres`, `sand.tres`).
+  The ground is drawn in the terrain's own colour, and both tanks feel it (grip, drag, top
+  speed, sinking).
+- Set it on the `LevelTerrain` node: **Terrain Image Path**, and add the terrain files to
+  **Terrain Types**.
+- Use hard-edged brushes (no anti-aliasing): blended edge colours count as firm ground.
+
+## Importing the images (needed for the exported game)
+Godot must import level images as **Image**, not as a texture:
+1. Click the PNG in the FileSystem dock.
+2. In the **Import** dock (next to Scene), set **Import As: Image**.
+3. Click **Reimport**.
+This keeps every pixel exactly and lets the exported game read it. In the editor the game reads
+the PNG file directly, so saving from Photoshop still updates the ground straight away.
 
 ## The level scene
 The easiest start: duplicate the `levels/starter/` folder, rename it, open the scene, and point
@@ -50,7 +70,19 @@ its `LevelTerrain` at your image. Or build one from scratch:
 Changes in the Tab panel only last until you quit: use **Copy values** and type them into the
 LevelTerrain node's Inspector to keep them.
 
+## Water
+The Proving Ground has a `Water` node: one flat, see-through plane at a fixed height (2.6 m).
+Wherever the painted ground is lower than that, you see water. Paint a channel below it for a
+river or lake. Shallow water (a few tenths of a metre) is a ford the tank can cross; deep water
+with steep banks keeps it out.
+
+## The Proving Ground's generator
+`tools/generate_proving_ground.gd` painted the first `height.png` and `terrain.png` from the plan
+in `levels/proving_ground/proving_ground_layout.gd` (routes, river, cliffs, test area). Running it
+again **overwrites** both images, so after you start editing them in Photoshop, don't rerun it.
+The route marker posts and the tests still follow the plan's routes.
+
 ## Coming next
-- `terrain.png`: paint mud, sand, road, ice and water in flat colours.
+- More terrain types (road, ice, water as terrain).
 - A kit of pieces to drag in (ramps, walls, rocks, bunkers).
 - Choosing a level from a menu.

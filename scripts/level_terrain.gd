@@ -45,6 +45,21 @@ const REBUILD_DELAY: float = 0.4
 		smoothing = value
 		_queue_rebuild()
 
+## Optional terrain map (PNG), stretched over the same ground as the height
+## image. Each pixel's colour picks a terrain: a terrain in `terrain_types`
+## whose paint_colour is close (e.g. pure red = mud, pure yellow = sand);
+## any other colour (black, white, grey...) is ordinary firm ground.
+@export_file("*.png") var terrain_image_path: String = "":
+	set(value):
+		terrain_image_path = value
+		_queue_rebuild()
+
+## The terrains the terrain map can use (e.g. terrain/mud.tres, terrain/sand.tres).
+@export var terrain_types: Array[TerrainType] = []:
+	set(value):
+		terrain_types = value
+		_queue_rebuild()
+
 ## Rebuild now (the ground also rebuilds by itself when the image is saved).
 @export_tool_button("Rebuild") var rebuild_action: Callable = rebuild
 
@@ -52,6 +67,8 @@ const REBUILD_DELAY: float = 0.4
 signal rebuilt
 
 var _heights := PackedFloat32Array()
+# Per height point: 0 = firm ground, n = terrain_types[n - 1].
+var _terrain_codes := PackedByteArray()
 var _width: int = 0
 var _depth: int = 0
 var _body: StaticBody3D
@@ -86,17 +103,19 @@ func rebuild() -> void:
 		return
 	_rebuild_countdown = -1.0
 	_image_modified_time = _image_file_time()
-	var image: Image = _load_height_image()
+	var image: Image = _load_image(height_image_path)
 	if image == null:
 		return
-	build_from_image(image)
+	build_from_image(image, _load_image(terrain_image_path) if not terrain_image_path.is_empty() else null)
 
 
-## Build the ground from an image already in memory (the tests use this).
-func build_from_image(image: Image) -> void:
+## Build the ground from images already in memory (the tests use this).
+## terrain_image: optional terrain map (null = all firm ground).
+func build_from_image(image: Image, terrain_image: Image = null) -> void:
 	_width = image.get_width()
 	_depth = image.get_height()
 	_heights = _read_heights(image)
+	_terrain_codes = _read_terrain(terrain_image)
 	for i: int in smoothing:
 		_heights = _smoothed(_heights)
 	if _body != null:
@@ -128,25 +147,82 @@ func height_at(world_position: Vector3) -> float:
 	return global_position.y + lerpf(top, bottom, fz)
 
 
+## The terrain painted at a world position (null = firm ground, or outside
+## the level).
+func terrain_at(world_position: Vector3) -> TerrainType:
+	if _terrain_codes.is_empty():
+		return null
+	var local: Vector3 = to_local(world_position)
+	var px: int = roundi(local.x / metres_per_pixel + (_width - 1) / 2.0)
+	var pz: int = roundi(local.z / metres_per_pixel + (_depth - 1) / 2.0)
+	if px < 0 or px >= _width or pz < 0 or pz >= _depth:
+		return null
+	var code: int = _terrain_codes[pz * _width + px]
+	return terrain_types[code - 1] if code > 0 and code <= terrain_types.size() else null
+
+
 ## Size of the level on the ground, in metres (X and Z).
 func ground_size() -> Vector2:
 	return Vector2((_width - 1) * metres_per_pixel, (_depth - 1) * metres_per_pixel)
 
 
-func _load_height_image() -> Image:
-	if height_image_path.is_empty():
+## Level images must be imported as "Image" (Import dock), which keeps every
+## pixel exactly. In the editor the PNG file itself is read, so a save from
+## Photoshop shows straight away; an exported game loads the imported Image.
+func _load_image(path: String) -> Image:
+	if path.is_empty():
 		return null
-	# Read the raw file, not Godot's imported texture, which may be compressed.
-	var image := Image.load_from_file(ProjectSettings.globalize_path(height_image_path))
+	var image: Image = null
+	if OS.has_feature("editor"):
+		image = Image.load_from_file(ProjectSettings.globalize_path(path))
+	else:
+		image = load(path) as Image
 	if image == null:
-		push_error("LevelTerrain: cannot read %s" % height_image_path)
+		push_error("LevelTerrain: cannot read %s (is it imported as \"Image\"?)" % path)
 	return image
 
 
+## Save time of the images, so the editor notices when either is saved.
 func _image_file_time() -> int:
-	if height_image_path.is_empty() or not FileAccess.file_exists(height_image_path):
-		return 0
-	return FileAccess.get_modified_time(height_image_path)
+	var total: int = 0
+	for path: String in [height_image_path, terrain_image_path]:
+		if not path.is_empty() and FileAccess.file_exists(path):
+			total += FileAccess.get_modified_time(path)
+	return total
+
+
+## Terrain codes per height point from the terrain map (stretched to fit).
+func _read_terrain(terrain_image: Image) -> PackedByteArray:
+	var codes := PackedByteArray()
+	if terrain_image == null or terrain_types.is_empty():
+		return codes
+	codes.resize(_width * _depth)
+	var scale_x: float = float(terrain_image.get_width()) / _width
+	var scale_z: float = float(terrain_image.get_height()) / _depth
+	for z: int in _depth:
+		for x: int in _width:
+			var colour: Color = terrain_image.get_pixel(
+					mini(int(x * scale_x), terrain_image.get_width() - 1),
+					mini(int(z * scale_z), terrain_image.get_height() - 1))
+			codes[z * _width + x] = _terrain_code(colour)
+	return codes
+
+
+## 0 = firm ground, n = terrain_types[n - 1]: the terrain whose paint colour is
+## nearest, if it is close enough (so slightly-off painted colours still count).
+func _terrain_code(colour: Color) -> int:
+	var best: int = 0
+	var best_distance: float = 0.35
+	for index: int in terrain_types.size():
+		var terrain: TerrainType = terrain_types[index]
+		if terrain == null:
+			continue
+		var wanted: Color = terrain.paint_colour
+		var distance: float = Vector3(colour.r - wanted.r, colour.g - wanted.g, colour.b - wanted.b).length()
+		if distance < best_distance:
+			best_distance = distance
+			best = index + 1
+	return best
 
 
 func _read_heights(image: Image) -> PackedFloat32Array:
@@ -209,6 +285,12 @@ func _make_visual() -> MeshInstance3D:
 	tool.begin(Mesh.PRIMITIVE_TRIANGLES)
 	for z: int in _depth:
 		for x: int in _width:
+			# Terrain shows as a tint (alpha 0 = plain ground).
+			var code: int = _terrain_codes[z * _width + x] if not _terrain_codes.is_empty() else 0
+			var tint := Color(1.0, 1.0, 1.0, 0.0)
+			if code > 0 and code <= terrain_types.size():
+				tint = terrain_types[code - 1].colour
+			tool.set_color(tint)
 			tool.add_vertex(Vector3((x - half_x) * metres_per_pixel, _height(x, z), (z - half_z) * metres_per_pixel))
 	for z: int in _depth - 1:
 		for x: int in _width - 1:
@@ -226,6 +308,7 @@ func _make_visual() -> MeshInstance3D:
 	tool.generate_normals()
 	var material := ShaderMaterial.new()
 	material.shader = GROUND_SHADER
+	material.set_shader_parameter(&"use_vertex_tint", not _terrain_codes.is_empty())
 	var visual := MeshInstance3D.new()
 	visual.name = "Visual"
 	visual.mesh = tool.commit()

@@ -10,3 +10,4 @@ grip = 0.75
 drag = 1.0
 top_speed = 0.8
 sink_depth = 0.1
+paint_colour = Color(1, 1, 0, 1)

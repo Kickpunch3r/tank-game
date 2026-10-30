@@ -11,7 +11,7 @@ config_version=5
 [application]
 
 config/name="Tank Game"
-run/main_scene="res://scenes/test_course.tscn"
+run/main_scene="res://levels/proving_ground/proving_ground.tscn"
 config/features=PackedStringArray("4.6", "Forward Plus")
 
 [autoload]

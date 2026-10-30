@@ -9,7 +9,7 @@ extends Node
 ## Only some suites, while working (run everything before committing):
 ##   ... res://tests/test_runner.tscn -- --only=push,phone
 ## Suite names: sheet, input, views, panel, feel, physics, phone, usb, push,
-## course, driving, brake, terrain, levels.
+## course, driving, brake, terrain, levels, proving.
 ## To watch: open tests/test_runner.tscn in the editor and press F6.
 
 const COURSE_SCENE: PackedScene = preload("res://scenes/test_course.tscn")
@@ -99,6 +99,8 @@ func _ready() -> void:
 		await TerrainTests.new(self).run()
 	if _wanted("levels"):
 		await LevelTests.new(self).run()
+	if _wanted("proving"):
+		await ProvingGroundTests.new(self).run()
 
 	report.heading("Sanity")
 	report.check("No NaN or infinite positions", not sanity_broken_position)

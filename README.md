@@ -10,10 +10,21 @@ Built with **Godot 4.6.3** (GDScript). No addons or downloaded assets.
 ## Running the game
 1. Start Godot: `C:\Users\Laptop\Documents\Godot_v4.6.3-stable_win64.exe`.
 2. Open (or Import) this folder's `project.godot`.
-3. Press **Play** (F5). The test course is the main scene.
+3. Press **Play** (F5). The game starts in the **Proving Ground** level
+   (`levels/proving_ground/proving_ground.tscn`).
 
-The ground, ramps and hills are built when the game starts, so they only appear after
-pressing Play, not in the editor viewport.
+The ramps, the course pieces and the route markers are built when the game starts, so they only
+appear after pressing Play, not in the editor viewport.
+
+**The Proving Ground:** you start facing north on a road. The **test area** (ramps 5°–55°, ledge
+strip, steps, crest, a mud and a sand square) is just to your right. The road leads to a fork:
+the **high route** (orange posts, west) climbs onto a ridge and runs along a sandy ledge above a
+cliff and a lake; the **low route** (blue posts) goes through a mud basin, across a river at a
+shallow ford and over sand dunes. Both end at the **goal** plateau in the north. The mountains,
+the cliffs, the steep cone hill, the mesa and the river's deep water can't be driven through.
+
+**The old test course** (`scenes/test_course.tscn`, open it and press F6) is still there for
+development.
 
 ## Controls
 
@@ -195,6 +206,8 @@ row 0   L  L  .  .  .  .  R  R     full back
   relay page's "Show colours" buttons light every palette colour so you can pick.
 
 ## Levels
+- **Proving Ground** (main scene): `levels/proving_ground/` has `height.png` (heights) and
+  `terrain.png` (red = mud, yellow = sand); edit either in Photoshop. See the guide below.
 - **Starter level:** open `levels/starter/starter.tscn` and press **F6** (Run Current Scene).
   It is built from `levels/starter/height.png` and has mountains round the edge, a flat start
   with a strip running north, a ridge with a pass, rolling hills, a mesa with 15°/25°/35°/cliff
@@ -208,7 +221,8 @@ row 0   L  L  .  .  .  .  R  R     full back
 ```bash
 "C:\Users\Laptop\Documents\Godot_v4.6.3-stable_win64_console.exe" --headless --fixed-fps 60 --path . res://tests/test_runner.tscn
 ```
-- Takes about a minute (the physics tank's slope tests run 3 times each). Prints a results table, including every ramp from a standing start and
+- Takes about two minutes (the physics tank's slope tests run 3 times each, and the Proving
+  Ground's routes are driven end to end). Prints a results table, including every ramp from a standing start and
   with a run-up, and saves it to `tests/last_results.txt`.
 - Exit code 0 = everything passed, 1 = something failed.
 - **To watch the tests:** open `tests/test_runner.tscn` in the editor and press **F6**.
@@ -218,7 +232,7 @@ row 0   L  L  .  .  .  .  R  R     full back
 | Folder | Contents |
 |---|---|
 | `scenes/` | `test_course.tscn` (main scene), `physics_tank.tscn`, `tank.tscn` (old kinematic tank), `player_rig.tscn` (both tanks + cameras + debug display + Tab panel, shared by every level) |
-| `levels/<name>/` | A level: `height.png` and its scene (e.g. `levels/starter/`) |
+| `levels/<name>/` | A level: `height.png` (and optional `terrain.png`) and its scene (`levels/proving_ground/` is the main scene) |
 | `tools/` | Helper scripts, e.g. the one that generated the starter height map |
 | `scripts/net/` | Phone controller: servers, station registry, phone input |
 | `web/` | `controller.html`: the page phones open (one self-contained file) |

@@ -11,7 +11,8 @@ them down; everything else says "reason: ask the user". Nothing in the game was 
 ### How to run
 **No standalone Windows build exists yet**: the project has no export preset
 (`export_presets.cfg`). Until one is made, it runs from the Godot 4.6.3 editor: open
-`project.godot` and press Play (F5); the main scene is the test course.
+`project.godot` and press Play (F5); the main scene is the Proving Ground level
+(`levels/proving_ground/proving_ground.tscn`).
 
 To make the Windows build (Godot 4.6.3):
 1. Editor > **Manage Export Templates** > download the 4.6.3 templates (official Godot download).
@@ -26,16 +27,20 @@ To make the Windows build (Godot 4.6.3):
    file the marker can open in a browser).
 6. Zip the folder. The marker runs `TankGame.exe`; no Godot needed.
 - Untested: no export has been made, so steps 3–4 are unconfirmed in practice.
-- The painted **starter level** (`levels/starter/starter.tscn`) is not reachable from the main
-  scene, and it loads its height image with `Image.load_from_file` on a real file path, which
-  probably fails inside an exported `.pck` (unconfirmed). It is editor-only (F6) as things stand.
+- The level images (`height.png`, `terrain.png`) are imported as Godot "Image" resources, so
+  they are packed into the export automatically; no filter is needed for them (changed
+  2026-10-30; before that, Godot warned the old way of reading them would not work in an export).
 
 ### Goal
-Drive a heavy tank (a physics body on 8 springs) by controlling its left and right treads separately, around a test course of
-ramps from 5° to 55°, rolling bumps, mud and sand, a ledge strip, steps and a crest. Gentle
-ramps (up to 20°) can be climbed from a standstill, 25° only with a run-up, and 30° and
-steeper not at all. There is no win or lose condition, score or timer: it is a
-driving prototype for the driver station of a planned co-operative tank crew game.
+Drive a heavy tank (a physics body on 8 springs) by controlling its left and right treads
+separately, through the Proving Ground: from the spawn, a road leads to a fork; the high route
+climbs onto a ridge and runs along a sandy ledge above a cliff and a lake, the low route crosses
+a mud basin, a river at a shallow ford and sand dunes, and both reach a goal plateau. Cliffs,
+steep hills, mountains and deep water can't be driven through. Beside the spawn, a test area
+has ramps from 5° to 55° (up to 20° climbable from a standstill, 25° only with a run-up, 30° and
+steeper not at all), a ledge strip, steps, a crest and squares of mud and sand. There is no win
+or lose condition, score or timer yet: it is a driving prototype for the driver station of a
+planned co-operative tank crew game.
 
 ### Player controls
 | Key | Action |
@@ -79,8 +84,9 @@ everything in game below also works in an exported release build.
 | Phone controller | Two on-screen levers and a BRAKE button (USB + adb, or Wi-Fi off by default). Still in the game, not documented for markers | Yes |
 | Gamepad | Sticks drive the treads (never tested on a real gamepad) | Yes |
 | Hold-to-drive mode | Untick `Use Tread Levels` on `DriverStation/KeyboardDriverInput` | Editor setting only |
-| Test runner `tests/test_runner.tscn` | 210 automated checks, headless or watched (F6); `--only=<suites>` runs some suites | Editor / console only |
-| Starter level `levels/starter/starter.tscn` | Painted-height level, run with F6 | Editor only |
+| Test runner `tests/test_runner.tscn` | 227 automated checks, headless or watched (F6); `--only=<suites>` runs some suites | Editor / console only |
+| Old test course `scenes/test_course.tscn` | The original ramps, bumps, mud/sand and terrain ramps; run with F6 | Editor only |
+| Starter level `levels/starter/starter.tscn` | First painted-height level, run with F6 | Editor only |
 
 ### Credits
 | Asset | Author | Licence |
@@ -129,16 +135,18 @@ Later plans added: `PHONE_CONTROLLER_PLAN.md` (`eb91bc6`), `KINEMATIC_TUNING_PLA
 | 15 | Slope targets (one tank): 30°–35° climb with a run-up, 45°+ never | Kinematic tank meets them. Physics tank at weight 1 failed 35°–40° with a run-up (loses ~4 m/s lifting its nose onto the slope, physics design doc §8); the chosen Heavy physics tank climbs 20° standing and 25° with a run-up, 30°+ fail | `39ce6f2` (21 Oct); Heavy 2026-10-30 | Developer: run-up shortfall "fine, leave it". Heavy's lower limits: ask the user |
 | 16 | Multiple stations (gunner, engineer), separate screens | Not built (driving only, as planned for this build) | n/a | Plan: "This build covers only driving" |
 | 17 | Two tanks to compare, three presets (heavy / nimble / slippery), T to swap | The physics tank with the Heavy values is the game's tank; presets and keys 1/2/3 removed; T removed, the kinematic tank kept as a Tab panel debug option marked "(old)" | 2026-10-30 (this commit) | Developer: "this one is the best and the one I've decided on" |
+| 18 | A flat test course (ramps, bumps, patches of mud and sand) as the main scene | The Proving Ground: a painted level with a branching high/low route, a river with a ford, cliffs and steep hills, painted mud and sand (terrain map), and the test area beside the spawn; it is the main scene | 2026-10-30 (this commit) | Developer's brief: "a more complete test level ... a branching path that goes through high and low areas with all sorts of different terrain" |
 
 ---
 
 ## 3. Work not in the final build
 
 Started or built, but off, unreachable or unfinished in the game as shipped:
-- **Starter level** (to be replaced by a new level): (`scripts/level_terrain.gd`, `level_root.gd`,
-  `level_start.gd`, `levels/starter/`, `tools/generate_starter_heightmap.gd`,
-  `docs/making_levels.md`): works in the editor (F6) only; not reachable from the main scene;
-  probably can't load its image in an export.
+- **Starter level** (`levels/starter/`, `tools/generate_starter_heightmap.gd`): replaced by the
+  Proving Ground as the playable level (2026-10-30); works in the editor (F6) only.
+- **Old test course** (`scenes/test_course.tscn`): was the main scene until 2026-10-30; its
+  pieces (ramps, ledge strip, steps, crest) now sit in the Proving Ground's test area; the
+  rolling bumps and the terrain ramps are only in the old course. Editor only (F6).
 - **Kinematic tank:** replaced by the physics tank as the game's tank (2026-10-30); still in the
   build as a Tab panel debug option, marked "(old)".
 - **Feel presets** (heavy, nimble, slippery, keys 1/2/3): removed 2026-10-30; Heavy's values
@@ -178,7 +186,7 @@ Started or built, but off, unreachable or unfinished in the game as shipped:
   merged.
 - **Testing:**
   - Automated headless test runner (`tests/test_runner.tscn`), driving tanks by writing into
-    their `DriverStation`. Grew from 42 checks (milestone 5) to **210 checks, all passing**
+    their `DriverStation`. Grew from 42 checks (milestone 5) to **227 checks, all passing**
     (2026-10-30). Covers input, views/HUD, tuning panel, starting tank, tank swap, phone
     (local ports, pretend adb), Push 3 (pretend MIDI), course shape, flat driving, every ramp
     standing and with a run-up for both tanks (physics: 3 runs, majority), brake/idle/warm-up/
@@ -196,7 +204,9 @@ Started or built, but off, unreachable or unfinished in the game as shipped:
   17. Brake, idling, levels, warm-up, turn scrub (`ea53bb4`) 18. Feel knobs and presets
   (`7e2fd5f`–`ebdf5cf`) 19. Physics tank (`cad8dd8`–`2b57a7d`) 20. Push 3 controller (22 Oct,
   `05492d2`, `98798f3`) 21. Physics feel knobs and settings spreadsheet (22 Oct, `9cdf93c`,
-  `c79b3e0`, `ec5a114`).
+  `c79b3e0`, `ec5a114`) 22. Physics tank chosen, Heavy tuning, presets and T removed
+  (30 Oct) 23. Physics tank on terrain, painted terrain map, Proving Ground level as the main
+  scene (30 Oct).
 
 ---
 

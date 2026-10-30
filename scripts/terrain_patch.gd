@@ -49,13 +49,21 @@ func contains(world_position: Vector3) -> bool:
 			and local.y <= THICKNESS_ABOVE and local.y >= -THICKNESS_BELOW
 
 
-## The terrain at a world position, from every patch in the scene.
+## The terrain at a world position, from every patch in the scene, or else
+## from a painted level's terrain map.
 ## Returns null for ordinary firm ground.
 static func terrain_at(tree: SceneTree, world_position: Vector3) -> TerrainType:
 	for node: Node in tree.get_nodes_in_group(GROUP):
 		var patch := node as TerrainPatch
 		if patch != null and patch.terrain != null and patch.contains(world_position):
 			return patch.terrain
+	# Otherwise, a painted level's terrain map (see LevelTerrain).
+	for node: Node in tree.get_nodes_in_group(LevelTerrain.GROUP):
+		var level := node as LevelTerrain
+		if level != null:
+			var painted: TerrainType = level.terrain_at(world_position)
+			if painted != null:
+				return painted
 	return null
 
 

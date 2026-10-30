@@ -10,6 +10,11 @@ extends Resource
 ## Colour of the ground patch (until there is real art).
 @export var colour: Color = Color(0.5, 0.5, 0.5)
 
+## The colour that stands for this terrain in a level's painted terrain map
+## (terrain.png). Pick something bold and distinct, e.g. pure red; the ground
+## itself is still drawn in `colour`.
+@export var paint_colour: Color = Color(1.0, 0.0, 1.0)
+
 ## Grip, as a multiple of the tank's grip (multiplies tan of the tank's grip
 ## angle, its traction_coeff; e.g. 0.7 on a 28.8° tank = about 21°). Below 1 = slippier:
 ## steeper slopes can't be held or climbed, and pushing hard spins the tread.

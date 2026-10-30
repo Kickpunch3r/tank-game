@@ -22,6 +22,7 @@ func run() -> void:
 	report.heading("Level builder")
 	await _heights_match_image()
 	await _smoothing_softens()
+	await _terrain_map()
 	await _starter_level()
 
 
@@ -56,6 +57,39 @@ func _heights_match_image() -> void:
 			"%s m for 33 px at 2 m per pixel" % level.ground_size())
 	report.check("height_at agrees with the ground you drive on",
 			absf(level.height_at(grey_spot) - grey_hit) < 0.05)
+	level.queue_free()
+	await runner.wait_physics_frames(2)
+
+
+## A painted terrain map: red = mud, yellow = sand, anything else firm; both
+## tanks' terrain lookup finds it; a slightly-off red still counts as mud.
+func _terrain_map() -> void:
+	var heights := Image.create(33, 33, false, Image.FORMAT_L8)
+	heights.fill(Color(0.0, 0.0, 0.0))
+	# A terrain map half the size: it is stretched over the same ground.
+	var paint := Image.create(16, 16, false, Image.FORMAT_RGB8)
+	paint.fill(Color(0.2, 0.6, 0.2))
+	paint.fill_rect(Rect2i(0, 0, 8, 8), Color(0.95, 0.05, 0.1))
+	paint.fill_rect(Rect2i(8, 8, 8, 8), Color(1.0, 1.0, 0.0))
+	var mud: TerrainType = load("res://terrain/mud.tres")
+	var sand: TerrainType = load("res://terrain/sand.tres")
+	var level := LevelTerrain.new()
+	level.position = TEST_GROUND_AT
+	level.smoothing = 0
+	level.terrain_types = [mud, sand]
+	runner.add_child(level)
+	level.build_from_image(heights, paint)
+	await runner.wait_physics_frames(2)
+	# 33 px at 1 m: the north-west quarter is mud, the south-east quarter sand.
+	var north_west: Vector3 = TEST_GROUND_AT + Vector3(-10.0, 0.0, -10.0)
+	var south_east: Vector3 = TEST_GROUND_AT + Vector3(10.0, 0.0, 10.0)
+	var north_east: Vector3 = TEST_GROUND_AT + Vector3(10.0, 0.0, -10.0)
+	report.check("Terrain map: red = mud, yellow = sand, other colours = firm ground",
+			level.terrain_at(north_west) == mud and level.terrain_at(south_east) == sand
+			and level.terrain_at(north_east) == null)
+	report.check("Terrain map: the tanks' terrain lookup finds the painted terrain",
+			TerrainPatch.terrain_at(runner.get_tree(), north_west) == mud
+			and TerrainPatch.terrain_at(runner.get_tree(), south_east) == sand)
 	level.queue_free()
 	await runner.wait_physics_frames(2)
 
@@ -164,6 +198,9 @@ func _starter_level() -> void:
 	panel._on_reset_to_saved_pressed()
 	await runner.wait_physics_frames(60)
 	await _physics_tank_in_level(level)
+	# Remove the level, so later suites (the Proving Ground) have the space.
+	level.queue_free()
+	await runner.wait_physics_frames(3)
 
 
 ## T works in painted levels too: the physics tank takes over at the start,
