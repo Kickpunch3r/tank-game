@@ -43,7 +43,7 @@ While **OFF**: the "How to work with me" rules apply, and commits happen at the 
 ## Environment
 - Godot 4.6.3: `C:\Users\Laptop\Documents\Godot_v4.6.3-stable_win64.exe` (editor) and
   `C:\Users\Laptop\Documents\Godot_v4.6.3-stable_win64_console.exe` (headless checks and tests).
-- Git: portable, not on PATH: `C:\Users\Laptop\Documents\Git\cmd\git.exe`. Private repo, branch
+- Git: portable, not on PATH: `C:\Users\Laptop\Documents\PortableGit\cmd\git.exe`. Private repo, branch
   `main`. Remote: https://github.com/Kickpunch3r/tank-game.git
 - Commit messages: write the message to a file with no BOM (`[System.IO.File]::WriteAllText` in
   PowerShell) and use `git commit -F file`.
