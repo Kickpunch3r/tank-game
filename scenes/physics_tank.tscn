@@ -9,6 +9,7 @@
 [ext_resource type="Script" path="res://scripts/net/phone_driver_input.gd" id="8_phone"]
 [ext_resource type="Script" path="res://scripts/push/push_driver_input.gd" id="9_push"]
 [ext_resource type="Script" path="res://scripts/tank_details.gd" id="10_details"]
+[ext_resource type="Script" path="res://scripts/tread_dust.gd" id="11_dust"]
 
 [sub_resource type="ConvexPolygonShape3D" id="Shape_hull"]
 points = PackedVector3Array(-1.8, 0.35, -1.9, -1.8, 0.35, 1.9, -1.8, 0.8, -2.5, -1.8, 0.8, 2.5, -1.8, 1.3, -2.5, -1.8, 1.3, 2.5, 1.8, 0.35, -1.9, 1.8, 0.35, 1.9, 1.8, 0.8, -2.5, 1.8, 0.8, 2.5, 1.8, 1.3, -2.5, 1.8, 1.3, 2.5)
@@ -109,6 +110,9 @@ mesh = SubResource("BoxMesh_nose")
 
 [node name="TankDetails" type="Node3D" parent="Visual/Hull"]
 script = ExtResource("10_details")
+
+[node name="TreadDust" type="Node3D" parent="Visual/Hull"]
+script = ExtResource("11_dust")
 
 [node name="DriverSlitCamera" type="Camera3D" parent="Visual/Hull"]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 1.2, -2.4)

@@ -42,3 +42,15 @@ so the scene file stays small. Looks only: driving is unchanged.
   guess). Easy to change if you prefer spinning tracks.
 - The old kinematic tank is not given details (it's a debug option).
 
+## 3. Dust and spray
+
+`TreadDust` (`scripts/tread_dust.gd`) sits in `Visual/Hull`: one GPUParticles3D per tread.
+
+- Puffs come from the back of each tread going forward (the front in reverse), only while that
+  tread touches the ground and moves faster than 0.6 m/s. More puffs the faster it goes (full at
+  6 m/s).
+- Colour: the ground's own colour, lightened (sand, mud), dusty earth on firm ground, and white
+  spray when the tread is below the water (the level's `Water` node is in group `water_surface`).
+- 40 soft puffs per tread, unshaded: cheap. Alternatives: CPU particles (slower), decals/tread
+  marks (more work; maybe later).
+

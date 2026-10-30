@@ -225,12 +225,27 @@ func _details_tests() -> void:
 			details.travel[0] > 0.3 and details.travel[1] < -0.3
 			and left_wheel.rotation.x != 0.0 and signf(left_wheel.rotation.x) != signf(right_wheel.rotation.x),
 			"left tread moved %.2f m, right %.2f m" % [details.travel[0], details.travel[1]])
+	var dust: TreadDust = tank.find_child("TreadDust", true, false)
+	var dusty_while_moving: bool = dust.is_throwing_dust(0) and dust.is_throwing_dust(1)
+	station.left_tread = 0.0
+	station.right_tread = 0.0
+	station.brake = true
+	await runner.wait_physics_frames(2 * FPS)
+	station.brake = false
+	var sand: TerrainType = load("res://terrain/sand.tres")
+	report.check("Dust: thrown up behind both treads while they move, none when stopped; sand-coloured on sand",
+			dusty_while_moving and not dust.is_throwing_dust(0) and not dust.is_throwing_dust(1)
+			and TreadDust.dust_colour(sand).r > TreadDust.dust_colour(null).r
+			and dust.is_in_group(GraphicsOptions.DUST_GROUP))
 	GraphicsOptions.tank_details = false
+	GraphicsOptions.dust = false
 	GraphicsOptions.apply(runner.get_tree())
-	var hidden: bool = not details.visible
+	var hidden: bool = not details.visible and not dust.visible
 	GraphicsOptions.tank_details = true
+	GraphicsOptions.dust = true
 	GraphicsOptions.apply(runner.get_tree())
-	report.check("Graphics > Tank details off hides them (and on shows them again)", hidden and details.visible)
+	report.check("Graphics > Tank details and Dust off hide them (and on shows them again)",
+			hidden and details.visible and dust.visible)
 	await runner.remove_test_tanks()
 
 

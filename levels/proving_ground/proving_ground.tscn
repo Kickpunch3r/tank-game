@@ -83,7 +83,7 @@ smoothing = 1
 terrain_image_path = "res://levels/proving_ground/terrain.png"
 terrain_types = Array[Resource]([ExtResource("4_mud"), ExtResource("5_sand")])
 
-[node name="Water" type="MeshInstance3D" parent="."]
+[node name="Water" type="MeshInstance3D" parent="." groups=["water_surface"]]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 2.6, 0)
 mesh = SubResource("PlaneMesh_water")
 
