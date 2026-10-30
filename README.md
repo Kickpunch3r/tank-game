@@ -26,8 +26,6 @@ pressing Play, not in the editor viewport.
 | `V` | Switch view: chase camera / driver's vision slit |
 | `F3` | Hide / show the debug display |
 | `Tab` | Open / close the tuning panel (use the mouse on it) |
-| `1` / `2` / `3` | Feel preset: heavy / nimble / slippery (until you quit; Tab panel "Reset to saved" goes back) |
-| `T` | Swap tank: kinematic (green) / physics (blue-grey), at the same place |
 | `F11` | Full screen / window (the game starts full screen) |
 
 - **Levels:** each tread has 3 levels forward and 3 back: **0.25, 0.5 and full** (the phone's
@@ -65,13 +63,11 @@ pressing Play, not in the editor viewport.
   turn or tilt it into place (it shows in the editor). Ramps can have terrain too: add the
   terrain name at the end of a line in a ramp list, e.g. `20  no ledge  mud`
   (`levels/terrain_ramps.txt`).
-- **How the tank drives:** click `tuning/tank_tuning.tres` and change values in the
-  Inspector. Each value is explained in plain language there (from `scripts/tank_tuning.gd`).
-  The first six are the **feel knobs** (below); the rest are "Advanced".
-- **Feel presets:** `tuning/presets/heavy.tres`, `nimble.tres`, `slippery.tres` hold just the
-  six knobs. Click one to change it; keys 1/2/3 put it on both tanks while driving.
-- **How the physics tank drives:** `tuning/physics_tank_tuning.tres`: the same six knobs, then
-  its own "Advanced" values (springs, centre of mass, sideways hold).
+- **How the tank drives:** click `tuning/physics_tank_tuning.tres` (the physics tank, the one
+  the game uses) and change values in the Inspector: its feel knobs first, then "Advanced"
+  (springs, centre of mass). Its saved values are the chosen **Heavy** tank (weight 2, top
+  speed 8, pulling power 8, grip 30°, sideways grip 1, tippiness 0.25).
+- **The old kinematic tank:** `tuning/tank_tuning.tres` (same six knobs, then "Advanced").
 - **The ramps:** edit `levels/slope_ladder.txt` (any text editor), one line per ramp, like
   `25  ledge` or `30  no ledge`. Save and press Play.
 - **Ramp size and spacing:** select the `SlopeLadder` node in `scenes/test_course.tscn`.
@@ -93,30 +89,23 @@ Every setting, with what it does and what raising or lowering it does, is in the
 | `grip` | The steepest slope (degrees) it can hold, or climb from a standstill |
 | `sideways_grip` | 1 = no sliding in turns; lower = it drifts outward in turns at speed |
 | `tippiness` | 0 = rigid hull, 1 = the hull rocks back, dips and leans a lot (looks only) |
-| `warm_up_time` | **Physics tank only, in its feel knobs:** seconds for each tread's push to build up from nothing to full when you ask for more power (0 = instant). Never delays the brake; presets don't change it. (The kinematic tank has the same setting under Advanced.) |
+| `warm_up_time` | **Physics tank only, in its feel knobs:** seconds for each tread's push to build up from nothing to full when you ask for more power (0 = instant). Never delays the brake. (The kinematic tank has the same setting under Advanced.) |
 
 1. Change **one knob at a time** (Tab panel, or the Inspector to keep it).
-2. Watch the **F3 display**: it shows the six knobs, the preset they match, the slope you can
+2. Watch the **F3 display**: it shows the six knobs, the slope you can
    climb from a standstill (grip, or the engine if that's weaker) and the sideways slide.
 3. Try it on the **ramps** (Tab panel "Reset point" puts you at any ramp, with or without a
-   run-up), then run the tests: the report has the slope table for the saved tuning and for
-   each preset.
-4. Happy with it? **Copy values** and type them into `tuning/tank_tuning.tres` (or a preset).
+   run-up), then run the tests: the report has the slope table for the saved tuning.
+4. Happy with it? **Copy values** and type them into `tuning/physics_tank_tuning.tres`.
 
-## Comparing the two tanks
-There are two tanks: the **kinematic** tank (green, rules-based: what the game has always used)
-and the **physics** tank (blue-grey: a real physics body on 8 springs, so it rocks, tips off
-ledges and has to lift its nose onto slopes). **T** swaps between them at the same spot; both
-use exactly the same controls (keyboard, phone, brake). The F3 display says which one is active.
-The six feel knobs and the presets mean the same in both.
+## The two tanks
+The game uses the **physics** tank (blue-grey: a real physics body on 8 springs, so it rocks,
+tips off ledges and has to lift its nose onto slopes), tuned as the **Heavy** tank. It climbs
+up to 20° from a standstill and 25° with a run-up; 30° and steeper fail.
 
-What to try (Tab panel "Reset point" takes you to each place):
-1. Climb the **30°** ramp from a standstill and with a run-up (Distance back 70), in each tank.
-2. Drive along the **ledge strip** with one tread over the edge (start "Ledge strip", climb
-   the little ramp, steer right until a tread hangs over).
-3. **Spin on the spot** on a slope (e.g. stop half-way up 20°, opposite levers).
-4. Drive over the **steps** and the **crest**.
-5. Try each **preset** (1/2/3) in each tank.
+The older **kinematic** tank (green, rules-based) is kept for comparison: the Tab panel's
+**Debug** section has **Swap to kinematic tank (old)** (and a button to swap back). It appears
+at the same spot; both use exactly the same controls. The F3 display says which one is active.
 
 ## Phone controller
 Drive the tank from a phone with two on-screen tread levers. The game hosts the page itself.
@@ -195,7 +184,7 @@ row 0   L  L  .  .  .  .  R  R     full back
 - **Brake** (the red 2 x 2 square in the middle): hold any of its pads to brake; pressing it also puts both levers to 0. The
   square lights white while braking.
 - The lights show what the tank is actually being told, so they also follow the keyboard and
-  the phone. They work with both tanks (T).
+  the phone. They work with both tanks.
 - **Lights need the relay page:** Godot can't send MIDI, so open `web/push_relay.html` in
   **Chrome or Edge**, press **Start** and allow MIDI. Keep it open while you play. (Same page as
   the finger-walking game; if that game is running too, close it, as both use port 9080.)
@@ -228,13 +217,13 @@ row 0   L  L  .  .  .  .  R  R     full back
 
 | Folder | Contents |
 |---|---|
-| `scenes/` | `test_course.tscn` (main scene), `tank.tscn` (kinematic), `physics_tank.tscn`, `player_rig.tscn` (both tanks + cameras + debug display + Tab panel, shared by every level) |
+| `scenes/` | `test_course.tscn` (main scene), `physics_tank.tscn`, `tank.tscn` (old kinematic tank), `player_rig.tscn` (both tanks + cameras + debug display + Tab panel, shared by every level) |
 | `levels/<name>/` | A level: `height.png` and its scene (e.g. `levels/starter/`) |
 | `tools/` | Helper scripts, e.g. the one that generated the starter height map |
 | `scripts/net/` | Phone controller: servers, station registry, phone input |
 | `web/` | `controller.html`: the page phones open (one self-contained file) |
 | `scripts/` | Game scripts: tank, treads, stations, inputs, cameras, course builders, HUD |
-| `tuning/` | `tank_tuning.tres` and `physics_tank_tuning.tres`: all driving numbers; `presets/`: heavy, nimble, slippery |
+| `tuning/` | `physics_tank_tuning.tres` (the game's tank) and `tank_tuning.tres` (old kinematic tank): all driving numbers |
 | `levels/` | Ramp lists: `slope_ladder.txt` (firm ramps), `terrain_ramps.txt` (sand and mud ramps) |
 | `terrain/` | Terrain types: `mud.tres`, `sand.tres` |
 | `art/` | Shaders and (later) models and sprites |

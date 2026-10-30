@@ -12,9 +12,6 @@ extends CanvasLayer
 ## Optional: shows which camera view is active.
 @export var view_switcher: ViewSwitcher
 
-## Optional: shows which feel preset is active.
-@export var preset_switcher: PresetSwitcher
-
 ## Whether the display is showing when the game starts.
 @export var start_visible: bool = true
 
@@ -76,14 +73,10 @@ func _push_lines() -> PackedStringArray:
 			push.left_level, push.right_level, "ON" if push.is_brake_held() else "off", pages]]
 
 
-## The feel knobs, the preset they match, and the slope limit they give.
+## The feel knobs and the slope limit they give.
 ## tuning: either tank's tuning (both have the six knobs and the limits).
 func _feel_lines(tuning: Variant) -> PackedStringArray:
-	var preset: String = ""
-	if is_instance_valid(preset_switcher):
-		preset = preset_switcher.preset_name_for(tuning)
 	return [
-		"Preset: %s   (1 heavy, 2 nimble, 3 slippery)" % (preset if not preset.is_empty() else "none (saved or changed tuning)"),
 		"Knobs: weight %.2f  top speed %.1f  pulling power %.1f  grip %.1f°  sideways grip %.2f  tippiness %.2f" % [
 				tuning.weight, tuning.top_speed, tuning.pulling_power, tuning.grip, tuning.sideways_grip, tuning.tippiness],
 		"Climbable from a standstill: %.1f° (grip %.1f°, engine %.1f°)" % [

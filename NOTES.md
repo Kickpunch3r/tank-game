@@ -157,7 +157,7 @@ Decisions, alternatives and reasons: [docs/kinematic_tuning_design.md](docs/kine
 - **Old names still work in code**: `max_tread_speed`, `max_drive_accel` and `traction_coeff`
   read and write the knobs they came from.
 - **Presets** (`TankFeel`, six knobs only): `tuning/presets/heavy.tres`, `nimble.tres`,
-  `slippery.tres`. Keys 1/2/3 (`PresetSwitcher` in the player rig) set them on the tank in memory
+  `slippery.tres`. (Removed 2026-10-30, see entry 20: only Heavy was kept, as the saved physics tuning.) Keys 1/2/3 (`PresetSwitcher` in the player rig) set them on the tank in memory
   and rebuild the Tab panel. The HUD names the preset whose six values match the tank's.
 - **Grip is "steepest slope it can hold / climb from a standstill"**, not "ever": a run-up still
   carries the tank about 10° past its grip (the approved targets need that). The plan said
@@ -209,7 +209,8 @@ Decisions, alternatives and reasons: [docs/physics_tank_design.md](docs/physics_
   - Fixed: probe layout (±1.5 m, ±1.875 / ±0.625 m), spring length 1 m, throttle response 5/s,
     rolling resistance 0.1, idle drag 3, damping linear 0 / angular 0.1 (replacing Godot's
     project damping, which otherwise adds 0.1 and cost 0.25 m/s of top speed).
-- **Two tanks, T to swap:** both are in `scenes/player_rig.tscn`; `PlayerRig` (root script)
+- **Two tanks, T to swap** (since 2026-10-30: the physics tank starts and T is gone; the Tab
+  panel's Debug button swaps, see entry 20): both are in `scenes/player_rig.tscn`; `PlayerRig` (root script)
   keeps `active_tank`. The hidden tank is switched off (`process_mode` disabled: no input, out of
   the physics world, not drawn). Each tank has its own `DriverStation`; on a swap the keyboard
   levels carry over. Camera, slit view, HUD and Tab panel follow; works in levels too.
@@ -239,7 +240,7 @@ The physics tank uses exactly the kinematic tank's current controls (it reads it
 | Debug display | `F3` | | |
 | Tuning panel | `Tab` | | Not in the plan |
 | Full screen | `F11` | | Not in the plan |
-| Swap tank | `T` | | New (was free) |
+| Swap tank | `T` | | New (was free); removed 2026-10-30 (Tab panel Debug button instead) |
 | Presets | `1` / `2` / `3` | | New (were free) |
 
 - Level 0 is idling (idle drag), not braking, in both tanks. The phone watchdog brakes for 3 s.
@@ -638,3 +639,15 @@ committed). To watch: open `tests/test_runner.tscn` and press F6.
 - **Fix:** Godot imports any `.csv` as a translation table, so the spreadsheet had spawned nine
   `.translation` files (committed by mistake). Now `docs/tuning_settings.csv.import` says
   `importer="keep"` (no import) and those files are deleted. Add the same for any future CSV.
+
+20. **Physics tank chosen** (2026-10-30, developer's decision): the game starts with the physics
+    tank; its saved tuning is the former Heavy preset (weight 2, top speed 8, pulling power 8,
+    grip 30°, sideways grip 1, tippiness 0.25). All presets, keys 1/2/3 and `PresetSwitcher`
+    removed; `TankFeel` keeps only the shared helpers. T removed: the Tab panel's **Debug**
+    section has "Swap to kinematic tank (old)" (`PlayerRig.activate()`). Tests: physics model
+    checks use a fixed reference tuning (`PhysicsTankTuning.new()`), the slope ladder and a
+    spin check use the saved Heavy tuning; older suites switch to the kinematic tank first.
+    Heavy climbs 20° standing, 25° with a run-up; 30°+ fail. 210 checks pass.
+    - Found: running a scene outside the tests crashes in the Linux cloud container at
+      `OS.open_midi_inputs()` (Push 3 code; already so before this change, no MIDI system
+      there). Fine on the developer's Windows laptop; untested on other machines.

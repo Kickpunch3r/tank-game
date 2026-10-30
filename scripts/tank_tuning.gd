@@ -4,8 +4,7 @@ extends Resource
 ## Edit them by clicking tuning/tank_tuning.tres and changing values in the Inspector.
 ##
 ## The first six are the feel knobs: the ones you are expected to change. They
-## have the same names and meanings as the physics tank's, and the presets in
-## tuning/presets/ set just these six. Everything under "Advanced" was tuned
+## have the same names and meanings as the physics tank's. Everything under "Advanced" was tuned
 ## once and usually stays as it is.
 ##
 ## How slopes come out of these numbers: the tank can only hold a slope up to

@@ -4,9 +4,9 @@ extends Resource
 ## Edit them by clicking tuning/physics_tank_tuning.tres.
 ##
 ## The feel knobs come first: the six shared with the kinematic tank (same
-## names and meanings, so a preset like "heavy" means the same in both), then
-## the other settings the developer finds most important (warm-up, throttle
-## response, idle drag, turning heaviness). Presets only set the shared six.
+## names and meanings), then the other settings the developer finds most
+## important (warm-up, throttle response, idle drag, turning heaviness).
+## The saved values in physics_tank_tuning.tres are the chosen "Heavy" tank.
 ## The springs' stiffness and damping are not values at all: they are worked
 ## out from weight (see spring_stiffness() and spring_damping()).
 
@@ -41,7 +41,7 @@ extends Resource
 ## in seconds, whenever you ask for more power. 0 = instant. From a standstill
 ## or steady driving the push builds up over this time; if the tread is still
 ## speeding up (the engine already pushing hard), more power comes at once.
-## Braking is never delayed. (Presets 1/2/3 don't change it.)
+## Braking is never delayed.
 @export_range(0.0, 2.0, 0.05, "or_greater") var warm_up_time: float = 0.0
 
 ## How snappily the treads chase the speed the levers ask for, per second.

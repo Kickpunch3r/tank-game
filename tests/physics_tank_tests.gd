@@ -26,15 +26,48 @@ func run() -> void:
 	await _slope_tests()
 	await _ledge_steps_and_crest()
 	await _stability_tests()
-	await _preset_tests()
 
 
-# --- Swapping tanks (T) ---------------------------------------------------------
+# --- Starting tank and swapping (Tab panel debug button) -----------------------------
+
+## The game as it starts: the chosen physics tank, with the saved (Heavy)
+## tuning. Runs first, on the course's own player rig.
+func run_start() -> void:
+	report.heading("Starting tank")
+	var rig: PlayerRig = runner.course.get_node(^"PlayerRig")
+	var physics: PhysicsTank = runner.course.get_node(^"PlayerRig/PhysicsTank")
+	var kinematic: Tank = runner.course.get_node(^"PlayerRig/Tank")
+	var hud: DebugHud = runner.course.get_node(^"PlayerRig/DebugHud")
+	var chase: ChaseCamera = runner.course.get_node(^"PlayerRig/ChaseCamera")
+	var panel: TuningPanel = runner.course.get_node(^"PlayerRig/TuningPanel")
+	report.check("The game starts with the physics tank; the kinematic tank is hidden and switched off",
+			rig.active_tank == physics and physics.visible and not kinematic.visible
+			and kinematic.process_mode == Node.PROCESS_MODE_DISABLED
+			and chase.target == physics and hud.tank == physics and panel.tank == physics)
+	report.check("It uses the saved Heavy tuning",
+			is_equal_approx(physics.tuning.weight, 2.0) and is_equal_approx(physics.tuning.top_speed, 8.0)
+			and is_equal_approx(physics.tuning.pulling_power, 8.0) and is_equal_approx(physics.tuning.grip, 30.0)
+			and is_equal_approx(physics.tuning.sideways_grip, 1.0) and is_equal_approx(physics.tuning.tippiness, 0.25),
+			"weight %.2f, top speed %.1f, pulling power %.1f, grip %.1f°, sideways grip %.2f, tippiness %.2f" % [
+				physics.tuning.weight, physics.tuning.top_speed, physics.tuning.pulling_power,
+				physics.tuning.grip, physics.tuning.sideways_grip, physics.tuning.tippiness])
+	report.check("No tank-swap or preset keys any more (T, 1, 2, 3)",
+			not InputMap.has_action(&"tank_swap") and not InputMap.has_action(&"preset_1")
+			and not InputMap.has_action(&"preset_2") and not InputMap.has_action(&"preset_3"))
+	report.check("Tab panel has the debug swap button, marked (old)",
+			panel.swap_button != null and panel.swap_button.text.contains("kinematic") and panel.swap_button.text.contains("(old)"))
+	# It is placed 1 m up and drops onto its springs: allow 2 s, as the rest test does.
+	await runner.wait_physics_frames(2 * FPS)
+	report.check("At the start it settles on the ground within 2 s and sits still",
+			absf(physics.global_position.y) < 0.2 and physics.linear_velocity.length() < 0.05,
+			"height %.2f m, speed %.3f m/s" % [physics.global_position.y, physics.linear_velocity.length()])
+
 
 ## On the course's own player rig, so this runs early (before the driving
-## tests remove the course's tank).
+## tests remove the course's tank). Starts with the kinematic tank active
+## (the runner switches to it for the older suites).
 func run_swap() -> void:
-	report.heading("Swapping tanks (T)")
+	report.heading("Swapping tanks (Tab panel debug button)")
 	var course: Node3D = runner.course
 	var rig: PlayerRig = course.get_node(^"PlayerRig")
 	var kinematic: Tank = course.get_node(^"PlayerRig/Tank")
@@ -42,23 +75,24 @@ func run_swap() -> void:
 	var chase: ChaseCamera = course.get_node(^"PlayerRig/ChaseCamera")
 	var hud: DebugHud = course.get_node(^"PlayerRig/DebugHud")
 	var panel: TuningPanel = course.get_node(^"PlayerRig/TuningPanel")
-	var views: ViewSwitcher = course.get_node(^"PlayerRig/ViewSwitcher")
 	var kinematic_keys: KeyboardDriverInput = kinematic.get_node(^"DriverStation/KeyboardDriverInput")
 	var physics_keys: KeyboardDriverInput = physics.get_node(^"DriverStation/KeyboardDriverInput")
 	runner.watch_tank(kinematic)
 
-	report.check("The kinematic tank starts active; the physics tank is hidden and switched off",
+	report.check("With the kinematic tank active, the physics tank is hidden and switched off",
 			rig.active_tank == kinematic and not physics.visible
 			and physics.process_mode == Node.PROCESS_MODE_DISABLED)
 	kinematic.place_at(Transform3D(Basis(Vector3.UP, 0.6), Vector3(10.0, 0.05, 20.0)))
 	await runner.wait_physics_frames(20)
 	await _tap_key(KEY_W)
 	report.check("The hidden tank doesn't react to the keys", kinematic_keys.left_level == 1 and physics_keys.left_level == 0)
-	var kinematic_place: Vector3 = kinematic.global_position
 	await _tap_key(KEY_T)
+	report.check("T no longer swaps tanks", rig.active_tank == kinematic)
+	var kinematic_place: Vector3 = kinematic.global_position
+	await _press_swap_button(panel)
 	var heading_gap: float = rad_to_deg(absf(_flat(-physics.global_basis.z).signed_angle_to(_flat(-kinematic.global_basis.z), Vector3.UP)))
 	var place_gap: float = Vector2(physics.global_position.x - kinematic_place.x, physics.global_position.z - kinematic_place.z).length()
-	report.check("T: the physics tank appears where the kinematic tank was, facing the same way",
+	report.check("Swap button: the physics tank appears where the kinematic tank was, facing the same way",
 			rig.active_tank == physics and physics.visible and not kinematic.visible
 			and kinematic.process_mode == Node.PROCESS_MODE_DISABLED
 			and place_gap < 0.5 and heading_gap < 2.0,
@@ -82,16 +116,14 @@ func run_swap() -> void:
 	await _tap_key(KEY_V)
 	var phone_source: PhoneDriverInput = physics.get_node(^"DriverStation/PhoneDriverInput")
 	report.check("The physics tank's phone input finds the phone server", phone_source._find_server() != null)
-	await _tap_key(KEY_1)
-	var heavy: TankFeel = load("res://tuning/presets/heavy.tres")
-	report.check("Presets set the knobs on both tanks (key 1: heavy)",
-			heavy.matches(physics.tuning) and heavy.matches(kinematic.tuning))
+	var saved_weight: float = physics.tuning.weight
+	panel.set_setting(&"weight", 3.0)
+	await _press_swap_button(panel)
 	panel._on_reset_to_saved_pressed()
-	# Panel's Reset to saved only resets the shown tank's values; the hidden
-	# tank's knobs go back too.
-	report.check("Reset to saved puts the knobs back (both tanks)",
-			not heavy.matches(physics.tuning) and not heavy.matches(kinematic.tuning),
-			"physics weight %.2f, kinematic weight %.2f" % [physics.tuning.weight, kinematic.tuning.weight])
+	# Reset to saved puts back the hidden tank's values too.
+	report.check("Reset to saved also resets the hidden tank's tuning",
+			is_equal_approx(physics.tuning.weight, saved_weight), "physics weight %.2f" % physics.tuning.weight)
+	await _press_swap_button(panel)
 	physics_keys.clear_levels()
 	physics.place_at(Transform3D(Basis.IDENTITY, Vector3(-30.0, 0.5, 15.0)))
 	await runner.wait_physics_frames(10)
@@ -99,11 +131,28 @@ func run_swap() -> void:
 	report.check("R puts the active (physics) tank back at the start",
 			Vector2(physics.global_position.x, physics.global_position.z).length() < 0.3,
 			"at %s" % physics.global_position)
-	await _tap_key(KEY_T)
-	report.check("T again swaps back to the kinematic tank", rig.active_tank == kinematic and kinematic.visible
+	report.check("With the physics tank active, the button offers the kinematic tank (old)",
+			panel.swap_button.text == "Swap to kinematic tank (old)", "'%s'" % panel.swap_button.text)
+	await _press_swap_button(panel)
+	report.check("The button swaps back to the kinematic tank", rig.active_tank == kinematic and kinematic.visible
 			and not physics.visible and hud.tank == kinematic)
 	kinematic_keys.clear_levels()
 	await _tap_key(KEY_R)
+
+
+## Click the Tab panel's debug swap button (the swap happens a moment later).
+func _press_swap_button(panel: TuningPanel) -> void:
+	panel.swap_button.pressed.emit()
+	await runner.wait_physics_frames(2)
+
+
+## A physics test tank with the reference tuning (the script's defaults,
+## weight 1), so these checks of how the model behaves don't change when the
+## saved tuning is retuned. The slope ladder and spin checks use the saved one.
+func _spawn(where: Vector3, yaw_radians: float = 0.0) -> PhysicsTank:
+	var tank: PhysicsTank = runner.spawn_test_physics_tank(where, yaw_radians)
+	tank.tuning = PhysicsTankTuning.new()
+	return tank
 
 
 func _tap_key(code: Key) -> void:
@@ -119,7 +168,7 @@ func _tap_key(code: Key) -> void:
 # --- Rest -------------------------------------------------------------------
 
 func _rest_test() -> void:
-	var tank: PhysicsTank = runner.spawn_test_physics_tank(FLAT_AREA + Vector3(0.0, 0.3, 0.0))
+	var tank: PhysicsTank = _spawn(FLAT_AREA + Vector3(0.0, 0.3, 0.0))
 	runner.watch_tank(tank)
 	await runner.wait_physics_frames(2 * FPS)
 	var settled: Vector3 = tank.global_position
@@ -170,7 +219,7 @@ func _warm_up_tests() -> void:
 
 ## A physics tank with its own copy of the tuning and the given warm-up.
 func _physics_tank_with_warm_up(warm_up: float) -> Node3D:
-	var tank: Node3D = runner.spawn_test_physics_tank(FLAT_AREA)
+	var tank: Node3D = _spawn(FLAT_AREA)
 	var tuning: PhysicsTankTuning = (tank.get(&"tuning") as PhysicsTankTuning).duplicate()
 	tuning.warm_up_time = warm_up
 	tank.set(&"tuning", tuning)
@@ -222,7 +271,7 @@ func _physics_seconds_to_stop(warm_up: float) -> float:
 func drive_on_flat(physics: bool, left: float, right: float, seconds: float) -> Dictionary:
 	var tank: Node3D
 	if physics:
-		tank = runner.spawn_test_physics_tank(FLAT_AREA)
+		tank = _spawn(FLAT_AREA)
 	else:
 		tank = runner.spawn_test_tank(FLAT_AREA)
 	runner.watch_tank(tank)
@@ -298,10 +347,13 @@ func _slope_tests() -> void:
 	var driving := DrivingTests.new(runner)
 	var kinematic_standing: Array[Dictionary] = await driving.climb_all(ladder, false)
 	var kinematic_run_up: Array[Dictionary] = await driving.climb_all(ladder, true)
-	var standing: Array[Dictionary] = await climb_all_majority(ladder, false)
-	var run_up: Array[Dictionary] = await climb_all_majority(ladder, true)
+	# The tank as it ships: the saved (Heavy) tuning.
+	var saved: PhysicsTankTuning = load("res://tuning/physics_tank_tuning.tres")
+	var standing: Array[Dictionary] = await climb_all_majority(ladder, false, saved)
+	var run_up: Array[Dictionary] = await climb_all_majority(ladder, true, saved)
 
-	report.heading("Physics tank: Slope Ladder (full forward, %d runs each, majority result)" % SLOPE_RUNS)
+	report.heading("Physics tank (saved tuning, weight %.1f): Slope Ladder (full forward, %d runs each, majority result)" % [
+			saved.weight, SLOPE_RUNS])
 	report.add_line("       Ramp            Physics: standing     Physics: run-up       Kinematic: standing   Kinematic: run-up")
 	var steep_always_fail: bool = true
 	for index: int in ladder.ramps.size():
@@ -321,11 +373,19 @@ func _slope_tests() -> void:
 						and results[b].climbed and not results[a].climbed:
 					ordering_ok = false
 	report.check("Physics tank: steeper ramps are never easier", ordering_ok)
+	# Comfortably below its climbable limit (the lower of grip and engine),
+	# it must climb from a standstill; with a run-up, everything up to 25°.
+	var gentle_limit: float = saved.climbable_limit_degrees() - 5.0
 	var gentle_ok: bool = true
 	for index: int in ladder.ramps.size():
-		if ladder.ramps[index].angle_degrees <= 25.0 and not (standing[index].climbed and run_up[index].climbed):
+		var angle: float = ladder.ramps[index].angle_degrees
+		if (angle <= gentle_limit and not standing[index].climbed) or (angle <= 25.0 and not run_up[index].climbed):
 			gentle_ok = false
-	report.check("Physics tank: climbs every ramp up to 25°, standing and with a run-up", gentle_ok)
+	report.check("Physics tank: climbs every ramp up to %.0f° from a standstill (climbable limit %.1f° - 5°) and up to 25° with a run-up" % [
+			gentle_limit, saved.climbable_limit_degrees()], gentle_ok)
+	var tilt: float = await _spin_at_speed(saved)
+	report.check("Physics tank (saved tuning): full speed into a spin on flat ground doesn't flip",
+			tilt < 30.0, "most tilt %.1f°" % tilt)
 
 
 ## Climbs every ramp SLOPE_RUNS times; per ramp: climbed (majority),
@@ -357,7 +417,7 @@ func climb_all(ladder: SlopeLadder, with_run_up: bool, tuning: PhysicsTankTuning
 	var results: Array[Dictionary] = []
 	for index: int in ladder.ramps.size():
 		var ramp: SlopeLadder.RampInfo = ladder.ramps[index]
-		var tank: PhysicsTank = runner.spawn_test_physics_tank(ramp.run_up_start + Vector3(0.0, 0.1, 0.0))
+		var tank: PhysicsTank = _spawn(ramp.run_up_start + Vector3(0.0, 0.1, 0.0))
 		if not with_run_up:
 			# Standing start: at rest, front probes at the foot of the slope.
 			tank.place_at(Transform3D(Basis.IDENTITY, ladder.start_position_for(index, 0.0, tank)))
@@ -406,7 +466,7 @@ func _ledge_steps_and_crest() -> void:
 	report.heading("Physics tank: ledge strip, steps and crest")
 	var features: ComparisonFeatures = runner.course.get_node(^"ComparisonFeatures")
 	# Middle of the tank 0.5 m inside the edge: the right tread's outer probes hang over.
-	var tank: PhysicsTank = runner.spawn_test_physics_tank(features.ledge_edge_transform(-0.5).origin)
+	var tank: PhysicsTank = _spawn(features.ledge_edge_transform(-0.5).origin)
 	runner.watch_tank(tank)
 	tank.driver_station.brake = true
 	await runner.wait_physics_frames(2 * FPS)
@@ -440,7 +500,7 @@ func _ledge_steps_and_crest() -> void:
 
 ## Drives a physics tank at half speed from `start` toward -Z for 15 s.
 func _drive_lane(start: Transform3D) -> Dictionary:
-	var tank: PhysicsTank = runner.spawn_test_physics_tank(start.origin)
+	var tank: PhysicsTank = _spawn(start.origin)
 	runner.watch_tank(tank)
 	await runner.wait_physics_frames(60)
 	var result: Dictionary = {"lowest_pitch": 0.0, "highest_pitch": 0.0, "highest": 0.0, "most_tilt": 0.0, "finite": true}
@@ -463,7 +523,7 @@ func _drive_lane(start: Transform3D) -> Dictionary:
 func _stability_tests() -> void:
 	report.heading("Physics tank: stability")
 	# Full speed on flat ground, then throw it into a spin.
-	var tank: PhysicsTank = runner.spawn_test_physics_tank(FLAT_AREA + Vector3(0.0, 0.0, -30.0), PI)
+	var tank: PhysicsTank = _spawn(FLAT_AREA + Vector3(0.0, 0.0, -30.0), PI)
 	runner.watch_tank(tank)
 	await runner.wait_physics_frames(60)
 	var most_tilt: float = 0.0
@@ -479,7 +539,7 @@ func _stability_tests() -> void:
 
 	# Full speed across the rolling bumps.
 	var bumps: RollingBumps = runner.course.get_node(^"RollingBumps")
-	tank = runner.spawn_test_physics_tank(bumps.global_position + Vector3(0.0, 0.5, bumps.patch_size / 2.0 + 10.0))
+	tank = _spawn(bumps.global_position + Vector3(0.0, 0.5, bumps.patch_size / 2.0 + 10.0))
 	runner.watch_tank(tank)
 	await runner.wait_physics_frames(60)
 	most_tilt = 0.0
@@ -496,41 +556,11 @@ func _stability_tests() -> void:
 	await runner.remove_test_tanks()
 
 
-# --- Presets ------------------------------------------------------------------------
-
-func _preset_tests() -> void:
-	report.heading("Physics tank: presets (one run each, information)")
-	var ladder: SlopeLadder = runner.course.get_node(^"SlopeLadder")
-	var names: Array[String] = []
-	var tables: Array[Array] = []
-	var spins_ok: bool = true
-	var spin_details: PackedStringArray = []
-	for preset_name: String in ["heavy", "nimble", "slippery"]:
-		var preset: TankFeel = load("res://tuning/presets/%s.tres" % preset_name)
-		var tuning: PhysicsTankTuning = (load("res://tuning/physics_tank_tuning.tres") as PhysicsTankTuning).duplicate()
-		preset.apply_to(tuning)
-		names.append(preset.display_name)
-		tables.append([await climb_all(ladder, false, tuning), await climb_all(ladder, true, tuning)])
-		var tilt: float = await _spin_at_speed(tuning)
-		spins_ok = spins_ok and tilt < 30.0
-		spin_details.append("%s %.1f°" % [preset.display_name, tilt])
-	var header: String = "       Ramp        "
-	for preset_name: String in names:
-		header += "%-26s" % preset_name
-	report.add_line(header)
-	for index: int in ladder.ramps.size():
-		var ramp: SlopeLadder.RampInfo = ladder.ramps[index]
-		var line: String = "       %2d° %-8s " % [roundi(ramp.angle_degrees), "ledge" if ramp.has_ledge else "no ledge"]
-		for table: Array in tables:
-			line += "%-26s" % ("%s / %s" % [_short(table[0][index]), _short(table[1][index])])
-		report.add_line(line)
-	report.check("Every preset: full speed into a spin on flat ground doesn't flip", spins_ok,
-			"most tilt: %s" % ", ".join(spin_details))
-
+# --- The saved (Heavy) tank -------------------------------------------------------------
 
 ## Full speed for 3 s, then opposite levers for 3 s. Returns the most tilt in degrees.
 func _spin_at_speed(tuning: PhysicsTankTuning) -> float:
-	var tank: PhysicsTank = runner.spawn_test_physics_tank(FLAT_AREA + Vector3(0.0, 0.0, -30.0), PI)
+	var tank: PhysicsTank = _spawn(FLAT_AREA + Vector3(0.0, 0.0, -30.0), PI)
 	tank.tuning = tuning
 	runner.watch_tank(tank)
 	await runner.wait_physics_frames(60)
@@ -542,9 +572,3 @@ func _spin_at_speed(tuning: PhysicsTankTuning) -> float:
 		most_tilt = maxf(most_tilt, rad_to_deg(tank.global_basis.y.angle_to(Vector3.UP)))
 	await runner.remove_test_tanks()
 	return most_tilt
-
-
-func _short(result: Dictionary) -> String:
-	if result.climbed:
-		return "%.1f s" % result.seconds
-	return "fail %d%%" % roundi(result.best_height * 100.0)

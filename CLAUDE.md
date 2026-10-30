@@ -70,7 +70,8 @@ While **OFF**: the "How to work with me" rules apply, and commits happen at the 
 - 3D, GDScript with static typing.
 - The tank never reads `Input` directly: input sources write into a `DriverStation`, the tank reads
   only from that. Future stations and hardware plug in the same way.
-- Movement is a kinematic, rules-based `CharacterBody3D` (no rigid-body physics). Tunables live in
-  one `TankTuning` resource.
+- The game's tank is the **physics tank** (`RigidBody3D` on 8 spring probes, tuned as "Heavy" in
+  `tuning/physics_tank_tuning.tres`), chosen 2026-10-30. The older kinematic `CharacterBody3D`
+  tank (`TankTuning`) is kept as a debug option in the Tab panel, marked "(old)".
 - Graphics: primitive meshes for now, always inside a separate `Visual` child node so art
   (low-poly models or Doom-style sprites) can be swapped without touching logic.

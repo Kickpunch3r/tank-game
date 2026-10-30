@@ -1,7 +1,7 @@
 class_name FeelTests
 extends RefCounted
 ## Checks the six feel knobs of the kinematic tank: weight, sideways grip,
-## grip as an angle, tippiness (looks only), and the presets.
+## grip as an angle, tippiness (looks only), and default parity.
 
 const FLAT_AREA := Vector3(-100.0, 0.05, 60.0)
 const FPS: int = 60
@@ -15,47 +15,6 @@ func _init(test_runner: TestRunner) -> void:
 	report = runner.report
 
 
-## Keys 1/2/3, the Tab panel and the HUD, on the course's own tank (so this
-## runs early, before the driving tests remove that tank).
-func run_preset_keys() -> void:
-	report.heading("Feel presets (keys 1/2/3)")
-	var course: Node3D = runner.course
-	var tank: Tank = course.get_node(^"PlayerRig/Tank")
-	var panel: TuningPanel = course.get_node(^"PlayerRig/TuningPanel")
-	var hud: DebugHud = course.get_node(^"PlayerRig/DebugHud")
-	var switcher: PresetSwitcher = course.get_node(^"PlayerRig/PresetSwitcher")
-	var nimble: TankFeel = load("res://tuning/presets/nimble.tres")
-	var saved_weight: float = tank.tuning.weight
-	# Earlier tests pointed the HUD at their own test tanks.
-	runner.watch_tank(tank)
-
-	report.check("Three presets: heavy, nimble, slippery, the same files for any tank",
-			switcher.presets.size() == 3 and switcher.presets[0].resource_path.ends_with("heavy.tres")
-			and switcher.presets[1].resource_path.ends_with("nimble.tres")
-			and switcher.presets[2].resource_path.ends_with("slippery.tres"))
-	await _tap_key(KEY_2)
-	report.check("Key 2 puts the nimble knobs on the tank", nimble.matches(tank.tuning),
-			"weight %.2f, top speed %.1f" % [tank.tuning.weight, tank.tuning.top_speed])
-	report.check("...and leaves the advanced values alone", is_equal_approx(tank.tuning.idle_drag, 3.0))
-	var weight_box: LineEdit = panel.controls_for(&"weight").field
-	report.check("After a preset switch the Tab panel shows the new values",
-			weight_box.text == "0.7", "weight box shows '%s'" % weight_box.text)
-	await runner.wait_physics_frames(2)
-	var hud_text: String = (hud.get_child(0) as Label).text
-	report.check("The HUD shows the preset, the knobs and the climbable limit",
-			hud_text.contains("Preset: Nimble") and hud_text.contains("grip 32.0°")
-			and hud_text.contains("Climbable from a standstill"))
-	report.check("Copy values names the file the knobs belong in",
-			panel.values_text().contains("# tuning/tank_tuning.tres\nweight = 0.7"))
-	panel._on_reset_to_saved_pressed()
-	await runner.wait_physics_frames(2)
-	hud_text = (hud.get_child(0) as Label).text
-	report.check("Reset to saved goes back to the saved knobs (no preset)",
-			is_equal_approx(tank.tuning.weight, saved_weight) and switcher.preset_name_for(tank.tuning).is_empty()
-			and hud_text.contains("Preset: none"))
-	report.check("Every tuning has the six knobs", _has_all_knobs(TankTuning.new()))
-
-
 func _has_all_knobs(tuning: Resource) -> bool:
 	for knob: StringName in TankFeel.KNOB_NAMES:
 		if not knob in tuning:
@@ -63,23 +22,15 @@ func _has_all_knobs(tuning: Resource) -> bool:
 	return true
 
 
-func _tap_key(code: Key) -> void:
-	for down: bool in [true, false]:
-		var event := InputEventKey.new()
-		event.physical_keycode = code
-		event.pressed = down
-		Input.parse_input_event(event)
-		Input.flush_buffered_events()
-		await runner.wait_physics_frames(2)
-
-
 func run() -> void:
 	report.heading("Feel knobs")
+	report.check("Both tanks' tunings have the six shared knobs",
+			_has_all_knobs(TankTuning.new()) and _has_all_knobs(PhysicsTankTuning.new()))
 	await _weight_tests()
 	await _slide_tests()
 	await _grip_tests()
 	await _tippiness_tests()
-	await _preset_slope_tables()
+	await _default_parity()
 
 
 # --- Weight ----------------------------------------------------------------
@@ -202,44 +153,13 @@ func _steepest_climbed(ladder: SlopeLadder, results: Array[Dictionary]) -> float
 	return steepest
 
 
-# --- Each preset on the slope ladder ---------------------------------------------
+# --- Default parity --------------------------------------------------------------
 
-func _preset_slope_tables() -> void:
+func _default_parity() -> void:
 	var ladder: SlopeLadder = runner.course.get_node(^"SlopeLadder")
 	var driving := DrivingTests.new(runner)
-	var names: Array[String] = ["saved tuning"]
-	var tunings: Array[TankTuning] = [TankTuning.new()]
-	for preset_name: String in ["heavy", "nimble", "slippery"]:
-		var preset: TankFeel = load("res://tuning/presets/%s.tres" % preset_name)
-		var tuning := TankTuning.new()
-		preset.apply_to(tuning)
-		names.append(preset.display_name)
-		tunings.append(tuning)
-	var tables: Array[Array] = []
-	for tuning: TankTuning in tunings:
-		tables.append([await driving.climb_all(ladder, false, tuning), await driving.climb_all(ladder, true, tuning)])
-	report.add_line("")
-	report.add_line("  Slope ladder per preset, standing start / run-up (information)")
-	var header: String = "       Ramp        "
-	for preset_name: String in names:
-		header += "%-26s" % preset_name
-	report.add_line(header)
-	var ordering_ok: bool = true
-	for index: int in ladder.ramps.size():
-		var ramp: SlopeLadder.RampInfo = ladder.ramps[index]
-		var line: String = "       %2d° %-8s " % [roundi(ramp.angle_degrees), "ledge" if ramp.has_ledge else "no ledge"]
-		for table: Array in tables:
-			line += "%-26s" % ("%s / %s" % [_short(table[0][index]), _short(table[1][index])])
-		report.add_line(line)
-	# Within each preset, a steeper ramp is never easier than a gentler one.
-	for table: Array in tables:
-		for results: Array in table:
-			for a: int in ladder.ramps.size():
-				for b: int in ladder.ramps.size():
-					if ladder.ramps[b].angle_degrees > ladder.ramps[a].angle_degrees \
-							and results[b].climbed and not results[a].climbed:
-						ordering_ok = false
-	report.check("Every preset: steeper ramps are never easier", ordering_ok)
+	var standing: Array[Dictionary] = await driving.climb_all(ladder, false, TankTuning.new())
+	var run_up: Array[Dictionary] = await driving.climb_all(ladder, true, TankTuning.new())
 
 	# Default parity: the default knobs give exactly the slope table from
 	# before the knobs existed (main, 2026-10-21), in the same short form.
@@ -250,7 +170,7 @@ func _preset_slope_tables() -> void:
 	var differences: PackedStringArray = []
 	if ladder.ramps.size() == before.size():
 		for index: int in ladder.ramps.size():
-			var now: String = "%s / %s" % [_short(tables[0][0][index]), _short(tables[0][1][index])]
+			var now: String = "%s / %s" % [_short(standing[index]), _short(run_up[index])]
 			if now != before[index]:
 				differences.append("%d°: %s, was %s" % [roundi(ladder.ramps[index].angle_degrees), now, before[index]])
 	else:

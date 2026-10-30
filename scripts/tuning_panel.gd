@@ -37,6 +37,8 @@ var _distance_slider: HSlider
 var _distance_field: LineEdit
 var _copy_button: Button
 var _panel: PanelContainer
+## The debug button that swaps tanks (null when there is only one tank).
+var swap_button: Button
 # Value at the start of the game, by target and property (see _saved_key):
 # {"target": Object, "property": StringName, "value": Variant}.
 var _saved_values: Dictionary = {}
@@ -50,7 +52,7 @@ func _ready() -> void:
 	_build_panel()
 
 
-## Build the panel again from the current values, e.g. after a preset switch
+## Build the panel again from the current values, e.g. after swapping tanks
 ## or after changing tank. Keeps it open or closed, scrolled and with the same
 ## reset point.
 func rebuild() -> void:
@@ -155,7 +157,7 @@ func _add_setting(group: String, target: Object, property: StringName,
 		hard_min: float = 0.0, hard_max: float = INF) -> void:
 	var value: float = target.get(property)
 	# "Reset to saved" goes back to the value at the very start, even after
-	# the panel was rebuilt (e.g. after a preset switch).
+	# the panel was rebuilt (e.g. after swapping tanks).
 	_remember_saved(target, property)
 	var key: String = _saved_key(target, property)
 	_settings.append({
@@ -180,7 +182,7 @@ func _remember_saved(target: Object, property: StringName) -> void:
 
 
 ## Also remember every tank's tuning in the player rig, including a hidden
-## tank's, so "Reset to saved" puts back values a preset changed on it.
+## tank's, so "Reset to saved" puts back values changed on it.
 func _remember_all_tank_tunings() -> void:
 	var rig := get_parent() as PlayerRig
 	if rig == null:
@@ -230,6 +232,7 @@ func _build_panel() -> void:
 	list.add_child(buttons)
 
 	_build_reset_point(list)
+	_build_tank_swap(list)
 
 	var current_group: String = ""
 	for index: int in _settings.size():
@@ -238,6 +241,20 @@ func _build_panel() -> void:
 			current_group = setting.group
 			list.add_child(_heading(current_group))
 		list.add_child(_setting_row(index))
+
+
+## Debug: swap between the physics tank and the old kinematic tank (kept for
+## comparison). Only shown when the panel is in a player rig with two tanks.
+func _build_tank_swap(list: VBoxContainer) -> void:
+	var rig := get_parent() as PlayerRig
+	if rig == null or rig.tanks.size() < 2:
+		swap_button = null
+		return
+	list.add_child(_heading("Debug"))
+	var text: String = "Swap to kinematic tank (old)" if tank is PhysicsTank else "Swap back to physics tank"
+	# Deferred: the swap rebuilds this panel, button included.
+	swap_button = _button(text, func() -> void: rig.swap_tank.call_deferred())
+	list.add_child(swap_button)
 
 
 func _build_reset_point(list: VBoxContainer) -> void:

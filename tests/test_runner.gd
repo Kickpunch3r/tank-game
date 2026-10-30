@@ -60,6 +60,14 @@ func _ready() -> void:
 	_read_only_list()
 	if not _only.is_empty():
 		report.add_line("ONLY these suites (a partial run): %s" % ", ".join(_only))
+	# The game starts with the physics tank; check that first.
+	if _wanted("physics"):
+		await PhysicsTankTests.new(self).run_start()
+	# Most older suites were written for the kinematic tank on the course's
+	# player rig, so make it the active one for them.
+	var rig := course.get_node(^"PlayerRig") as PlayerRig
+	rig.activate(course.get_node(^"PlayerRig/Tank"))
+	await wait_physics_frames(2)
 	# Loaded by path, so it runs even before Godot has registered the class.
 	if _wanted("sheet"):
 		preload("res://tests/settings_sheet_tests.gd").new(self).run()
@@ -69,8 +77,6 @@ func _ready() -> void:
 		await ViewTests.new(self).run()
 	if _wanted("panel"):
 		await PanelTests.new(self).run()
-	if _wanted("feel"):
-		await FeelTests.new(self).run_preset_keys()
 	if _wanted("physics"):
 		await PhysicsTankTests.new(self).run_swap()
 	if _wanted("phone"):

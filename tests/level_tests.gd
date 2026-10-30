@@ -90,6 +90,13 @@ func _starter_level() -> void:
 	var level: LevelRoot = (load(STARTER_LEVEL) as PackedScene).instantiate()
 	runner.add_child(level)
 	await runner.wait_physics_frames(60)
+	var level_rig := level.get_node_or_null(^"PlayerRig") as PlayerRig
+	var physics_first: bool = level_rig != null and level_rig.active_tank is PhysicsTank
+	report.check("A level starts with the physics tank", physics_first)
+	# The older level checks below use the kinematic tank.
+	if level_rig != null:
+		level_rig.activate(level.tank)
+		await runner.wait_physics_frames(30)
 	var tank: Tank = level.tank
 	report.check("Running a level adds the player rig and tank", tank != null and level.has_node(^"PlayerRig"))
 	if tank == null:
@@ -165,12 +172,12 @@ func _physics_tank_in_level(level: LevelRoot) -> void:
 	var rig: PlayerRig = level.get_node(^"PlayerRig")
 	var physics_tank: PhysicsTank = rig.get_node(^"PhysicsTank")
 	var start: Vector3 = level.start.global_position
-	rig.swap_tank()
+	rig.activate(physics_tank)
 	var station: DriverStation = physics_tank.driver_station
 	station.listen_to_input_sources = false
 	await runner.wait_physics_frames(120)
 	var gap: float = physics_tank.global_position.y - level.terrain.height_at(physics_tank.global_position)
-	report.check("Level: T swaps to the physics tank, which settles on the ground at the start",
+	report.check("Level: the physics tank settles on the ground at the start",
 			rig.active_tank == physics_tank and absf(gap) < 0.3
 			and Vector2(physics_tank.global_position.x, physics_tank.global_position.z).distance_to(Vector2(start.x, start.z)) < 1.0,
 			"physics tank %s, %.2f m from the ground" % [physics_tank.global_position, gap])

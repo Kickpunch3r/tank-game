@@ -1,12 +1,13 @@
 class_name PlayerRig
 extends Node3D
 ## The player's tank(s) with everything that follows them: chase camera, view
-## switcher, debug display, Tab panel and feel presets.
+## switcher, debug display and Tab panel.
 ##
-## There are two tanks to compare: the kinematic Tank and the PhysicsTank.
-## Only one is active at a time. T (Input Map: tank_swap) swaps them: the other
-## tank appears where the active one is, facing the same way, at rest. The
-## hidden tank is switched off completely (no input, no physics, not drawn).
+## There are two tanks: the PhysicsTank (the chosen one, active at the start)
+## and the older kinematic Tank, kept for comparison. Only one is active at a
+## time. The Tab panel's debug button swaps them: the other tank appears where
+## the active one is, facing the same way, at rest. The hidden tank is switched
+## off completely (no input, no physics, not drawn).
 
 ## The tanks to swap between, in order. The first one starts active.
 @export var tanks: Array[Node3D] = []
@@ -39,12 +40,6 @@ func _ready() -> void:
 	active_tank = tanks[0]
 
 
-func _unhandled_input(event: InputEvent) -> void:
-	if event.is_action_pressed(&"tank_swap"):
-		swap_tank()
-		get_viewport().set_input_as_handled()
-
-
 ## Swap to the next tank in the list.
 func swap_tank() -> void:
 	var live: Array[Node3D] = []
@@ -53,8 +48,14 @@ func swap_tank() -> void:
 			live.append(tank)
 	if live.size() < 2 or not is_instance_valid(active_tank):
 		return
+	activate(live[(live.find(active_tank) + 1) % live.size()])
+
+
+## Make `new_tank` the active tank (nothing happens if it already is).
+func activate(new_tank: Node3D) -> void:
+	if new_tank == active_tank or not is_instance_valid(active_tank) or not is_instance_valid(new_tank):
+		return
 	var old_tank: Node3D = active_tank
-	var new_tank: Node3D = live[(live.find(old_tank) + 1) % live.size()]
 
 	# Where the old tank is, upright, facing the same way (its left/right turn only).
 	var facing: Vector3 = -old_tank.global_basis.z

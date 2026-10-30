@@ -1,54 +1,15 @@
 class_name TankFeel
 extends Resource
-## A feel preset: just the six feel knobs, with no tank-specific values.
-## The same preset file works for the kinematic tank (TankTuning) and the
-## physics tank, so "heavy" means the same thing in both.
-##
-## Applying a preset copies these six values onto a tank's tuning (in memory
-## only, like the Tab panel). Everything else in that tuning stays as it was.
+## Shared helpers for the feel knobs of both tanks (TankTuning and
+## PhysicsTankTuning): the six knob names they have in common, how sideways
+## grip turns into a slide fade rate, and the Tab panel's row format.
+## (It used to hold the feel presets too; those were removed when the Heavy
+## physics tank was chosen.)
 
-## The six knobs, by name. Every tank tuning resource has a value with each
-## of these names, meaning the same thing.
+## The six knobs both tanks share, by name, with the same meaning in each.
 const KNOB_NAMES: Array[StringName] = [
 	&"weight", &"top_speed", &"pulling_power", &"grip", &"sideways_grip", &"tippiness",
 ]
-
-## Name shown in the HUD, e.g. "Heavy".
-@export var display_name: String = ""
-
-## How heavy the tank feels. 1 = the normal tank, 2 = twice as heavy.
-@export_range(0.1, 10.0, 0.05, "or_greater") var weight: float = 1.0
-
-## Top speed of each tread, in metres per second (10 m/s is 36 km/h).
-@export_range(0.0, 50.0, 0.5, "or_greater") var top_speed: float = 10.0
-
-## How hard the treads push, in metres per second per second for a tank of
-## weight 1 (a heavier tank speeds up and brakes more slowly).
-@export_range(0.0, 30.0, 0.1, "or_greater") var pulling_power: float = 5.0
-
-## The steepest slope the treads can hold, in degrees.
-@export_range(0.0, 80.0, 0.01) var grip: float = 28.8108
-
-## How much the tank resists sliding sideways in turns: 1 = not at all
-## (rails), lower = more drift.
-@export_range(0.0, 1.0, 0.01) var sideways_grip: float = 1.0
-
-## How tippy the tank is, from 0 (rigid, stable) to 1 (very swaying).
-@export_range(0.0, 1.0, 0.01) var tippiness: float = 0.0
-
-
-## Copy the six knobs onto a tank's tuning resource.
-func apply_to(tuning: Resource) -> void:
-	for knob: StringName in KNOB_NAMES:
-		tuning.set(knob, get(knob))
-
-
-## True if a tank's tuning has exactly this preset's six knob values.
-func matches(tuning: Resource) -> bool:
-	for knob: StringName in KNOB_NAMES:
-		if not is_equal_approx(float(tuning.get(knob)), float(get(knob))):
-			return false
-	return true
 
 
 ## How fast a sideways slide fades away, in "per second" (higher = shorter

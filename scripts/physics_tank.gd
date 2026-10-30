@@ -298,7 +298,7 @@ func display_name() -> String:
 ## Lines for the debug display.
 func debug_lines() -> PackedStringArray:
 	var lines: PackedStringArray = [
-		"Tank: PHYSICS   (T = swap)",
+		"Tank: PHYSICS",
 		"Left tread:  input %+.2f   speed %+5.1f m/s   grip %s" % [driver_station.left_tread,
 				left_tread_speed, "SATURATED" if left_grip_saturated else "ok"],
 		"Right tread: input %+.2f   speed %+5.1f m/s   grip %s" % [driver_station.right_tread,

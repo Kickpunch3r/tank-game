@@ -278,7 +278,7 @@ func display_name() -> String:
 ## Lines for the debug display.
 func debug_lines() -> PackedStringArray:
 	return [
-		"Tank: KINEMATIC   (T = swap)",
+		"Tank: KINEMATIC (old)   (Tab panel: swap back)",
 		"Left tread:  input %+.2f   speed %+5.1f m/s" % [driver_station.left_tread, left_tread.speed],
 		"Right tread: input %+.2f   speed %+5.1f m/s" % [driver_station.right_tread, right_tread.speed],
 		"Forward speed: %+5.1f m/s   Brake: %s" % [forward_speed, "ON" if driver_station.brake else "off"],
