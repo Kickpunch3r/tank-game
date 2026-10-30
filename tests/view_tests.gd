@@ -48,11 +48,13 @@ func run() -> void:
 
 	await _throttle_display(tank)
 
-	report.check("Debug display shows at the start", hud.visible)
+	var phone_line: PhoneStatusLabel = course.get_node(^"PlayerRig/PhoneStatusLabel")
+	report.check("Debug display starts hidden, and so does the phone line at the bottom left",
+			not hud.visible and not phone_line.visible)
 	await _tap_key(KEY_F3)
-	report.check("F3 hides the debug display", not hud.visible)
+	report.check("F3 shows the debug display and the phone line", hud.visible and phone_line.visible)
 	await _tap_key(KEY_F3)
-	report.check("F3 again shows it", hud.visible)
+	report.check("F3 again hides both", not hud.visible and not phone_line.visible)
 
 
 func _tap_key(code: Key) -> void:
@@ -80,6 +82,12 @@ func _throttle_display(tank: Tank) -> void:
 			display.levels() == Vector2i(3, -1), "levels %s" % display.levels())
 	report.check("Throttle bars sit above the driver's slit mask, so they show in both views",
 			display.visible and display.layer > (slit.get_node(^"SlitOverlay") as CanvasLayer).layer)
+	var flashes: Array[float] = []
+	for i: int in 12:
+		flashes.append(display.turbo_flash_amount())
+		await runner.get_tree().process_frame
+	report.check("Engaged turbo flashes (its brightness keeps changing)",
+			flashes.max() - flashes.min() > 0.3, "brightness from %.2f to %.2f" % [flashes.min(), flashes.max()])
 	report.check("A lever between notches (a gamepad stick) shows the nearest notch",
 			ThrottleDisplay.level_for(0.9) == 3 and ThrottleDisplay.level_for(-0.3) == -1 and ThrottleDisplay.level_for(0.05) == 0)
 	keyboard.clear_levels()

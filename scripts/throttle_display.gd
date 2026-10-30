@@ -2,9 +2,9 @@ class_name ThrottleDisplay
 extends CanvasLayer
 ## Two simple throttle bars, bottom-left and bottom-right of the screen: one
 ## per tread, with its 7 notches (3 forward, stop, 3 back). The lit notches show
-## where the lever is. The top notch is TURBO: drawn bigger, in orange, and it
-## flickers with little flames while engaged. (Turbo is the look of the full
-## level; it pushes no harder than before.)
+## where the lever is. The top notch is the turbo: drawn bigger, in orange, and
+## it flashes while engaged. (Turbo is the look of the full level; it pushes no
+## harder than before.)
 ##
 ## It shows what the active tank is actually being told (its DriverStation),
 ## so it follows the keyboard, the phone and the Push 3. It sits above the
@@ -20,10 +20,14 @@ extends CanvasLayer
 ## Distance from the left and right edges, in pixels.
 @export var side_margin: float = 24.0
 
-const NOTCH_WIDTH: float = 46.0
-const NOTCH_HEIGHT: float = 22.0
-const TURBO_HEIGHT: float = 34.0
-const GAP: float = 4.0
+const NOTCH_WIDTH: float = 92.0
+const NOTCH_HEIGHT: float = 44.0
+const TURBO_HEIGHT: float = 68.0
+const GAP: float = 8.0
+## Size of the L / R and BRAKE text.
+const FONT_SIZE: int = 32
+## Turbo flashes this many times a second while engaged.
+const FLASHES_PER_SECOND: float = 3.0
 
 const DIM := Color(0.15, 0.15, 0.15, 0.55)
 const ZERO_DIM := Color(0.4, 0.4, 0.4, 0.6)
@@ -32,6 +36,7 @@ const REVERSE := Color(0.3, 0.6, 1.0)
 const STOPPED := Color(0.95, 0.95, 0.95)
 const TURBO := Color(1.0, 0.55, 0.1)
 const TURBO_DIM := Color(0.45, 0.25, 0.05, 0.6)
+const TURBO_FLASH := Color(1.0, 0.95, 0.7)
 const BRAKE := Color(1.0, 0.2, 0.15)
 
 var _canvas: Control
@@ -103,22 +108,14 @@ func _draw_bar(corner: Vector2, level: int, side_name: String) -> void:
 		var turbo: bool = notch == TreadLevels.MAX_LEVEL
 		var height: float = TURBO_HEIGHT if turbo else NOTCH_HEIGHT
 		y -= height
-		var rect := Rect2(corner.x, y, NOTCH_WIDTH, height)
-		_canvas.draw_rect(rect, _notch_colour(notch, level))
-		if turbo:
-			var engaged: bool = level == TreadLevels.MAX_LEVEL
-			var text_colour: Color = Color(0.1, 0.05, 0.0) if engaged else Color(1.0, 0.7, 0.35, 0.8)
-			_canvas.draw_string(font, Vector2(rect.position.x, rect.position.y + height * 0.68), "TURBO",
-					HORIZONTAL_ALIGNMENT_CENTER, NOTCH_WIDTH, 12, text_colour)
-			if engaged:
-				_draw_flames(Vector2(rect.position.x, rect.position.y))
+		_canvas.draw_rect(Rect2(corner.x, y, NOTCH_WIDTH, height), _notch_colour(notch, level))
 		y -= GAP
 	# The side's name under the bar, and BRAKE over it while braking.
-	_canvas.draw_string(font, Vector2(corner.x, corner.y + 18.0), side_name,
-			HORIZONTAL_ALIGNMENT_CENTER, NOTCH_WIDTH, 16, Color(1, 1, 1, 0.85))
+	_canvas.draw_string(font, Vector2(corner.x, corner.y + FONT_SIZE + 2.0), side_name,
+			HORIZONTAL_ALIGNMENT_CENTER, NOTCH_WIDTH, FONT_SIZE, Color(1, 1, 1, 0.85))
 	if braking():
-		_canvas.draw_string(font, Vector2(corner.x - 10.0, y - 6.0), "BRAKE",
-				HORIZONTAL_ALIGNMENT_CENTER, NOTCH_WIDTH + 20.0, 16, BRAKE)
+		_canvas.draw_string(font, Vector2(corner.x - 20.0, y - 10.0), "BRAKE",
+				HORIZONTAL_ALIGNMENT_CENTER, NOTCH_WIDTH + 40.0, FONT_SIZE, BRAKE)
 
 
 ## Lit from the stop notch up (or down) to the lever's level, like a meter.
@@ -132,23 +129,12 @@ func _notch_colour(notch: int, level: int) -> Color:
 	if turbo:
 		if not lit:
 			return TURBO_DIM
-		# Engaged: a quick flicker in brightness.
-		var flicker: float = 0.85 + 0.15 * sin(_time * 25.0) * sin(_time * 7.0)
-		return Color(TURBO.r * flicker + (1.0 - flicker), TURBO.g * flicker, TURBO.b, 1.0)
+		# Engaged: flashes between orange and a bright yellow-white.
+		return TURBO.lerp(TURBO_FLASH, turbo_flash_amount())
 	if not lit:
 		return DIM
 	return FORWARD if notch > 0 else REVERSE
 
-
-## Three little flames dancing on top of the turbo notch.
-func _draw_flames(top_left: Vector2) -> void:
-	for index: int in 3:
-		var centre_x: float = top_left.x + NOTCH_WIDTH * (0.25 + 0.25 * index)
-		var height: float = 10.0 + 7.0 * absf(sin(_time * (9.0 + index * 3.0) + index * 1.7))
-		var half_width: float = 6.0
-		var points := PackedVector2Array([
-			Vector2(centre_x - half_width, top_left.y - 1.0),
-			Vector2(centre_x + half_width, top_left.y - 1.0),
-			Vector2(centre_x, top_left.y - 1.0 - height),
-		])
-		_canvas.draw_colored_polygon(points, TURBO if index != 1 else Color(1.0, 0.85, 0.3))
+## How far the engaged turbo notch is through its flash: 0 = orange, 1 = bright.
+func turbo_flash_amount() -> float:
+	return 0.5 + 0.5 * sin(TAU * FLASHES_PER_SECOND * _time)

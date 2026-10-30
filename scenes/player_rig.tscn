@@ -57,10 +57,11 @@ tank = NodePath("../Tank")
 script = ExtResource("8_usb_link")
 server = NodePath("../ControllerServer")
 
-[node name="PhoneStatusLabel" type="CanvasLayer" parent="." node_paths=PackedStringArray("server", "usb_link")]
+[node name="PhoneStatusLabel" type="CanvasLayer" parent="." node_paths=PackedStringArray("server", "usb_link", "debug_hud")]
 script = ExtResource("7_phone_label")
 server = NodePath("../ControllerServer")
 usb_link = NodePath("../UsbPhoneLink")
+debug_hud = NodePath("../DebugHud")
 
 [node name="PushController" type="Node" parent="."]
 script = ExtResource("15_push_controller")

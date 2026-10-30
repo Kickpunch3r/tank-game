@@ -12,8 +12,8 @@ extends CanvasLayer
 ## Optional: shows which camera view is active.
 @export var view_switcher: ViewSwitcher
 
-## Whether the display is showing when the game starts.
-@export var start_visible: bool = true
+## Whether the display is showing when the game starts (F3 shows it).
+@export var start_visible: bool = false
 
 var _label: Label
 var _reset_count: int = 0

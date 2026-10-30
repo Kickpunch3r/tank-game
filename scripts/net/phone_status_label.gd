@@ -10,6 +10,9 @@ extends CanvasLayer
 ## The USB phone link to describe (optional).
 @export var usb_link: UsbPhoneLink
 
+## Optional: show these lines only while this debug display is open (F3).
+@export var debug_hud: DebugHud
+
 var _label: Label
 var _seconds_since_update: float = 1.0
 
@@ -27,6 +30,7 @@ func _ready() -> void:
 
 
 func _process(delta: float) -> void:
+	visible = debug_hud == null or debug_hud.visible
 	_seconds_since_update += delta
 	if _seconds_since_update < 0.5:
 		return

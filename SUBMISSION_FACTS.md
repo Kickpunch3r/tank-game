@@ -51,7 +51,7 @@ planned co-operative tank crew game.
 | Both treads forward / one tread / opposite treads | Straight / pivot round the idle tread / spin on the spot |
 | `Space` (hold) | Brake: both levels to 0, stops the tank and holds it on slopes |
 | `R` | Reset the tank to the reset point (default: the start) |
-| (on screen) | Throttle bars, bottom corners: each tread's lever notch; the top notch is "TURBO" (the full level, shown with flames; no extra power) |
+| (on screen) | Throttle bars, bottom corners: each tread's lever notch; the top notch is the turbo (the full level, bigger and flashing; no extra power) |
 | `V` | Switch view: chase camera / driver's vision slit |
 | `F11` | Full screen / window (starts full screen) |
 | Ableton Push 3 (optional) | Pads: two lever columns each side (7 notches), 2×2 brake square in the middle (setup below) |
@@ -79,7 +79,7 @@ everything in game below also works in an exported release build.
 
 | Key / feature | What it does | Release build? |
 |---|---|---|
-| `F3` | Debug display: inputs, tread speeds, slope, grip, preset, knobs, climbable limit, phone/Push status; physics tank: probe diagram, pitch/roll | Yes (shown by default) |
+| `F3` | Debug display (hidden at the start, with the phone status line): inputs, tread speeds, slope, grip, knobs, climbable limit, phone/Push status; physics tank: probe diagram, pitch/roll | Yes |
 | `Tab` | Tuning panel: live sliders for every driving, camera and terrain value; Copy values; Reset to saved; Reset point (any ramp, distance back 0–70 m, ledge strip, steps, crest); Reset now; Debug tank swap | Yes |
 | Tab panel > Debug > "Show test labels" | Shows the floating labels on the test ramps and course pieces (hidden at the start) | Yes |
 | Tab panel > Debug > "Swap to kinematic tank (old)" | Swap to the older kinematic tank (green) at the same spot, and back | Yes |
@@ -209,7 +209,7 @@ Started or built, but off, unreachable or unfinished in the game as shipped:
   `05492d2`, `98798f3`) 21. Physics feel knobs and settings spreadsheet (22 Oct, `9cdf93c`,
   `c79b3e0`, `ec5a114`) 22. Physics tank chosen, Heavy tuning, presets and T removed
   (30 Oct) 23. Physics tank on terrain, painted terrain map, Proving Ground level as the main
-  scene (30 Oct) 24. Throttle bars with TURBO, gold goal cube, test labels hidden by default
+  scene (30 Oct) 24. Throttle bars with a flashing turbo notch, gold goal cube, test labels and debug display hidden by default
   (30 Oct).
 
 ---

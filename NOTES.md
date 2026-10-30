@@ -681,5 +681,10 @@ committed). To watch: open `tests/test_runner.tscn` and press F6.
     (`ThrottleDisplay`, CanvasLayer 6 in the player rig, above the slit mask): 7 notches per
     tread from the active tank's station, top notch drawn as TURBO with flicker and flames;
     look only (developer's choice). Checked in software-rendered screenshots (chase and slit).
-    Known: with F3 on (default), the debug text's lowest lines overlap the left bar.
+    Known: with F3 on, the debug text's lowest lines overlap the left bar (F3 now starts hidden).
     234 checks pass.
+23. **HUD tweaks** (2026-10-30, developer's requests): F3 debug display starts hidden; the phone
+    status line (bottom left) only shows while it is open (`PhoneStatusLabel.debug_hud`).
+    Throttle bars twice as big; the turbo notch has no text or flames, it flashes (3 a second)
+    between orange and bright yellow. Gold cube 9 m (was 3), 10 m above the goal.
+    235 checks pass.

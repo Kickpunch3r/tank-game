@@ -40,7 +40,7 @@ emission_energy_multiplier = 0.6
 
 [sub_resource type="BoxMesh" id="BoxMesh_goal"]
 material = SubResource("Material_gold")
-size = Vector3(3, 3, 3)
+size = Vector3(9, 9, 9)
 
 [node name="ProvingGround" type="Node3D"]
 script = ExtResource("1_level_root")
@@ -83,6 +83,6 @@ script = ExtResource("8_markers")
 level_terrain = NodePath("../LevelTerrain")
 
 [node name="GoalCube" type="MeshInstance3D" parent="."]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -40, 18, -145)
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -40, 22, -145)
 mesh = SubResource("BoxMesh_goal")
 script = ExtResource("9_objective")

@@ -36,15 +36,15 @@ development.
 | `Space` (hold) | **Brake**: both levels to 0, stops the tank, holds it still on slopes |
 | `R` | Reset the tank to the start |
 | `V` | Switch view: chase camera / driver's vision slit |
-| `F3` | Hide / show the debug display |
+| `F3` | Show / hide the debug display (hidden at the start; the phone status line at the bottom left shows with it) |
 | `Tab` | Open / close the tuning panel (use the mouse on it) |
 | `F11` | Full screen / window (the game starts full screen) |
 
 - **Levels:** each tread has 3 levels forward and 3 back: **0.25, 0.5 and full** (the phone's
   levers use the same notches).
 - **Throttle bars** (bottom-left = left tread, bottom-right = right tread) show each lever's
-  notch: green forward, blue back, white at stop, red **BRAKE**. The top notch is **TURBO**
-  (orange, with flickering flames when engaged). It is the full level as before: it looks
+  notch: green forward, blue back, white at stop, red **BRAKE**. The top notch is the **turbo**
+  (bigger, orange, and it flashes when engaged). It is the full level as before: it looks
   special but pushes no harder. The bars show in the slit view too.
 - **Level 0 = engine idling:** that tread doesn't push and is held back by **Idle Drag**, so it
   slows by itself. With both levers at 0 the tank stops in about 3 s. On slopes steeper than
@@ -238,7 +238,7 @@ row 0   L  L  .  .  .  .  R  R     full back
 
 | Folder | Contents |
 |---|---|
-| `scenes/` | `test_course.tscn` (main scene), `physics_tank.tscn`, `tank.tscn` (old kinematic tank), `player_rig.tscn` (both tanks + cameras + debug display + Tab panel, shared by every level) |
+| `scenes/` | `test_course.tscn` (old test course), `physics_tank.tscn`, `tank.tscn` (old kinematic tank), `player_rig.tscn` (both tanks + cameras + debug display + Tab panel, shared by every level) |
 | `levels/<name>/` | A level: `height.png` (and optional `terrain.png`) and its scene (`levels/proving_ground/` is the main scene) |
 | `tools/` | Helper scripts, e.g. the one that generated the starter height map |
 | `scripts/net/` | Phone controller: servers, station registry, phone input |
