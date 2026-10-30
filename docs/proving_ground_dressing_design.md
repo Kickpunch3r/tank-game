@@ -24,3 +24,21 @@ same every time and tests can check it). `ProvingGroundScenery` builds it: one M
 Nothing is placed on the road, the routes (plus a shoulder), the test area, the spawn, the river
 and lake, the goal, the cone, mesa, ridge, dunes, the mud basin, or slopes over about 20°.
 
+## 2. Tank details (physics tank only)
+
+`TankDetails` (`scripts/tank_details.gd`) sits in `Visual/Hull` and builds everything by script,
+so the scene file stays small. Looks only: driving is unchanged.
+
+- **Sloped front plate:** a wedge in front of the hull, below the driver's slit camera so it
+  doesn't block the view. Chose a wedge added to the box over reshaping the hull (keeps the old
+  box, so switching details off still shows a whole tank).
+- **Road wheels:** 5 a side on the outside of the treads, each with a dark hub bar so you can see
+  it turn. They turn by how far their tread has moved over the ground.
+- **Track links:** a box just over each plain tread with `art/tread.gdshader`: dark cross gaps
+  that move forward along the top and backward along the bottom, at that tread's speed.
+- **Speed used:** each tread's speed over the ground (`left_tread_speed`/`right_tread_speed`), so
+  when the tank is stuck and slipping the tracks stand still. Alternative: the lever position
+  (tracks would spin while stuck: more dramatic but the tank doesn't model slip, so it would be a
+  guess). Easy to change if you prefer spinning tracks.
+- The old kinematic tank is not given details (it's a debug option).
+

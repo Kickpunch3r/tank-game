@@ -21,6 +21,7 @@ func run() -> void:
 	report.heading("Physics tank: rest and flat ground")
 	await _rest_test()
 	await _flat_tests()
+	await _details_tests()
 	await _warm_up_tests()
 	await _controls_test()
 	await _slope_tests()
@@ -200,6 +201,37 @@ func _flat_tests() -> void:
 	report.check("Opposite treads: spins with little travel",
 			absf(result.turned) > 90.0 and result.distance < 0.5,
 			"turned %.0f°, %.0f°/s by the end, moved %.2f m" % [result.turned, result.rate, result.distance])
+
+
+## The looks-only details (Graphics > Tank details): wheels and track links
+## follow each tread, and the switch hides them.
+func _details_tests() -> void:
+	var tank: PhysicsTank = _spawn(FLAT_AREA)
+	runner.watch_tank(tank)
+	var details: TankDetails = tank.find_child("TankDetails", true, false)
+	var station: DriverStation = tank.driver_station
+	await runner.wait_physics_frames(60)
+	for frame: int in 2 * FPS:
+		station.left_tread = 1.0
+		station.right_tread = -1.0
+		await runner.get_tree().physics_frame
+	var left_wheel: Node3D = details.get_node(^"WheelLeft0")
+	var right_wheel: Node3D = details.get_node(^"WheelRight0")
+	report.check("Tank details: sloped front plate, 5 road wheels a side, track links on both treads",
+			details != null and details.has_node(^"FrontPlate") and details.has_node(^"WheelRight4")
+			and details.has_node(^"TrackLeft") and details.has_node(^"TrackRight")
+			and details.is_in_group(GraphicsOptions.TANK_DETAILS_GROUP))
+	report.check("Spinning (left forward, right back): left wheels and links run forward, right ones back",
+			details.travel[0] > 0.3 and details.travel[1] < -0.3
+			and left_wheel.rotation.x != 0.0 and signf(left_wheel.rotation.x) != signf(right_wheel.rotation.x),
+			"left tread moved %.2f m, right %.2f m" % [details.travel[0], details.travel[1]])
+	GraphicsOptions.tank_details = false
+	GraphicsOptions.apply(runner.get_tree())
+	var hidden: bool = not details.visible
+	GraphicsOptions.tank_details = true
+	GraphicsOptions.apply(runner.get_tree())
+	report.check("Graphics > Tank details off hides them (and on shows them again)", hidden and details.visible)
+	await runner.remove_test_tanks()
 
 
 func _warm_up_tests() -> void:
