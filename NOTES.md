@@ -701,3 +701,14 @@ committed). To watch: open `tests/test_runner.tscn` and press F6.
       to linear, so converting again darkened mud twice; removed.
     - Checked only in software-rendered screenshots (Compatibility renderer); the laptop uses
       Forward+, so it may look slightly different. Frame rate not measured. 235 checks pass.
+25. **Proving Ground dressing and graphics extras** (2026-10-30, overnight, independent mode;
+    decisions in `docs/proving_ground_dressing_design.md`).
+    - Map: dune sea, lake with buoys (deep water sends the tank home), big rocks along the high
+      road (two on top), boulder field, rubble, scattered trees/bushes/small rocks, misty pine
+      forest (`HazeZone`). One MultiMesh per kind; trees and rocks solid, bushes not.
+    - Physics tank: sloped front plate, turning road wheels, moving track links (`TankDetails`);
+      dust and water spray per tread (`TreadDust`).
+    - Tab panel Graphics section (`GraphicsOptions`): tank details, dust, bushes, shadows, haze.
+    - Found: boulders blocked the cone test's run-up; a run-up east of the cone is kept clear.
+    - F3 now shows the frame rate. Checked in software-rendered screenshots only; frame rate on
+      the laptop not measured. 252 checks pass.

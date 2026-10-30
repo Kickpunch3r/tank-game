@@ -41,6 +41,8 @@ var _panel: PanelContainer
 var swap_button: Button
 ## The debug tick box that shows the test labels (null when there are none).
 var labels_box: CheckBox
+## The Graphics section's tick boxes, by option name (see GraphicsOptions).
+var graphics_boxes: Dictionary = {}
 # Value at the start of the game, by target and property (see _saved_key):
 # {"target": Object, "property": StringName, "value": Variant}.
 var _saved_values: Dictionary = {}
@@ -234,6 +236,7 @@ func _build_panel() -> void:
 	list.add_child(buttons)
 
 	_build_reset_point(list)
+	_build_graphics(list)
 	_build_debug(list)
 
 	var current_group: String = ""
@@ -243,6 +246,20 @@ func _build_panel() -> void:
 			current_group = setting.group
 			list.add_child(_heading(current_group))
 		list.add_child(_setting_row(index))
+
+
+## Graphics section: switch off extras if the game runs slowly.
+func _build_graphics(list: VBoxContainer) -> void:
+	graphics_boxes = {}
+	list.add_child(_heading("Graphics  (switch off if the game runs slowly)"))
+	for option: StringName in GraphicsOptions.LABELS:
+		var box := CheckBox.new()
+		box.text = GraphicsOptions.LABELS[option]
+		box.focus_mode = Control.FOCUS_NONE
+		box.button_pressed = GraphicsOptions.is_on(option)
+		box.toggled.connect(func(on: bool) -> void: GraphicsOptions.set_on(get_tree(), option, on))
+		list.add_child(box)
+		graphics_boxes[option] = box
 
 
 ## Debug section: show or hide the test pieces' labels, and swap between the

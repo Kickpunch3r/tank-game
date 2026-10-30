@@ -46,6 +46,7 @@ func run() -> void:
 
 	await _wheel_and_typing_tests(panel, tank)
 	_test_labels_box(panel)
+	_test_graphics_boxes(panel)
 
 	# Reset point.
 	var index_30: int = _ramp_index(ladder, 30.0)
@@ -80,6 +81,25 @@ func _test_labels_box(panel: TuningPanel) -> void:
 			shown and panel.labels_box.button_pressed)
 	panel.labels_box.button_pressed = false
 	report.check("Unticking hides them again", not TestLabels.are_shown(tree))
+
+
+## Graphics section: every extra starts on; unticking switches it off.
+func _test_graphics_boxes(panel: TuningPanel) -> void:
+	var tree: SceneTree = runner.get_tree()
+	var all_on: bool = panel.graphics_boxes.size() == GraphicsOptions.LABELS.size()
+	for option: StringName in panel.graphics_boxes:
+		all_on = all_on and (panel.graphics_boxes[option] as CheckBox).button_pressed and GraphicsOptions.is_on(option)
+	report.check("Graphics section: tank details, dust, bushes, shadows and haze, all ticked at the start", all_on)
+	var sun: DirectionalLight3D = tree.root.find_children("*", "DirectionalLight3D", true, false)[0]
+	(panel.graphics_boxes[&"shadows"] as CheckBox).button_pressed = false
+	(panel.graphics_boxes[&"haze"] as CheckBox).button_pressed = false
+	var off: bool = not GraphicsOptions.shadows and not sun.shadow_enabled and not GraphicsOptions.haze
+	panel.rebuild()
+	var remembered: bool = not (panel.graphics_boxes[&"shadows"] as CheckBox).button_pressed
+	(panel.graphics_boxes[&"shadows"] as CheckBox).button_pressed = true
+	(panel.graphics_boxes[&"haze"] as CheckBox).button_pressed = true
+	report.check("Unticking Shadows switches the sun's shadows off (kept after a rebuild); ticking puts them back",
+			off and remembered and sun.shadow_enabled and GraphicsOptions.haze)
 
 
 func _wheel_and_typing_tests(panel: TuningPanel, tank: Tank) -> void:

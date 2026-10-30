@@ -278,6 +278,19 @@ func _deep_water_and_haze() -> void:
 	report.check("The misty forest is always foggy inside, and clears as you leave",
 			inside > outside * 5.0 and absf(environment.fog_density - outside) < 0.0005,
 			"fog %.4f outside, %.4f inside, %.4f after leaving" % [outside, inside, environment.fog_density])
+	var tree: SceneTree = runner.get_tree()
+	GraphicsOptions.set_on(tree, &"haze", false)
+	GraphicsOptions.set_on(tree, &"scenery", false)
+	await runner.wait_physics_frames(3)
+	var haze_off: bool = not environment.fog_enabled
+	var bushes_hidden: bool = not (level.get_node(^"Scenery/Bushes") as Node3D).visible
+	var trees_kept: bool = (level.get_node(^"Scenery/Trees") as Node3D).visible
+	GraphicsOptions.set_on(tree, &"haze", true)
+	GraphicsOptions.set_on(tree, &"scenery", true)
+	await runner.wait_physics_frames(3)
+	report.check("Graphics: Haze off clears the distance haze; Bushes off hides bushes but keeps the (solid) trees",
+			haze_off and bushes_hidden and trees_kept and environment.fog_enabled
+			and (level.get_node(^"Scenery/Bushes") as Node3D).visible)
 
 
 func _ray_down(space: PhysicsDirectSpaceState3D, at: Vector2) -> float:

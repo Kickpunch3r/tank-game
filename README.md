@@ -23,6 +23,11 @@ cliff and a lake; the **low route** (blue posts) goes through a mud basin, acros
 shallow ford and over sand dunes. Both end at the **goal** plateau in the north, marked by a
 big turning gold cube. The mountains,
 the cliffs, the steep cone hill, the mesa and the river's deep water can't be driven through.
+The river opens into a **lake** in the west: past its orange buoys the water is deep, and driving
+in sends you back to the start. Also: a **dune sea** (south-west), a **misty pine forest**
+(north-east, always foggy inside), big rocks along the high road, a boulder field, a rubble patch
+by the test area, and scattered trees, bushes and small rocks. Trees and rocks are solid (small
+rocks too: you drive over them); bushes are not.
 
 **The old test course** (`scenes/test_course.tscn`, open it and press F6) is still there for
 development.
@@ -30,6 +35,11 @@ development.
 **Look:** the ground colours (grass, rock, high rock, grid strength) are on the ground shader
 `art/level_ground.gdshader`; the water's colours and ripples on `art/water.gdshader`; the sky,
 sun, haze and colour grading on the `WorldEnvironment` and `Sun` nodes in the level scene.
+Where things stand is planned in `levels/proving_ground/proving_ground_layout.gd` (`scenery()`)
+and built by `proving_ground_scenery.gd`; the misty forest is the `MistyForest` node (`HazeZone`).
+The physics tank's road wheels and moving tracks (`TankDetails`) and dust (`TreadDust`) are in
+`Visual/Hull`. **Graphics** in the Tab panel switches off tank details, dust, bushes, shadows and
+distance haze if the game runs slowly (all on at the start; lasts until you quit).
 
 ## Controls
 
@@ -40,7 +50,7 @@ sun, haze and colour grading on the `WorldEnvironment` and `Sun` nodes in the le
 | `Space` (hold) | **Brake**: both levels to 0, stops the tank, holds it still on slopes |
 | `R` | Reset the tank to the start |
 | `V` | Switch view: chase camera / driver's vision slit |
-| `F3` | Show / hide the debug display (hidden at the start; the phone status line at the bottom left shows with it) |
+| `F3` | Show / hide the debug display (frame rate at the top; hidden at the start; the phone status line at the bottom left shows with it) |
 | `Tab` | Open / close the tuning panel (use the mouse on it) |
 | `F11` | Full screen / window (the game starts full screen) |
 

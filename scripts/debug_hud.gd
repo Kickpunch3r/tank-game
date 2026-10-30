@@ -42,7 +42,7 @@ func _physics_process(_delta: float) -> void:
 		_reset_count += 1
 	# Rebuilt from the station's and tank's state every frame. Each kind of
 	# tank describes itself (debug_lines()); the rest is the same for both.
-	var lines: PackedStringArray = []
+	var lines: PackedStringArray = ["Frame rate: %d fps" % Engine.get_frames_per_second()]
 	var keyboard := station.get_node_or_null(^"KeyboardDriverInput") as KeyboardDriverInput
 	if keyboard != null and keyboard.use_tread_levels:
 		lines.append("Keyboard levels:  L %+d   R %+d   (Space = brake)" % [

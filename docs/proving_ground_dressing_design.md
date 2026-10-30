@@ -54,3 +54,44 @@ so the scene file stays small. Looks only: driving is unchanged.
 - 40 soft puffs per tread, unshaded: cheap. Alternatives: CPU particles (slower), decals/tread
   marks (more work; maybe later).
 
+## 4. Tab panel "Graphics" section
+
+`GraphicsOptions` (`scripts/graphics_options.gd`) holds five switches, all on at the start; the
+Tab panel lists them as tick boxes. Like the rest of the panel, changes last until you quit.
+
+| Switch | What it does |
+|---|---|
+| Tank details | Hides the road wheels, track links and front plate (the plain box tank shows). |
+| Dust and spray | Hides the dust. |
+| Bushes | Hides bushes only. Trees and rocks stay: they are solid, so hiding them would leave invisible walls. |
+| Shadows | Turns off the sun's shadows (usually the biggest saving). |
+| Distance haze | Turns off the fog over the level. The misty forest stays misty (it's a place, not an effect). |
+
+Alternatives: a single "low / high" quality switch (simpler but you can't tell which thing is
+slow); saving the choices to a file (not needed yet). If one of them is slow, tell me which and
+I can remove or simplify it.
+
+## Untested (can't be checked here)
+
+- Frame rate on your laptop (Intel HD 520, Forward+). Screenshots here use the Compatibility
+  renderer in software, so colours and mist may look slightly different.
+- How driving over small rocks feels (you said you'd try it).
+
+## Hand-test checklist
+
+1. Pull, open the project, let it import, press Play. Watch the frame rate (top line of the F3 display, or
+   Godot's Debugger > Monitors).
+2. Drive forward: dust behind both treads, wheels and track links moving. Spin on the spot: one
+   side's tracks run backward.
+3. Tab > Graphics: untick each box in turn and check what disappears, and whether the frame rate
+   changes. Re-tick them.
+4. Drive the low route: dust turns brown in the mud basin, white spray at the ford, sandy on the
+   dunes.
+5. Drive west to the lake. Go past the buoys: you should be sent back to the start.
+6. Drive into the dune sea (south-west): rolling sand, slow going but passable.
+7. Drive along the high road: big rocks beside the raised sections, two on top that you can pass.
+8. Drive into the misty pine forest (north-east): fog thickens as you enter, clears as you leave.
+   The pine trunks are solid.
+9. Drive over the rubble patch (east of the spawn, south of the test area) and the scattered small
+   rocks: how does it feel? Bump at a tree and a boulder: you should stop.
+10. Check the driver's slit view: the new front plate shouldn't block it.

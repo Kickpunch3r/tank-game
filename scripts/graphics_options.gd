@@ -23,6 +23,39 @@ static var shadows: bool = true
 static var haze: bool = true
 
 
+## The options in the order the Tab panel lists them, with their labels.
+const LABELS: Dictionary = {
+	&"tank_details": "Tank details (road wheels, moving tracks)",
+	&"dust": "Dust and spray behind the treads",
+	&"scenery": "Bushes",
+	&"shadows": "Shadows",
+	&"haze": "Distance haze (the misty forest stays misty)",
+}
+
+
+static func is_on(option: StringName) -> bool:
+	match option:
+		&"tank_details": return tank_details
+		&"dust": return dust
+		&"scenery": return scenery
+		&"shadows": return shadows
+		&"haze": return haze
+	push_error("Unknown graphics option: %s" % option)
+	return false
+
+
+## Switch one option on or off, and show or hide things to match.
+static func set_on(tree: SceneTree, option: StringName, on: bool) -> void:
+	match option:
+		&"tank_details": tank_details = on
+		&"dust": dust = on
+		&"scenery": scenery = on
+		&"shadows": shadows = on
+		&"haze": haze = on
+		_: push_error("Unknown graphics option: %s" % option)
+	apply(tree)
+
+
 ## Show or hide everything to match the options (called after a change).
 static func apply(tree: SceneTree) -> void:
 	for item: Array in [[TANK_DETAILS_GROUP, tank_details], [DUST_GROUP, dust], [SCENERY_GROUP, scenery]]:
