@@ -44,6 +44,12 @@ var right_tread_speed: float = 0.0
 ## and 4-7 the right.
 var probe_grounded: Array[bool] = []
 var probe_compression: Array[float] = []
+## The ground under each probe (null = ordinary firm ground, or in the air).
+var probe_terrain: Array[TerrainType] = []
+## The ground under each tread: what most of its grounded probes are on
+## (null = firm ground). For the HUD.
+var left_terrain: TerrainType = null
+var right_terrain: TerrainType = null
 ## True if a tread wanted more push (or sideways hold) than its grip allowed.
 var left_grip_saturated: bool = false
 var right_grip_saturated: bool = false
@@ -97,6 +103,7 @@ func _build_probes() -> void:
 			_probes.append(probe)
 			probe_grounded.append(false)
 			probe_compression.append(0.0)
+			probe_terrain.append(null)
 
 
 func _physics_process(delta: float) -> void:
@@ -116,15 +123,23 @@ func _physics_process(delta: float) -> void:
 	# Pass 1: springs. Which probes touch, and how hard each is pressed down.
 	var contacts: Array[Dictionary] = []
 	var grounded_per_tread: Array[int] = [0, 0]
+	# Terrain under each tread, added up over its grounded probes (averaged below).
+	var tread_drag: Array[float] = [0.0, 0.0]
+	var tread_top_speed: Array[float] = [0.0, 0.0]
+	var total_sink: float = 0.0
 	for index: int in PROBE_COUNT:
 		var probe: RayCast3D = _probes[index]
 		probe.target_position = Vector3(0.0, -tuning.spring_length, 0.0)
 		probe.force_raycast_update()
 		probe_grounded[index] = probe.is_colliding()
 		probe_compression[index] = 0.0
+		probe_terrain[index] = null
 		if not probe.is_colliding():
 			continue
 		var point: Vector3 = probe.get_collision_point()
+		# The ground under this probe: mud, sand, or firm ground (null).
+		var terrain: TerrainType = TerrainPatch.terrain_at(get_tree(), point)
+		probe_terrain[index] = terrain
 		var length_now: float = probe.global_position.distance_to(point)
 		var squash: float = clampf(tuning.spring_length - length_now, 0.0, tuning.spring_length)
 		probe_compression[index] = squash / tuning.spring_length
@@ -132,17 +147,31 @@ func _physics_process(delta: float) -> void:
 		# Squashing (moving down into the ground) is resisted, rebounding is slowed.
 		var spring_force: float = maxf(stiffness * squash - damping * point_velocity.dot(up), 0.0)
 		contacts.append({"index": index, "point": point, "normal": probe.get_collision_normal(),
-				"velocity": point_velocity, "press": spring_force})
+				"velocity": point_velocity, "press": spring_force,
+				"grip": terrain.grip if terrain != null else 1.0})
 		grounded_per_tread[index / 4] += 1
+		tread_drag[index / 4] += terrain.drag if terrain != null else 0.0
+		tread_top_speed[index / 4] += terrain.top_speed if terrain != null else 1.0
+		total_sink += terrain.sink_depth if terrain != null else 0.0
 		apply_force(up * spring_force, point - global_position)
 
 	# Pass 2: drive and sideways hold, shared out over each tread's grounded probes.
 	left_tread_speed = _tread_speed(-1.0, centre)
 	right_tread_speed = _tread_speed(1.0, centre)
 	forward_speed = linear_velocity.dot(forward)
+	for tread: int in 2:
+		var grounded: int = grounded_per_tread[tread]
+		tread_drag[tread] = tread_drag[tread] / grounded if grounded > 0 else 0.0
+		tread_top_speed[tread] = tread_top_speed[tread] / grounded if grounded > 0 else 1.0
+	left_terrain = _main_terrain(0)
+	right_terrain = _main_terrain(1)
+	# Soft ground lets the hull picture sink in a little (looks only).
+	_sink_visual(total_sink / contacts.size() if not contacts.is_empty() else 0.0, delta)
 	var tread_accel: Array[float] = [
-		_tread_accel(0, driver_station.left_tread, left_tread_speed, forward, gravity, delta),
-		_tread_accel(1, driver_station.right_tread, right_tread_speed, forward, gravity, delta),
+		_tread_accel(0, driver_station.left_tread, left_tread_speed, forward, gravity, delta,
+				tread_drag[0], tread_top_speed[0]),
+		_tread_accel(1, driver_station.right_tread, right_tread_speed, forward, gravity, delta,
+				tread_drag[1], tread_top_speed[1]),
 	]
 	var saturated: Array[bool] = [false, false]
 	var sideways_rate: float = tuning.sideways_rate()
@@ -158,7 +187,8 @@ func _physics_process(delta: float) -> void:
 		var sideways_speed: float = (contact.velocity as Vector3).dot(across)
 		var sideways: float = -mass_share * (sideways_rate * sideways_speed + gravity.dot(across))
 		var push: Vector3 = along * drive + across * sideways
-		var limit: float = friction * contact.press
+		# Each probe grips as well as the ground under it allows.
+		var limit: float = friction * contact.grip * contact.press
 		if push.length() > limit:
 			push = push.normalized() * limit
 			saturated[tread] = true
@@ -178,13 +208,15 @@ func _tread_speed(side: float, centre: Vector3) -> float:
 ## How hard one tread wants to push, in m/s per second (for its half of the
 ## mass). The same three states as the kinematic tank's treads:
 ## braking (brake held), idling (lever at 0) and driving.
-func _tread_accel(tread: int, lever: float, speed: float, forward: Vector3, gravity: Vector3, delta: float) -> float:
+## terrain_drag and terrain_top_speed: the ground under this tread (see TerrainType).
+func _tread_accel(tread: int, lever: float, speed: float, forward: Vector3, gravity: Vector3, delta: float,
+		terrain_drag: float = 0.0, terrain_top_speed: float = 1.0) -> float:
 	var strongest: float = tuning.max_drive_accel()
 	# Gravity's pull along the tank (negative = pulling it backwards, uphill).
 	var gravity_along: float = gravity.dot(forward)
 	var accel: float = 0.0
 	if driver_station.brake or lever != 0.0:
-		var target: float = 0.0 if driver_station.brake else lever * tuning.top_speed
+		var target: float = 0.0 if driver_station.brake else lever * tuning.top_speed * terrain_top_speed
 		# Chase the target speed, and hold against gravity (so the brake holds
 		# the tank on slopes and the push fades as the treads reach top speed).
 		accel = clampf((target - speed) * tuning.throttle_response - gravity_along, -strongest, strongest)
@@ -194,11 +226,44 @@ func _tread_accel(tread: int, lever: float, speed: float, forward: Vector3, grav
 	else:
 		accel = _apply_warm_up(tread, accel, lever, strongest, delta)
 	# Rolling resistance, plus idle drag with the lever at 0: never past a stop.
-	var resistance: float = tuning.rolling_resistance
+	var resistance: float = tuning.rolling_resistance + terrain_drag
 	if lever == 0.0 and not driver_station.brake:
 		resistance += tuning.idle_drag / maxf(tuning.weight, 0.01)
 	accel -= signf(speed) * minf(resistance, absf(speed) / delta)
 	return accel
+
+
+## The terrain most of a tread's grounded probes are on (null = firm ground).
+func _main_terrain(tread: int) -> TerrainType:
+	var counts: Dictionary = {}
+	var best: TerrainType = null
+	var best_count: int = 0
+	for index: int in range(tread * 4, tread * 4 + 4):
+		if not probe_grounded[index]:
+			continue
+		var terrain: TerrainType = probe_terrain[index]
+		counts[terrain] = counts.get(terrain, 0) + 1
+		if counts[terrain] > best_count:
+			best_count = counts[terrain]
+			best = terrain
+	return best
+
+
+func _terrain_name(terrain: TerrainType) -> String:
+	return terrain.display_name if terrain != null else "firm"
+
+
+## Lower the hull picture into soft ground, easing toward the depth.
+func _sink_visual(depth: float, delta: float) -> void:
+	var visual := get_node_or_null(^"Visual") as Node3D
+	if visual != null:
+		visual.position.y = lerpf(visual.position.y, -depth, 1.0 - exp(-4.0 * delta))
+
+
+## How far the hull picture has sunk into soft ground, in metres (for tests).
+func sink_depth() -> float:
+	var visual := get_node_or_null(^"Visual") as Node3D
+	return -visual.position.y if visual != null else 0.0
 
 
 ## A sudden loss of speed means the tank hit something (for buzzing a phone).
@@ -304,6 +369,7 @@ func debug_lines() -> PackedStringArray:
 		"Right tread: input %+.2f   speed %+5.1f m/s   grip %s" % [driver_station.right_tread,
 				right_tread_speed, "SATURATED" if right_grip_saturated else "ok"],
 		"Forward speed: %+5.1f m/s   Brake: %s" % [forward_speed, "ON" if driver_station.brake else "off"],
+		"Ground: left %s, right %s" % [_terrain_name(left_terrain), _terrain_name(right_terrain)],
 		"Engine push available: L %.1f  R %.1f  (of %.1f; warm-up %.2f s)" % [
 				engine_output[0], engine_output[1], tuning.max_drive_accel(), tuning.warm_up_time],
 		"Hull pitch %+5.1f°   roll %+5.1f°" % [pitch_degrees(), roll_degrees()],

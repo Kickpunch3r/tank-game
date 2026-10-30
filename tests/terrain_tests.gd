@@ -42,6 +42,7 @@ func run() -> void:
 	report.check("Left tread in mud, right on firm ground: pulls left, toward the mud",
 			turned > 3.0, "turned %.1f° (positive = left)" % turned)
 
+	await _physics_tank_terrain()
 	await _terrain_ramps()
 
 
@@ -119,3 +120,49 @@ func _terrain_ramps() -> void:
 				if results[b].climbed and not results[a].climbed:
 					ordering_ok = false
 	report.check("Terrain ramps: steeper is never easier (same terrain)", ordering_ok)
+
+
+# --- The physics tank on terrain -------------------------------------------------
+
+func _physics_tank_terrain() -> void:
+	var firm: Dictionary = await _physics_drive(Vector3(0.0, 0.1, 41.0))
+	var sand: Dictionary = await _physics_drive(sand_patch.global_position + Vector3(0.0, 0.1, 6.0))
+	var mud: Dictionary = await _physics_drive(mud_patch.global_position + Vector3(0.0, 0.1, 6.0))
+	report.check("Physics tank: top speed mud < sand < firm", mud.top < sand.top and sand.top < firm.top,
+			"after 3 s: firm %.1f, sand %.1f, mud %.1f m/s" % [firm.top, sand.top, mud.top])
+	report.check("Physics tank: knows the ground under each tread",
+			mud.ground == mud_patch.terrain and sand.ground == sand_patch.terrain and firm.ground == null)
+	report.check("Physics tank: the hull picture sinks in mud, more than in sand",
+			mud.sink > sand.sink and sand.sink > firm.sink + 0.05,
+			"sank firm %.2f, sand %.2f, mud %.2f m" % [firm.sink, sand.sink, mud.sink])
+	# Just inside the mud patch's right-hand edge: left tread in mud, right tread out.
+	var edge_x: float = mud_patch.global_position.x + mud_patch.size.x / 2.0
+	var tank: PhysicsTank = runner.spawn_test_physics_tank(Vector3(edge_x, 0.1, mud_patch.global_position.z + 8.0))
+	runner.watch_tank(tank)
+	await runner.wait_physics_frames(60)
+	var start_forward: Vector3 = -tank.global_basis.z
+	for frame: int in 2 * DrivingTests.FPS:
+		tank.driver_station.left_tread = 1.0
+		tank.driver_station.right_tread = 1.0
+		await runner.get_tree().physics_frame
+	var forward: Vector3 = -tank.global_basis.z
+	var turned: float = rad_to_deg(Vector3(start_forward.x, 0.0, start_forward.z).signed_angle_to(
+			Vector3(forward.x, 0.0, forward.z), Vector3.UP))
+	await runner.remove_test_tanks()
+	report.check("Physics tank: left tread in mud, right on firm ground: pulls left, toward the mud",
+			turned > 3.0, "turned %.1f° in 2 s (positive = left)" % turned)
+
+
+## A physics tank (saved tuning) driven full forward for 3 s from `where`.
+## Returns its speed, the ground under its left tread, and how far the hull sank.
+func _physics_drive(where: Vector3) -> Dictionary:
+	var tank: PhysicsTank = runner.spawn_test_physics_tank(where)
+	runner.watch_tank(tank)
+	await runner.wait_physics_frames(60)
+	for frame: int in 3 * DrivingTests.FPS:
+		tank.driver_station.left_tread = 1.0
+		tank.driver_station.right_tread = 1.0
+		await runner.get_tree().physics_frame
+	var result: Dictionary = {"top": tank.forward_speed, "ground": tank.left_terrain, "sink": tank.sink_depth()}
+	await runner.remove_test_tanks()
+	return result
