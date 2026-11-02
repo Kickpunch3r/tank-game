@@ -2,8 +2,7 @@ class_name TankDetails
 extends Node3D
 ## Extra looks for the physics tank: a sloped front plate, road wheels that
 ## turn, and track links that move at each tread's speed. Looks only: the
-## tank drives the same without them. Built by script; can be switched off
-## from the Tab panel (Graphics > Tank details).
+## tank drives the same without them. Built by script.
 ##
 ## Put it inside the tank's Visual/Hull node. It reads the tank's
 ## left_tread_speed and right_tread_speed every frame.
@@ -28,17 +27,15 @@ var _tread_materials: Array[ShaderMaterial] = []
 
 
 func _ready() -> void:
-	add_to_group(GraphicsOptions.TANK_DETAILS_GROUP)
 	_tank = _find_tank()
 	_build_front_plate()
 	for side: float in [-1.0, 1.0]:
 		_build_tread(side)
 		_build_wheels(side)
-	visible = GraphicsOptions.tank_details
 
 
 func _process(delta: float) -> void:
-	if _tank == null or not visible:
+	if _tank == null:
 		return
 	var speeds: Array[float] = [_tank.get(&"left_tread_speed"), _tank.get(&"right_tread_speed")]
 	for side: int in 2:

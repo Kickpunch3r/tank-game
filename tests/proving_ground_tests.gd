@@ -155,7 +155,7 @@ func _cliffs_stop_the_tank() -> void:
 
 
 ## The dressing: dune sea, lake with buoys, rocks along the high road, the
-## misty pine forest, scattered trees, bushes and small rocks.
+## misty pine forest, boulders and small rocks.
 func _scenery() -> void:
 	var items: Dictionary = layout.scenery()
 	var sand: TerrainType = load("res://terrain/sand.tres")
@@ -193,13 +193,12 @@ func _scenery() -> void:
 			pines_inside >= 40 and pines_inside == items.pines.size()
 			and Rect2(Vector2(haze.global_position.x, haze.global_position.z) - haze.size / 2.0, haze.size).encloses(forest),
 			"%d pines" % pines_inside)
-	report.check("Trees, bushes, boulders and small rocks are scattered about",
-			items.trees.size() >= 15 and items.bushes.size() >= 60 and items.boulders.size() >= 8
-			and items.small_rocks.size() >= 40,
-			"%d trees, %d bushes, %d boulders, %d small rocks" % [items.trees.size(), items.bushes.size(),
-				items.boulders.size(), items.small_rocks.size()])
+	report.check("Boulders and small rocks; no trees or bushes outside the misty forest",
+			items.boulders.size() >= 8 and items.small_rocks.size() >= 40
+			and not items.has("trees") and not items.has("bushes"),
+			"%d boulders, %d small rocks" % [items.boulders.size(), items.small_rocks.size()])
 	var clear: bool = true
-	for kind: String in ["pines", "trees", "big_rocks", "boulders", "small_rocks", "bushes"]:
+	for kind: String in ["pines", "big_rocks", "boulders", "small_rocks"]:
 		for item: Dictionary in items[kind]:
 			if kind == "big_rocks" and _ground(item.at) > ProvingGroundLayout.BASE + 3.0:
 				continue  # the two on top of the high road sit beside its lane
@@ -208,51 +207,51 @@ func _scenery() -> void:
 	report.check("Nothing stands on the road or the low route", clear)
 
 
-## Trees and rocks are solid (small rocks too); bushes are not.
+## Rocks are solid (small rocks too); pines only at their trunks.
 func _solid_scenery() -> void:
 	var items: Dictionary = layout.scenery()
 	var space: PhysicsDirectSpaceState3D = level.get_world_3d().direct_space_state
 	var small_rock: Dictionary = items.small_rocks[0]
-	var bush: Dictionary = items.bushes[0]
 	var rock_top: float = _ray_down(space, small_rock.at)
-	var bush_top: float = _ray_down(space, bush.at)
-	report.check("Small rocks can be hit (you drive over them); bushes can't (you drive through)",
-			rock_top > _ground(small_rock.at) + 0.05 and absf(bush_top - _ground(bush.at)) < 0.3,
-			"rock top %.2f m above ground, bush ray stops %.2f m above ground" % [
-				rock_top - _ground(small_rock.at), bush_top - _ground(bush.at)])
-	# Drive straight at a tree with a clear run-up from the east.
-	var tank: PhysicsTank = (level.get_node(^"PlayerRig") as PlayerRig).active_tank
-	var tree: Vector2 = Vector2.INF
-	for item: Dictionary in items.trees:
-		var start: Vector2 = item.at + Vector2(25.0, 0.0)
-		var open: bool = true
-		for step: int in 8:
-			open = open and layout._open_ground(item.at + Vector2(4.0 + step * 3.0, 0.0), 1.5, 0.0)
-		for other: Dictionary in items.trees + items.big_rocks + items.boulders:
-			if other != item and _distance_to_segment(other.at, item.at, start) < 4.0:
-				open = false
-		if open:
-			tree = item.at
-			break
-	var result: Dictionary = await _drive_at(tank, tree + Vector2(25.0, 0.0), tree + Vector2(-20.0, 0.0))
-	var got_past: bool = tank.global_position.x < tree.x - 2.0
-	report.check("Trees are solid: driving at one, the tank stops against it",
-			tree.is_finite() and not got_past and tank.global_position.x < tree.x + 6.0,
-			"tree at %s, tank ended %.1f m east of it" % [tree, tank.global_position.x - tree.x])
-	tank.reset_to_spawn()
+	report.check("Small rocks can be hit (you drive over them)",
+			rock_top > _ground(small_rock.at) + 0.05, "rock top %.2f m above ground" % (rock_top - _ground(small_rock.at)))
+	var trunks_solid: bool = true
+	var branches_open: bool = true
+	for pine: Dictionary in items.pines:
+		var ground: float = _ground(pine.at)
+		trunks_solid = trunks_solid and _ray_down(space, pine.at) > ground + 5.0
+		# Under the branches, beside the trunk: the ray reaches the ground.
+		var beside: Vector2 = pine.at + Vector2(pine.radius * 0.35, 0.0)
+		branches_open = branches_open and _ray_down(space, beside) < _ground(beside) + 0.3
+	report.check("Pines: only the trunks are solid, not the branches",
+			trunks_solid and branches_open and not items.pines.is_empty())
 
 
-## Driving into the deep water sends the tank back to the start; the misty
-## forest thickens the fog while the camera is inside it.
+## Deep water (the lake past its buoys, the river's channel) sends the tank
+## back to the start; the ford and the lake's shallows don't. The misty forest
+## thickens the fog from its border inward.
 func _deep_water_and_haze() -> void:
 	var rig: PlayerRig = level.get_node(^"PlayerRig")
 	var tank: PhysicsTank = rig.active_tank
-	var lake := ProvingGroundLayout.LAKE
-	tank.place_at(Transform3D(Basis.IDENTITY, Vector3(lake.x, ProvingGroundLayout.WATER_LEVEL + 0.5, lake.y)))
-	await runner.wait_physics_frames(30)
 	var home: Vector3 = tank.get_home().origin
-	report.check("Deep water in the lake sends the tank back to the start",
-			tank.global_position.distance_to(home) < 2.0, "ended at %s" % tank.global_position)
+	var lake := ProvingGroundLayout.LAKE
+	var spots: Array = [
+		["the lake's middle", lake, true],
+		["the river's channel", Vector2(60.0, -58.0), true],
+		["the ford", ProvingGroundLayout.FORD, false],
+		["the lake's shallows, outside the buoys", lake + Vector2(ProvingGroundLayout.DEEP_WATER_RADIUS + 4.0, 0.0), false],
+	]
+	var wrong: PackedStringArray = []
+	for spot: Array in spots:
+		var at: Vector2 = spot[1]
+		tank.place_at(Transform3D(Basis.IDENTITY, Vector3(at.x, _ground(at) + 0.3, at.y)))
+		await runner.wait_physics_frames(30)
+		var sent_home: bool = tank.global_position.distance_to(home) < 2.0
+		if sent_home != spot[2]:
+			wrong.append(spot[0])
+	tank.reset_to_spawn()
+	report.check("Deep water (lake past the buoys, river channel) sends the tank back to the start; the ford and shallows don't",
+			wrong.is_empty(), "wrong at: %s" % ", ".join(wrong) if not wrong.is_empty() else "")
 	var environment: Environment = (level.find_children("*", "WorldEnvironment", true, false)[0] as WorldEnvironment).environment
 	var outside: float = environment.fog_density
 	var haze: HazeZone = level.get_node(^"MistyForest")
@@ -278,19 +277,13 @@ func _deep_water_and_haze() -> void:
 	report.check("The misty forest is always foggy inside, and clears as you leave",
 			inside > outside * 5.0 and absf(environment.fog_density - outside) < 0.0005,
 			"fog %.4f outside, %.4f inside, %.4f after leaving" % [outside, inside, environment.fog_density])
-	var tree: SceneTree = runner.get_tree()
-	GraphicsOptions.set_on(tree, &"haze", false)
-	GraphicsOptions.set_on(tree, &"scenery", false)
-	await runner.wait_physics_frames(3)
-	var haze_off: bool = not environment.fog_enabled
-	var bushes_hidden: bool = not (level.get_node(^"Scenery/Bushes") as Node3D).visible
-	var trees_kept: bool = (level.get_node(^"Scenery/Trees") as Node3D).visible
-	GraphicsOptions.set_on(tree, &"haze", true)
-	GraphicsOptions.set_on(tree, &"scenery", true)
-	await runner.wait_physics_frames(3)
-	report.check("Graphics: Haze off clears the distance haze; Bushes off hides bushes but keeps the (solid) trees",
-			haze_off and bushes_hidden and trees_kept and environment.fog_enabled
-			and (level.get_node(^"Scenery/Bushes") as Node3D).visible)
+	var east_edge: float = haze.global_position.x + haze.size.x / 2.0
+	var at_border: float = haze.inside_amount_at(Vector3(east_edge, 5.0, haze.global_position.z))
+	var halfway: float = haze.inside_amount_at(Vector3(east_edge - haze.edge / 2.0, 5.0, haze.global_position.z))
+	var full: float = haze.inside_amount_at(Vector3(east_edge - haze.edge, 5.0, haze.global_position.z))
+	report.check("Forest fog starts at the border and is full %.0f m in" % haze.edge,
+			at_border < 0.01 and halfway > 0.3 and halfway < 0.7 and full > 0.99,
+			"%.2f at the border, %.2f halfway, %.2f full" % [at_border, halfway, full])
 
 
 func _ray_down(space: PhysicsDirectSpaceState3D, at: Vector2) -> float:

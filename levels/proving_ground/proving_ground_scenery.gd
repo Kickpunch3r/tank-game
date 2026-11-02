@@ -1,13 +1,14 @@
 class_name ProvingGroundScenery
 extends Node3D
 ## Dresses the Proving Ground from its plan (ProvingGroundLayout.scenery()):
-## pines, trees, bushes, big rocks, boulders, small rocks, the lake's buoys,
-## and the deep water that sends the tank back to the start.
+## the misty forest's pines, big rocks, boulders, small rocks and the lake's
+## buoys. Also watches for deep water: a tank in water deeper than
+## ProvingGroundLayout.DEEP_WATER_DEPTH is sent back to the start.
 ##
 ## Each kind of thing is one MultiMesh (drawn in one go, so it is cheap).
-## Trees and rocks are solid (small rocks too: you can drive over them);
-## bushes are not, and can be hidden from the Tab panel (Graphics).
-## Rebuilt whenever the ground is rebuilt, so everything sits on it.
+## Pine trunks and rocks are solid (small rocks too: you can drive over them);
+## pine branches are not. Rebuilt whenever the ground is rebuilt, so
+## everything sits on it.
 
 ## The level's ground, for the height under each thing.
 @export var level_terrain: LevelTerrain
@@ -34,16 +35,12 @@ func _build() -> void:
 	solid.name = "Solid"
 	add_child(solid)
 	_build_pines(items.pines, solid)
-	_build_trees(items.trees, solid)
-	_build_bushes(items.bushes)
 	for kind: String in ["big_rocks", "boulders", "small_rocks"]:
 		_build_rocks(kind, items[kind], solid)
 	_build_buoys(items.buoys)
-	_build_deep_water()
-	GraphicsOptions.apply(get_tree())
 
 
-# --- Trees -----------------------------------------------------------------------
+# --- Pines ----------------------------------------------------------------------
 
 func _build_pines(pines: Array, solid: StaticBody3D) -> void:
 	var canopy := CylinderMesh.new()
@@ -64,43 +61,10 @@ func _build_pines(pines: Array, solid: StaticBody3D) -> void:
 				Vector3(pine.at.x, ground + height * 0.6, pine.at.y)))
 		trunks.append(_trunk(pine.at, ground, height * 0.3, radius * 0.14))
 		colours.append(Color(0.13, 0.3, 0.16).lightened(randf_range(-0.1, 0.15)))
-		_add_cylinder(solid, pine.at, ground, height, radius * 0.5)
+		# Only the trunk is solid (the branches above are not).
+		_add_cylinder(solid, pine.at, ground, height, radius * 0.14)
 	_add_multimesh("Pines", canopy, canopies, colours)
 	_add_multimesh("PineTrunks", _trunk_mesh(), trunks, _same_colour(trunks.size(), Color(0.33, 0.24, 0.16)))
-
-
-func _build_trees(trees: Array, solid: StaticBody3D) -> void:
-	var canopy := SphereMesh.new()
-	canopy.radial_segments = 8
-	canopy.rings = 4
-	var canopies: Array[Transform3D] = []
-	var trunks: Array[Transform3D] = []
-	var colours: Array[Color] = []
-	for tree: Dictionary in trees:
-		var ground: float = _ground(tree.at)
-		var radius: float = tree.radius
-		canopies.append(Transform3D(Basis.from_scale(Vector3(radius, radius * 0.85, radius)),
-				Vector3(tree.at.x, ground + tree.height - radius * 0.85, tree.at.y)))
-		trunks.append(_trunk(tree.at, ground, tree.height - radius, 0.35))
-		colours.append(Color(0.3, 0.45, 0.17).lightened(randf_range(-0.1, 0.15)))
-		_add_cylinder(solid, tree.at, ground, tree.height, radius * 0.45)
-	_add_multimesh("Trees", canopy, canopies, colours)
-	_add_multimesh("TreeTrunks", _trunk_mesh(), trunks, _same_colour(trunks.size(), Color(0.36, 0.26, 0.17)))
-
-
-func _build_bushes(bushes: Array) -> void:
-	var mesh := SphereMesh.new()
-	mesh.radial_segments = 7
-	mesh.rings = 3
-	var transforms: Array[Transform3D] = []
-	var colours: Array[Color] = []
-	for bush: Dictionary in bushes:
-		var size: float = bush.size
-		transforms.append(Transform3D(Basis.from_scale(Vector3(size, size * 0.7, size)),
-				Vector3(bush.at.x, _ground(bush.at) + size * 0.35, bush.at.y)))
-		colours.append(Color(0.34, 0.46, 0.2).lightened(randf_range(-0.12, 0.12)))
-	var bushes_node: MultiMeshInstance3D = _add_multimesh("Bushes", mesh, transforms, colours)
-	bushes_node.add_to_group(GraphicsOptions.SCENERY_GROUP)
 
 
 func _trunk(at: Vector2, ground: float, height: float, radius: float) -> Transform3D:
@@ -173,31 +137,30 @@ func _build_buoys(buoys: Array) -> void:
 	(node.material_override as StandardMaterial3D).emission = Color(1.0, 0.4, 0.05) * 0.4
 
 
-## Past the buoys the lake is deep: a tank that drives in is sent back to the
-## level's start.
-func _build_deep_water() -> void:
-	var area := Area3D.new()
-	area.name = "DeepWater"
-	var shape := CylinderShape3D.new()
-	shape.radius = ProvingGroundLayout.DEEP_WATER_RADIUS
-	shape.height = 8.0
-	var collision := CollisionShape3D.new()
-	collision.shape = shape
-	area.add_child(collision)
-	area.position = Vector3(ProvingGroundLayout.LAKE.x, ProvingGroundLayout.WATER_LEVEL - 4.0, ProvingGroundLayout.LAKE.y)
-	area.body_entered.connect(_on_deep_water)
-	add_child(area)
-
-
-func _on_deep_water(body: Node3D) -> void:
-	if not body.has_method(&"place_at") or not body.has_method(&"get_home"):
+## A tank in deep water (the lake past its buoys, or the river's channel) is
+## sent back to the level's start.
+func _physics_process(_delta: float) -> void:
+	# The level adds its PlayerRig when it starts, beside this node.
+	var rig := get_parent().get_node_or_null(^"PlayerRig") as PlayerRig
+	if rig == null or level_terrain == null:
 		return
-	# Deferred: moving a body in the middle of a physics callback is unsafe.
-	body.call_deferred(&"place_at", body.call(&"get_home"))
-	var keyboard := body.get_node_or_null(^"DriverStation/KeyboardDriverInput") as KeyboardDriverInput
+	var tank: Node3D = rig.active_tank
+	if is_instance_valid(tank) and is_in_deep_water(tank.global_position):
+		send_back_to_start(tank)
+
+
+## Is this spot in water deeper than ProvingGroundLayout.DEEP_WATER_DEPTH?
+func is_in_deep_water(where: Vector3) -> bool:
+	var water: float = ProvingGroundLayout.WATER_LEVEL
+	return where.y < water and water - level_terrain.height_at(Vector3(where.x, 0.0, where.z)) > ProvingGroundLayout.DEEP_WATER_DEPTH
+
+
+func send_back_to_start(tank: Node3D) -> void:
+	tank.call(&"place_at", tank.call(&"get_home"))
+	var keyboard := tank.get_node_or_null(^"DriverStation/KeyboardDriverInput") as KeyboardDriverInput
 	if keyboard != null:
 		keyboard.clear_levels()
-	sent_back_to_start.emit(body)
+	sent_back_to_start.emit(tank)
 
 
 # --- Helpers -----------------------------------------------------------------------

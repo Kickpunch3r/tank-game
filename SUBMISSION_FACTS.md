@@ -37,10 +37,10 @@ separately, through the Proving Ground: from the spawn, a road leads to a fork; 
 climbs onto a ridge and runs along a sandy ledge above a cliff and a lake, the low route crosses
 a mud basin, a river at a shallow ford and sand dunes, and both reach a goal plateau marked by
 a big gold cube. Cliffs,
-steep hills, mountains and deep water can't be driven through. The river opens into a lake:
-driving past its buoys into deep water sends the tank back to the start. There is also a dune
-sea, a misty pine forest, big rocks along the high road, a boulder field, and scattered trees,
-bushes and small rocks (trees and rocks are solid). Beside the spawn, a test area
+steep hills and mountains can't be driven up. Deep water (the river's channel, and the lake
+past its buoys) sends the tank back to the start; the river is crossed at a shallow ford. There
+is also a dune sea, a misty pine forest (always foggy inside), big rocks along the high road, a
+boulder field, and scattered small rocks (rocks and pine trunks are solid). Beside the spawn, a test area
 has ramps from 5° to 55° (up to 20° climbable from a standstill, 25° only with a run-up, 30° and
 steeper not at all), a ledge strip, steps, a crest and squares of mud and sand. There is no win
 or lose condition, score or timer yet: it is a driving prototype for the driver station of a
@@ -84,14 +84,13 @@ everything in game below also works in an exported release build.
 |---|---|---|
 | `F3` | Debug display (hidden at the start, with the phone status line): frame rate, inputs, tread speeds, slope, grip, knobs, climbable limit, phone/Push status; physics tank: probe diagram, pitch/roll | Yes |
 | `Tab` | Tuning panel: live sliders for every driving, camera and terrain value; Copy values; Reset to saved; Reset point (any ramp, distance back 0–70 m, ledge strip, steps, crest); Reset now; Debug tank swap | Yes |
-| Tab panel > Graphics | Tick boxes to switch off tank details, dust, bushes, shadows and distance haze if the game runs slowly (all on at the start) | Yes |
 | Tab panel > Debug > "Show test labels" | Shows the floating labels on the test ramps and course pieces (hidden at the start) | Yes |
 | Tab panel > Debug > "Swap to kinematic tank (old)" | Swap to the older kinematic tank (green) at the same spot, and back | Yes |
 | `R` + Tab "Reset point" | Teleport to a chosen ramp or feature, at rest | Yes |
 | Phone controller | Two on-screen levers and a BRAKE button (USB + adb, or Wi-Fi off by default). Still in the game, not documented for markers | Yes |
 | Gamepad | Sticks drive the treads (never tested on a real gamepad) | Yes |
 | Hold-to-drive mode | Untick `Use Tread Levels` on `DriverStation/KeyboardDriverInput` | Editor setting only |
-| Test runner `tests/test_runner.tscn` | 252 automated checks, headless or watched (F6); `--only=<suites>` runs some suites | Editor / console only |
+| Test runner `tests/test_runner.tscn` | 249 automated checks, headless or watched (F6); `--only=<suites>` runs some suites | Editor / console only |
 | Old test course `scenes/test_course.tscn` | The original ramps, bumps, mud/sand and terrain ramps; run with F6 | Editor only |
 | Starter level `levels/starter/starter.tscn` | First painted-height level, run with F6 | Editor only |
 
@@ -193,7 +192,7 @@ Started or built, but off, unreachable or unfinished in the game as shipped:
   merged.
 - **Testing:**
   - Automated headless test runner (`tests/test_runner.tscn`), driving tanks by writing into
-    their `DriverStation`. Grew from 42 checks (milestone 5) to **252 checks, all passing**
+    their `DriverStation`. Grew from 42 checks (milestone 5) to **249 checks, all passing**
     (2026-10-30). Covers input, views/HUD, tuning panel, starting tank, tank swap, phone
     (local ports, pretend adb), Push 3 (pretend MIDI), course shape, flat driving, every ramp
     standing and with a run-up for both tanks (physics: 3 runs, majority), brake/idle/warm-up/
@@ -217,8 +216,9 @@ Started or built, but off, unreachable or unfinished in the game as shipped:
   (30 Oct) 25. Graphics round 1: lighting and haze, ground shader (grass, rock, terrain), water
   shader (depth colour, foam, ripples)
   (30 Oct) 26. Map dressing (dune sea, lake with deep water that sends you back, rocks, boulder
-  field, misty pine forest, trees and bushes), tank details (wheels, moving tracks, sloped front),
-  dust and spray, Tab panel Graphics switches (30 Oct).
+  field, misty pine forest), tank details (wheels, moving tracks, sloped front), dust and spray
+  (30 Oct) 27. After play-testing: scattered trees and bushes removed, pines solid only at the
+  trunk, the river's deep water also sends you back, forest fog starts at its edge (2 Nov).
 
 ---
 

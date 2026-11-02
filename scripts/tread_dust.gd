@@ -2,8 +2,7 @@ class_name TreadDust
 extends Node3D
 ## Dust thrown up behind each tread of the physics tank: coloured like the
 ## ground it's on (sand, mud, or dusty earth), more of it the faster the tread
-## goes, and white spray in water. Looks only. Can be switched off from the
-## Tab panel (Graphics > Dust).
+## goes, and white spray in water. Looks only.
 ##
 ## Put it inside the tank's Visual/Hull node. Water is found by the group
 ## "water_surface" (the level's water plane).
@@ -23,11 +22,9 @@ var _materials: Array[ParticleProcessMaterial] = []
 
 
 func _ready() -> void:
-	add_to_group(GraphicsOptions.DUST_GROUP)
 	_tank = _find_tank()
 	for side: float in [-1.0, 1.0]:
 		_build_emitter(side)
-	visible = GraphicsOptions.dust
 
 
 func _process(_delta: float) -> void:
@@ -41,7 +38,7 @@ func _process(_delta: float) -> void:
 		var emitter: GPUParticles3D = _emitters[side]
 		var on_ground: bool = grounded.slice(side * 4, side * 4 + 4).has(true)
 		var speed: float = absf(speeds[side])
-		emitter.emitting = visible and on_ground and speed > MIN_SPEED
+		emitter.emitting = on_ground and speed > MIN_SPEED
 		emitter.amount_ratio = clampf(speed / FULL_DUST_SPEED, 0.15, 1.0)
 		var in_water: bool = water != null and emitter.global_position.y < water.global_position.y
 		_materials[side].color = SPRAY if in_water else dust_colour(terrains[side])

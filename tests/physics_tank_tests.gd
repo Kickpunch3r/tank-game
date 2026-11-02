@@ -203,8 +203,8 @@ func _flat_tests() -> void:
 			"turned %.0f°, %.0f°/s by the end, moved %.2f m" % [result.turned, result.rate, result.distance])
 
 
-## The looks-only details (Graphics > Tank details): wheels and track links
-## follow each tread, and the switch hides them.
+## The looks-only details: wheels and track links follow each tread; dust
+## while moving.
 func _details_tests() -> void:
 	var tank: PhysicsTank = _spawn(FLAT_AREA)
 	runner.watch_tank(tank)
@@ -219,8 +219,7 @@ func _details_tests() -> void:
 	var right_wheel: Node3D = details.get_node(^"WheelRight0")
 	report.check("Tank details: sloped front plate, 5 road wheels a side, track links on both treads",
 			details != null and details.has_node(^"FrontPlate") and details.has_node(^"WheelRight4")
-			and details.has_node(^"TrackLeft") and details.has_node(^"TrackRight")
-			and details.is_in_group(GraphicsOptions.TANK_DETAILS_GROUP))
+			and details.has_node(^"TrackLeft") and details.has_node(^"TrackRight"))
 	report.check("Spinning (left forward, right back): left wheels and links run forward, right ones back",
 			details.travel[0] > 0.3 and details.travel[1] < -0.3
 			and left_wheel.rotation.x != 0.0 and signf(left_wheel.rotation.x) != signf(right_wheel.rotation.x),
@@ -235,17 +234,7 @@ func _details_tests() -> void:
 	var sand: TerrainType = load("res://terrain/sand.tres")
 	report.check("Dust: thrown up behind both treads while they move, none when stopped; sand-coloured on sand",
 			dusty_while_moving and not dust.is_throwing_dust(0) and not dust.is_throwing_dust(1)
-			and TreadDust.dust_colour(sand).r > TreadDust.dust_colour(null).r
-			and dust.is_in_group(GraphicsOptions.DUST_GROUP))
-	GraphicsOptions.tank_details = false
-	GraphicsOptions.dust = false
-	GraphicsOptions.apply(runner.get_tree())
-	var hidden: bool = not details.visible and not dust.visible
-	GraphicsOptions.tank_details = true
-	GraphicsOptions.dust = true
-	GraphicsOptions.apply(runner.get_tree())
-	report.check("Graphics > Tank details and Dust off hide them (and on shows them again)",
-			hidden and details.visible and dust.visible)
+			and TreadDust.dust_colour(sand).r > TreadDust.dust_colour(null).r)
 	await runner.remove_test_tanks()
 
 

@@ -95,3 +95,16 @@ I can remove or simplify it.
 9. Drive over the rubble patch (east of the spawn, south of the test area) and the scattered small
    rocks: how does it feel? Bump at a tree and a boulder: you should stop.
 10. Check the driver's slit view: the new front plate shouldn't block it.
+
+## After play-testing (2026-11-02)
+
+Your answers: frame rate fine, small rocks fine, still tracks when stuck fine, slit view fine.
+Changes you asked for:
+- Graphics tick boxes removed (section 4 no longer applies); everything stays on.
+- Scattered trees and bushes removed; the misty forest's pines stay.
+- Pines: only the trunk is solid (it was half the canopy's width).
+- Deep water: option a. More than 1.2 m of water under the tank sends it back to the start. That
+  covers the lake past the buoys and the river's channel; the ford (0.4 m) and the low route
+  (0.6 m at most) stay crossable. Alternatives were: back to the bank you came from (kinder, more
+  work), or leave the river wadeable.
+- Forest fog starts at the forest's edge and is full 20 m in (it started 10 m outside).

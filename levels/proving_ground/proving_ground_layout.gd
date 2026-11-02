@@ -22,10 +22,11 @@ extends RefCounted
 ## - Goal plateau (north): where both routes meet; steep sides elsewhere.
 ## - Impassable: the mountain rim, the ridge's cliff, the river's steep banks,
 ##   a steep cone hill and a cliff-sided mesa.
-## - Dressing (2026-10-31): a dune sea (south-west), a big lake the river runs
-##   into (too deep = back to the start), big rocks along the high road, a
-##   misty pine forest (north-east), a boulder field, small rocks to drive
-##   over, and scattered trees and bushes. See scenery().
+## - Dressing (2026-10-30, trimmed 2026-11-02): a dune sea (south-west), a big
+##   lake the river runs into, big rocks along the high road, a misty pine
+##   forest (north-east), a boulder field and small rocks to drive over. See
+##   scenery(). Deep water (lake past the buoys, the river's channel) sends the
+##   tank back to the start.
 
 ## Image size in pixels (= metres).
 const WIDTH: int = 448
@@ -84,12 +85,16 @@ const RIVER: Array[Vector2] = [
 ]
 const RIVER_HALF_WIDTH: float = 7.0
 ## The lake the river runs into: deepest inside LAKE_RADIUS, its bed shelving
-## gently up to normal ground at LAKE_SHORE (so you can drive in), and deeper
-## than DEEP_WATER_RADIUS sends the tank back to the start.
+## gently up to normal ground at LAKE_SHORE (so you can drive in). Buoys mark
+## where it gets deep (DEEP_WATER_RADIUS).
 const LAKE := Vector2(-100.0, -25.0)
 const LAKE_RADIUS: float = 24.0
 const LAKE_SHORE: float = 42.0
 const DEEP_WATER_RADIUS: float = 29.0
+## Water deeper than this (metres, under the tank's middle) sends the tank back
+## to the start: the lake past its buoys and the river's channel. The ford
+## (0.4 m) and the low route (0.6 m at most) stay crossable.
+const DEEP_WATER_DEPTH: float = 1.2
 ## Within this distance of the ford, the river banks are gentle.
 const FORD_REACH: float = 16.0
 
@@ -326,15 +331,14 @@ func _distance_to_segment(at: Vector2, a: Vector2, b: Vector2) -> float:
 
 ## Everything placed on the ground, the same every time (fixed random seed).
 ## Each list holds dictionaries with "at" (Vector2, x and z) and sizes:
-## - pines (forest) and trees (scattered): "height", "radius" (canopy); solid.
-## - bushes: "size"; drive-through.
+## - pines (the misty forest): "height", "radius" (canopy); only the trunk is solid.
 ## - big_rocks (high road), boulders (boulder field), small_rocks (rubble patch
 ##   and scattered): "size" (Vector3, metres), "turn" (radians); solid.
 ## - buoys: on the lake, marking the deep water.
 func scenery() -> Dictionary:
 	var random := RandomNumberGenerator.new()
 	random.seed = 31
-	var result: Dictionary = {"pines": [], "trees": [], "bushes": [], "big_rocks": [],
+	var result: Dictionary = {"pines": [], "big_rocks": [],
 			"boulders": [], "small_rocks": [], "buoys": []}
 	_place_pines(random, result.pines)
 	_place_big_rocks(random, result.big_rocks)
@@ -346,23 +350,15 @@ func scenery() -> Dictionary:
 	for index: int in 40:
 		var at := RUBBLE + Vector2(random.randf_range(-RUBBLE_HALF, RUBBLE_HALF), random.randf_range(-RUBBLE_HALF, RUBBLE_HALF))
 		result.small_rocks.append(_rock(random, at, 0.25, 0.5))
-	# Scattered over the open lowland, on a jittered grid.
-	for item: Array in [["trees", 20.0, 0.55], ["bushes", 9.0, 0.45], ["small_rocks", 15.0, 0.25]]:
-		var spacing: float = item[1]
-		for gx: int in int(WIDTH / spacing):
-			for gz: int in int(DEPTH / spacing):
-				if random.randf() > item[2]:
-					continue
-				var at := Vector2(-WIDTH / 2.0 + (gx + random.randf()) * spacing, -DEPTH / 2.0 + (gz + random.randf()) * spacing)
-				if not _open_ground(at, 3.0 if item[0] == "trees" else 1.5) or FOREST.grow(4.0).has_point(at):
-					continue
-				match item[0]:
-					"trees":
-						result.trees.append({"at": at, "height": random.randf_range(5.0, 8.0), "radius": random.randf_range(2.0, 3.0)})
-					"bushes":
-						result.bushes.append({"at": at, "size": random.randf_range(0.6, 1.3)})
-					"small_rocks":
-						result.small_rocks.append(_rock(random, at, 0.25, 0.5))
+	# Small rocks scattered over the open lowland, on a jittered grid.
+	var spacing: float = 15.0
+	for gx: int in int(WIDTH / spacing):
+		for gz: int in int(DEPTH / spacing):
+			if random.randf() > 0.25:
+				continue
+			var at := Vector2(-WIDTH / 2.0 + (gx + random.randf()) * spacing, -DEPTH / 2.0 + (gz + random.randf()) * spacing)
+			if _open_ground(at, 1.5) and not FOREST.grow(4.0).has_point(at):
+				result.small_rocks.append(_rock(random, at, 0.25, 0.5))
 	for index: int in 24:
 		var angle: float = TAU * index / 24.0
 		result.buoys.append({"at": LAKE + Vector2(cos(angle), sin(angle)) * (DEEP_WATER_RADIUS + 1.0)})

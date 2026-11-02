@@ -708,7 +708,17 @@ committed). To watch: open `tests/test_runner.tscn` and press F6.
       forest (`HazeZone`). One MultiMesh per kind; trees and rocks solid, bushes not.
     - Physics tank: sloped front plate, turning road wheels, moving track links (`TankDetails`);
       dust and water spray per tread (`TreadDust`).
-    - Tab panel Graphics section (`GraphicsOptions`): tank details, dust, bushes, shadows, haze.
+    - Tab panel Graphics section (`GraphicsOptions`): tank details, dust, bushes, shadows, haze
+      (removed in 26).
     - Found: boulders blocked the cone test's run-up; a run-up east of the cone is kept clear.
     - F3 now shows the frame rate. Checked in software-rendered screenshots only; frame rate on
       the laptop not measured. 252 checks pass.
+26. **After play-testing the dressing** (2026-11-02, developer's requests). Frame rate fine.
+    - Graphics tick boxes removed (`GraphicsOptions` deleted); everything stays on.
+    - Scattered trees and bushes removed (didn't look good); pines stay in the misty forest.
+    - Pines were solid out to half their canopy; now only the trunk is solid.
+    - Deep water is now a depth rule: over 1.2 m of water under the tank sends it back to the
+      start (lake past the buoys and the river's channel; the ford 0.4 m and low route 0.6 m
+      stay crossable). Was only the lake, via an Area3D.
+    - Forest fog starts at the forest's edge (was 10 m before it), full 20 m in.
+    - 249 checks pass (the Graphics tick-box checks went with the tick boxes).

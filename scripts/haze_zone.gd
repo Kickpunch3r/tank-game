@@ -4,10 +4,9 @@ extends Node3D
 ## the middle of the area, on the ground, and set its size.
 ##
 ## - From outside, soft mist sheets hang among the trees, so it looks misty.
-## - When the camera is inside, the level's fog thickens, easing in over
-##   `edge` metres at the border, and thins again as you leave.
-## It is always misty, even with the Tab panel's Haze switched off (that
-## switch only affects the haze over the rest of the level).
+## - When the camera is inside, the level's fog thickens, starting at the
+##   border and reaching full thickness `edge` metres in, and thins again as
+##   you leave.
 
 ## Width (X) and length (Z) of the area, in metres.
 @export var size: Vector2 = Vector2(100.0, 70.0)
@@ -18,7 +17,7 @@ extends Node3D
 ## Fog density with the camera well inside (the level's normal haze is about 0.001).
 @export var inside_density: float = 0.03
 
-## Over how many metres the fog thickens at the border.
+## How many metres inside the border the fog reaches full thickness.
 @export var edge: float = 20.0
 
 ## How many mist sheets hang in the area.
@@ -43,9 +42,7 @@ func _process(_delta: float) -> void:
 	if _environment == null:
 		return
 	var inside: float = camera_inside_amount()
-	var outside_density: float = _outside_density if GraphicsOptions.haze else 0.0
-	_environment.fog_enabled = GraphicsOptions.haze or inside > 0.001
-	_environment.fog_density = lerpf(outside_density, inside_density, inside)
+	_environment.fog_density = lerpf(_outside_density, inside_density, inside)
 
 
 ## How far inside the area the camera is: 0 = outside, 1 = well inside.
@@ -53,9 +50,15 @@ func camera_inside_amount() -> float:
 	var camera: Camera3D = get_viewport().get_camera_3d()
 	if camera == null:
 		return 0.0
-	var local: Vector3 = to_local(camera.global_position)
+	return inside_amount_at(camera.global_position)
+
+
+## How far inside the area a spot is: 0 = at the border or outside, 1 = at
+## least `edge` metres in.
+func inside_amount_at(world_position: Vector3) -> float:
+	var local: Vector3 = to_local(world_position)
 	var inside: float = minf(size.x / 2.0 - absf(local.x), size.y / 2.0 - absf(local.z))
-	return smoothstep(-edge * 0.5, edge * 0.5, inside)
+	return smoothstep(0.0, edge, inside)
 
 
 func _build_mist() -> void:

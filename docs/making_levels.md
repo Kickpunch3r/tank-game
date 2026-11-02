@@ -73,8 +73,9 @@ LevelTerrain node's Inspector to keep them.
 ## Water
 The Proving Ground has a `Water` node: one flat, see-through plane at a fixed height (2.6 m).
 Wherever the painted ground is lower than that, you see water. Paint a channel below it for a
-river or lake. Shallow water (a few tenths of a metre) is a ford the tank can cross; deep water
-with steep banks keeps it out.
+river or lake. Shallow water (a few tenths of a metre) is a ford the tank can cross. In the
+Proving Ground, water deeper than 1.2 m (`ProvingGroundLayout.DEEP_WATER_DEPTH`) sends the tank
+back to the start (checked by `proving_ground_scenery.gd`).
 
 ## The Proving Ground's generator
 `tools/generate_proving_ground.gd` painted the first `height.png` and `terrain.png` from the plan

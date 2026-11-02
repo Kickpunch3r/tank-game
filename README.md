@@ -22,12 +22,12 @@ the **high route** (orange posts, west) climbs onto a ridge and runs along a san
 cliff and a lake; the **low route** (blue posts) goes through a mud basin, across a river at a
 shallow ford and over sand dunes. Both end at the **goal** plateau in the north, marked by a
 big turning gold cube. The mountains,
-the cliffs, the steep cone hill, the mesa and the river's deep water can't be driven through.
-The river opens into a **lake** in the west: past its orange buoys the water is deep, and driving
-in sends you back to the start. Also: a **dune sea** (south-west), a **misty pine forest**
-(north-east, always foggy inside), big rocks along the high road, a boulder field, a rubble patch
-by the test area, and scattered trees, bushes and small rocks. Trees and rocks are solid (small
-rocks too: you drive over them); bushes are not.
+the cliffs, the steep cone hill and the mesa can't be driven up. **Deep water sends you back to
+the start**: the river's channel (cross at the ford) and the **lake** in the west past its orange
+buoys. Also: a **dune sea** (south-west), a **misty pine forest** (north-east, always foggy
+inside; only the trunks are solid), big rocks along the high road, a boulder field, a rubble
+patch by the test area, and scattered small rocks. Rocks are solid (small ones too: you drive
+over them).
 
 **The old test course** (`scenes/test_course.tscn`, open it and press F6) is still there for
 development.
@@ -38,8 +38,7 @@ sun, haze and colour grading on the `WorldEnvironment` and `Sun` nodes in the le
 Where things stand is planned in `levels/proving_ground/proving_ground_layout.gd` (`scenery()`)
 and built by `proving_ground_scenery.gd`; the misty forest is the `MistyForest` node (`HazeZone`).
 The physics tank's road wheels and moving tracks (`TankDetails`) and dust (`TreadDust`) are in
-`Visual/Hull`. **Graphics** in the Tab panel switches off tank details, dust, bushes, shadows and
-distance haze if the game runs slowly (all on at the start; lasts until you quit).
+`Visual/Hull`.
 
 ## Controls
 
