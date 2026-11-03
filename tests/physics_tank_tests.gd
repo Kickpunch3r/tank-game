@@ -111,9 +111,9 @@ func run_swap() -> void:
 	report.check("Physics HUD: 8 probes (touching, spring squash), pitch and roll, grip per tread",
 			probe_rows == 4 and hud_text.contains("Hull pitch") and hud_text.contains("roll")
 			and hud_text.contains("grip ok") and hud_text.contains("%"), "%d probe rows" % probe_rows)
-	await _tap_key(KEY_V)
 	var physics_slit: DriverSlitCamera = physics.get_node(^"Visual/Hull/DriverSlitCamera")
-	report.check("V shows the physics tank's slit view", physics_slit.current and physics_slit.is_slit_visible())
+	report.check("The slit view stays on through the swap, now the physics tank's slit",
+			physics_slit.current and physics_slit.is_slit_visible())
 	await _tap_key(KEY_V)
 	var phone_source: PhoneDriverInput = physics.get_node(^"DriverStation/PhoneDriverInput")
 	report.check("The physics tank's phone input finds the phone server", phone_source._find_server() != null)

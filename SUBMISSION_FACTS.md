@@ -45,7 +45,7 @@ planned co-operative tank crew game.
 | `Space` (hold) | Brake: both levels to 0, stops the tank and holds it on slopes |
 | `R` | Reset the tank to the reset point (default: the start) |
 | (on screen) | Throttle bars, bottom corners: each tread's lever notch; the top notch is the turbo (the full level, bigger and flashing; no extra power) |
-| `V` | Switch view: chase camera / driver's vision slit |
+| `V` | Switch view: driver's vision slit (first person, the starting view) / chase camera |
 | `F11` | Full screen / window (starts full screen) |
 | Ableton Push 3 (optional) | Pads: two lever columns each side (7 notches), 2×2 brake square in the middle (setup below) |
 

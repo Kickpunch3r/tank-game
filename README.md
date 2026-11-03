@@ -48,7 +48,7 @@ The physics tank's road wheels and moving tracks (`TankDetails`) and dust (`Trea
 | `Up` / `Down` | Right tread one level up / down |
 | `Space` (hold) | **Brake**: both levels to 0, stops the tank, holds it still on slopes |
 | `R` | Reset the tank to the start |
-| `V` | Switch view: chase camera / driver's vision slit |
+| `V` | Switch view: driver's vision slit (first person, the starting view) / chase camera |
 | `F3` | Show / hide the debug display (frame rate at the top; hidden at the start; the phone status line at the bottom left shows with it) |
 | `Tab` | Open / close the tuning panel (use the mouse on it) |
 | `F11` | Full screen / window (the game starts full screen) |

@@ -19,11 +19,11 @@ func run() -> void:
 	var slit: DriverSlitCamera = tank.get_node(^"Visual/Hull/DriverSlitCamera")
 	var hud: DebugHud = course.get_node(^"PlayerRig/DebugHud")
 
-	report.check("Starts in the chase view, no slit mask", chase.current and not slit.is_slit_visible())
+	report.check("Starts in the driver's slit view (first person), mask showing", slit.current and slit.is_slit_visible())
 	await _tap_key(KEY_V)
-	report.check("V switches to the driver's slit, mask showing", slit.current and slit.is_slit_visible())
+	report.check("V switches to the chase view, no slit mask", chase.current and not slit.is_slit_visible())
 	await _tap_key(KEY_V)
-	report.check("V again switches back to the chase view", chase.current and not slit.is_slit_visible())
+	report.check("V again switches back to the driver's slit", slit.current and slit.is_slit_visible())
 
 	var front_of_hull: bool = slit.position.z < -2.0 and slit.get_parent().name == "Hull"
 	report.check("Slit camera sits at the front of the hull", front_of_hull, "local position %s" % slit.position)

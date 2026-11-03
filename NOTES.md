@@ -728,3 +728,7 @@ committed). To watch: open `tests/test_runner.tscn` and press F6.
     - Checked by packing with the preset and running the pack without the project: all loads.
     - Found: `LevelTerrain` read the raw PNG whenever the binary had the editor feature, even
       when running a pack; now it does so only if the PNG is on disk (else the imported Image).
+28. **Starts in the driver's slit view** (2026-11-03, developer's change in the editor, pushed from
+    the laptop): `ViewSwitcher.views` now lists the slit camera first; V switches to the chase
+    camera. View and swap tests updated. Godot also re-saved `export_presets.cfg` and the scenes
+    (UIDs, unique IDs). The Windows build was made and checked on the laptop.
