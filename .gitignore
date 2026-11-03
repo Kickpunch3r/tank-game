@@ -7,3 +7,6 @@
 
 # Test report, rewritten every test run
 tests/last_results.txt
+
+# Windows builds
+build/

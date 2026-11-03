@@ -722,3 +722,9 @@ committed). To watch: open `tests/test_runner.tscn` and press F6.
       stay crossable). Was only the lake, via an Area3D.
     - Forest fog starts at the forest's edge (was 10 m before it), full 20 m in.
     - 249 checks pass (the Graphics tick-box checks went with the tick boxes).
+27. **Windows export preset** (2026-11-03, for submission): `export_presets.cfg` (Windows Desktop,
+    pck embedded, includes `web/*` and `levels/*.txt`, excludes `tests/`, `scratch/`, `tools/`),
+    `GODOT_LICENSE.txt` (from `Engine.get_license_text()`), `build/` ignored by git.
+    - Checked by packing with the preset and running the pack without the project: all loads.
+    - Found: `LevelTerrain` read the raw PNG whenever the binary had the editor feature, even
+      when running a pack; now it does so only if the PNG is on disk (else the imported Image).

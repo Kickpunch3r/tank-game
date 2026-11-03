@@ -168,13 +168,15 @@ func ground_size() -> Vector2:
 
 ## Level images must be imported as "Image" (Import dock), which keeps every
 ## pixel exactly. In the editor the PNG file itself is read, so a save from
-## Photoshop shows straight away; an exported game loads the imported Image.
+## Photoshop shows straight away; an exported game (where the PNG file isn't on
+## disk) loads the imported Image.
 func _load_image(path: String) -> Image:
 	if path.is_empty():
 		return null
 	var image: Image = null
-	if OS.has_feature("editor"):
-		image = Image.load_from_file(ProjectSettings.globalize_path(path))
+	var file_on_disk: String = ProjectSettings.globalize_path(path)
+	if OS.has_feature("editor") and FileAccess.file_exists(file_on_disk):
+		image = Image.load_from_file(file_on_disk)
 	else:
 		image = load(path) as Image
 	if image == null:

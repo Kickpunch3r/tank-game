@@ -9,27 +9,17 @@ them down; everything else says "reason: ask the user". Nothing in the game was 
 ## 1. Readme section
 
 ### How to run
-**No standalone Windows build exists yet**: the project has no export preset
-(`export_presets.cfg`). Until one is made, it runs from the Godot 4.6.3 editor: open
-`project.godot` and press Play (F5); the main scene is the Proving Ground level
-(`levels/proving_ground/proving_ground.tscn`).
-
-To make the Windows build (Godot 4.6.3):
-1. Editor > **Manage Export Templates** > download the 4.6.3 templates (official Godot download).
-2. Project > **Export** > Add > **Windows Desktop**.
-3. In the preset's **Resources** tab, "Filters to export non-resource files", add:
-   `web/*, levels/*.txt`. The game reads these as plain files at runtime (phone page
-   `web/controller.html`, Push relay page `web/push_relay.html`, ramp lists
-   `levels/slope_ladder.txt` and `levels/terrain_ramps.txt`); without them the ramps and the
-   phone page are missing. (Recorded in `NOTES.md`, "Known issues" and "Phone controller".)
-4. Export Project > an empty folder > `TankGame.exe` (with "Export With Debug" off for a release build).
-5. Copy `web/push_relay.html` into the same folder (the Push 3 pad lights need it as a normal
-   file the marker can open in a browser).
-6. Zip the folder. The marker runs `TankGame.exe`; no Godot needed.
-- Untested: no export has been made, so steps 3–4 are unconfirmed in practice.
-- The level images (`height.png`, `terrain.png`) are imported as Godot "Image" resources, so
-  they are packed into the export automatically; no filter is needed for them (changed
-  2026-10-30; before that, Godot warned the old way of reading them would not work in an export).
+Windows build: the project has an export preset, **Windows Desktop** (`export_presets.cfg`,
+added 2026-11-03), which writes `build/TankGame.exe` with everything packed inside it. It
+already includes the plain files the game reads at runtime (`web/*`, `levels/*.txt`) and leaves
+out `tests/`, `scratch/` and `tools/`. Steps are in `README.md`, "Making the Windows build".
+The marker's folder holds `TankGame.exe`, `GODOT_LICENSE.txt` (Godot's MIT licence, required)
+and optionally `web/push_relay.html` (only for the Push 3 pad lights). The marker runs
+`TankGame.exe`; no Godot needed.
+- Checked 2026-11-03 by packing the game with that preset and running the pack without the
+  project folder: the level, ground images, ramps, forest and phone page load; tests are left
+  out. The Windows .exe itself was made on the developer's laptop (not in the cloud).
+- Without the preset, it runs from the Godot 4.6.3 editor: open `project.godot` and press Play.
 
 ### Goal
 Drive a heavy tank (a physics body on 8 springs) by controlling its left and right treads

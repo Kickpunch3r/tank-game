@@ -72,6 +72,16 @@ The physics tank's road wheels and moving tracks (`TankDetails`) and dust (`Trea
 - All keys can be changed in **Project > Project Settings > Input Map** (actions starting
   with `driver_`, plus `view_toggle` and `debug_hud_toggle`).
 
+## Making the Windows build
+The export settings are already in the project (`export_presets.cfg`, preset **Windows Desktop**).
+1. In Godot: **Editor > Manage Export Templates > Download and Install** (4.6.3; once per
+   computer; saved in your user folder, no admin rights needed).
+2. **Project > Export**, pick **Windows Desktop**, click **Export Project**, untick **Export With
+   Debug**, save as `build/TankGame.exe` (the `build` folder is ignored by git).
+3. Copy `GODOT_LICENSE.txt` into `build/` (Godot's licence must ship with the game). For the Push 3
+   pad lights, also copy `web/push_relay.html`.
+4. Run `build/TankGame.exe` to check it, then zip the `build` folder.
+
 ## Changing things
 - **While playing: the tuning panel (Tab).** Sliders for every driving value, the new air and
   landing values (air gravity, nose dip, landing speed loss), the chase camera and the slit
