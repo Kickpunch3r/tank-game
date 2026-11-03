@@ -1,17 +1,18 @@
-[gd_scene format=3]
+[gd_scene format=3 uid="uid://b12dam2l45h1c"]
 
-[ext_resource type="Script" path="res://scripts/level_root.gd" id="1_level_root"]
-[ext_resource type="Script" path="res://scripts/level_terrain.gd" id="2_level_terrain"]
-[ext_resource type="Script" path="res://scripts/level_start.gd" id="3_level_start"]
+[ext_resource type="Script" uid="uid://fmgh50ivpc7d" path="res://scripts/level_root.gd" id="1_level_root"]
+[ext_resource type="Script" uid="uid://djaocshjqv45b" path="res://scripts/level_terrain.gd" id="2_level_terrain"]
+[ext_resource type="Script" uid="uid://bw6jhoy8o3te5" path="res://scripts/level_start.gd" id="3_level_start"]
+[ext_resource type="Script" uid="uid://c01kv1prqg8ax" path="res://scripts/terrain_type.gd" id="3_pqsiw"]
 [ext_resource type="Resource" path="res://terrain/mud.tres" id="4_mud"]
 [ext_resource type="Resource" path="res://terrain/sand.tres" id="5_sand"]
-[ext_resource type="Script" path="res://scripts/slope_ladder.gd" id="6_ladder"]
-[ext_resource type="Script" path="res://scripts/comparison_features.gd" id="7_features"]
-[ext_resource type="Script" path="res://levels/proving_ground/route_markers.gd" id="8_markers"]
-[ext_resource type="Script" path="res://scripts/objective_marker.gd" id="9_objective"]
-[ext_resource type="Shader" path="res://art/water.gdshader" id="10_water"]
-[ext_resource type="Script" path="res://levels/proving_ground/proving_ground_scenery.gd" id="11_scenery"]
-[ext_resource type="Script" path="res://scripts/haze_zone.gd" id="12_haze"]
+[ext_resource type="Script" uid="uid://disbr778sui33" path="res://scripts/slope_ladder.gd" id="6_ladder"]
+[ext_resource type="Script" uid="uid://biebv2nhlkyl3" path="res://scripts/comparison_features.gd" id="7_features"]
+[ext_resource type="Script" uid="uid://ck8qkd6i7bjn0" path="res://levels/proving_ground/route_markers.gd" id="8_markers"]
+[ext_resource type="Script" uid="uid://cumc2gjb0ricl" path="res://scripts/objective_marker.gd" id="9_objective"]
+[ext_resource type="Shader" uid="uid://2v06hxmah1g3" path="res://art/water.gdshader" id="10_water"]
+[ext_resource type="Script" uid="uid://b21rdrlqpwb" path="res://levels/proving_ground/proving_ground_scenery.gd" id="11_scenery"]
+[ext_resource type="Script" uid="uid://df43rqrjgiw54" path="res://scripts/haze_zone.gd" id="12_haze"]
 
 [sub_resource type="ProceduralSkyMaterial" id="SkyMaterial_main"]
 sky_top_color = Color(0.3, 0.48, 0.76, 1)
@@ -27,8 +28,8 @@ sky_material = SubResource("SkyMaterial_main")
 background_mode = 2
 sky = SubResource("Sky_main")
 ambient_light_source = 3
-ambient_light_sky_contribution = 0.6
 ambient_light_color = Color(0.62, 0.6, 0.55, 1)
+ambient_light_sky_contribution = 0.6
 ambient_light_energy = 0.8
 tonemap_mode = 2
 tonemap_white = 6.0
@@ -44,6 +45,12 @@ adjustment_saturation = 1.1
 [sub_resource type="ShaderMaterial" id="Material_water"]
 render_priority = 0
 shader = ExtResource("10_water")
+shader_parameter/shallow_colour = Color(0.3, 0.52, 0.52, 1)
+shader_parameter/deep_colour = Color(0.06, 0.2, 0.3, 1)
+shader_parameter/foam_colour = Color(0.92, 0.95, 0.96, 1)
+shader_parameter/deep_from_metres = 1.8
+shader_parameter/foam_metres = 0.25
+shader_parameter/ripple_strength = 0.35
 
 [sub_resource type="PlaneMesh" id="PlaneMesh_water"]
 material = SubResource("Material_water")
@@ -61,13 +68,13 @@ emission_energy_multiplier = 0.6
 material = SubResource("Material_gold")
 size = Vector3(9, 9, 9)
 
-[node name="ProvingGround" type="Node3D"]
+[node name="ProvingGround" type="Node3D" unique_id=1290916410]
 script = ExtResource("1_level_root")
 
-[node name="WorldEnvironment" type="WorldEnvironment" parent="."]
+[node name="WorldEnvironment" type="WorldEnvironment" parent="." unique_id=1832365061]
 environment = SubResource("Environment_main")
 
-[node name="Sun" type="DirectionalLight3D" parent="."]
+[node name="Sun" type="DirectionalLight3D" parent="." unique_id=1192693304]
 transform = Transform3D(0.866, 0, -0.5, -0.383, 0.6428, -0.6634, 0.3214, 0.766, 0.5567, 0, 40, 0)
 light_color = Color(1, 0.94, 0.84, 1)
 light_energy = 1.15
@@ -75,45 +82,45 @@ shadow_enabled = true
 shadow_blur = 1.5
 directional_shadow_max_distance = 200.0
 
-[node name="LevelTerrain" type="Node3D" parent="."]
+[node name="LevelTerrain" type="Node3D" parent="." unique_id=855459934]
 script = ExtResource("2_level_terrain")
 height_image_path = "res://levels/proving_ground/height.png"
 max_height = 51.0
 smoothing = 1
 terrain_image_path = "res://levels/proving_ground/terrain.png"
-terrain_types = Array[Resource]([ExtResource("4_mud"), ExtResource("5_sand")])
+terrain_types = Array[ExtResource("3_pqsiw")]([ExtResource("4_mud"), ExtResource("5_sand")])
 
-[node name="Water" type="MeshInstance3D" parent="." groups=["water_surface"]]
+[node name="Water" type="MeshInstance3D" parent="." unique_id=516994793 groups=["water_surface"]]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 2.6, 0)
 mesh = SubResource("PlaneMesh_water")
 
-[node name="LevelStart" type="Marker3D" parent="."]
+[node name="LevelStart" type="Marker3D" parent="." unique_id=302866631]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -10, 4, 150)
 script = ExtResource("3_level_start")
 
-[node name="SlopeLadder" type="Node3D" parent="."]
+[node name="SlopeLadder" type="Node3D" parent="." unique_id=1391664604]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 110, 4, 120)
 script = ExtResource("6_ladder")
 run_up_length = 45.0
 
-[node name="ComparisonFeatures" type="Node3D" parent="."]
+[node name="ComparisonFeatures" type="Node3D" parent="." unique_id=1282577427]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 110, 4, 10)
 script = ExtResource("7_features")
 
-[node name="RouteMarkers" type="Node3D" parent="." node_paths=PackedStringArray("level_terrain")]
+[node name="RouteMarkers" type="Node3D" parent="." unique_id=774940347 node_paths=PackedStringArray("level_terrain")]
 script = ExtResource("8_markers")
 level_terrain = NodePath("../LevelTerrain")
 
-[node name="GoalCube" type="MeshInstance3D" parent="."]
+[node name="GoalCube" type="MeshInstance3D" parent="." unique_id=2320167]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -40, 22, -145)
 mesh = SubResource("BoxMesh_goal")
 script = ExtResource("9_objective")
 
-[node name="Scenery" type="Node3D" parent="." node_paths=PackedStringArray("level_terrain")]
+[node name="Scenery" type="Node3D" parent="." unique_id=778355823 node_paths=PackedStringArray("level_terrain")]
 script = ExtResource("11_scenery")
 level_terrain = NodePath("../LevelTerrain")
 
-[node name="MistyForest" type="Node3D" parent="."]
+[node name="MistyForest" type="Node3D" parent="." unique_id=602666532]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 151, 4, -137)
 script = ExtResource("12_haze")
 size = Vector2(106, 74)

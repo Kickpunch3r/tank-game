@@ -1,20 +1,20 @@
-[gd_scene format=3]
+[gd_scene format=3 uid="uid://d3hli7wk6pbkr"]
 
 [ext_resource type="PackedScene" path="res://scenes/tank.tscn" id="1_tank"]
-[ext_resource type="Script" path="res://scripts/chase_camera.gd" id="2_camera"]
-[ext_resource type="Script" path="res://scripts/view_switcher.gd" id="3_switcher"]
-[ext_resource type="Script" path="res://scripts/debug_hud.gd" id="4_hud"]
-[ext_resource type="Script" path="res://scripts/tuning_panel.gd" id="5_tuning_panel"]
-[ext_resource type="Script" path="res://scripts/net/controller_server.gd" id="6_controller_server"]
-[ext_resource type="Script" path="res://scripts/net/phone_status_label.gd" id="7_phone_label"]
-[ext_resource type="Script" path="res://scripts/net/usb_phone_link.gd" id="8_usb_link"]
+[ext_resource type="Script" uid="uid://bda0qeonruxbq" path="res://scripts/chase_camera.gd" id="2_camera"]
+[ext_resource type="Script" uid="uid://c8ynq4pgxm1t7" path="res://scripts/view_switcher.gd" id="3_switcher"]
+[ext_resource type="Script" uid="uid://bcy4xptm0wcuk" path="res://scripts/debug_hud.gd" id="4_hud"]
+[ext_resource type="Script" uid="uid://cpck8w1ewwgnn" path="res://scripts/tuning_panel.gd" id="5_tuning_panel"]
+[ext_resource type="Script" uid="uid://4skktimskvdv" path="res://scripts/net/controller_server.gd" id="6_controller_server"]
+[ext_resource type="Script" uid="uid://1kt3625a5jrq" path="res://scripts/net/phone_status_label.gd" id="7_phone_label"]
+[ext_resource type="Script" uid="uid://dl02jdp2pc2v1" path="res://scripts/net/usb_phone_link.gd" id="8_usb_link"]
 [ext_resource type="PackedScene" path="res://scenes/physics_tank.tscn" id="13_physics_tank"]
-[ext_resource type="Script" path="res://scripts/player_rig.gd" id="14_rig"]
-[ext_resource type="Script" path="res://scripts/push/push_controller.gd" id="15_push_controller"]
-[ext_resource type="Script" path="res://scripts/push/push_light_sender.gd" id="16_push_lights"]
-[ext_resource type="Script" path="res://scripts/throttle_display.gd" id="17_throttle"]
+[ext_resource type="Script" uid="uid://bywby26qka7hg" path="res://scripts/player_rig.gd" id="14_rig"]
+[ext_resource type="Script" uid="uid://btm1sgfqvtdc6" path="res://scripts/push/push_controller.gd" id="15_push_controller"]
+[ext_resource type="Script" uid="uid://c8dfloifce6tq" path="res://scripts/push/push_light_sender.gd" id="16_push_lights"]
+[ext_resource type="Script" uid="uid://b3dplngxl5yce" path="res://scripts/throttle_display.gd" id="17_throttle"]
 
-[node name="PlayerRig" type="Node3D" node_paths=PackedStringArray("tanks", "chase_camera", "view_switcher", "debug_hud", "tuning_panel", "controller_server")]
+[node name="PlayerRig" type="Node3D" unique_id=318606886 node_paths=PackedStringArray("tanks", "chase_camera", "view_switcher", "debug_hud", "tuning_panel", "controller_server")]
 script = ExtResource("14_rig")
 tanks = [NodePath("PhysicsTank"), NodePath("Tank")]
 chase_camera = NodePath("ChaseCamera")
@@ -23,53 +23,53 @@ debug_hud = NodePath("DebugHud")
 tuning_panel = NodePath("TuningPanel")
 controller_server = NodePath("ControllerServer")
 
-[node name="Tank" parent="." instance=ExtResource("1_tank")]
+[node name="Tank" parent="." unique_id=1278735181 instance=ExtResource("1_tank")]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 1, 0)
 
-[node name="PhysicsTank" parent="." instance=ExtResource("13_physics_tank")]
+[node name="PhysicsTank" parent="." unique_id=1325948217 instance=ExtResource("13_physics_tank")]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 1, 0)
 
-[node name="ChaseCamera" type="Camera3D" parent="." node_paths=PackedStringArray("target")]
+[node name="ChaseCamera" type="Camera3D" parent="." unique_id=1337197322 node_paths=PackedStringArray("target")]
 current = true
 script = ExtResource("2_camera")
 target = NodePath("../PhysicsTank")
 
-[node name="ViewSwitcher" type="Node" parent="." node_paths=PackedStringArray("views")]
+[node name="ViewSwitcher" type="Node" parent="." unique_id=153406295 node_paths=PackedStringArray("views")]
 script = ExtResource("3_switcher")
-views = [NodePath("../ChaseCamera"), NodePath("../PhysicsTank/Visual/Hull/DriverSlitCamera")]
+views = [NodePath("../PhysicsTank/Visual/Hull/DriverSlitCamera"), NodePath("../ChaseCamera")]
 
-[node name="DebugHud" type="CanvasLayer" parent="." node_paths=PackedStringArray("station", "tank", "view_switcher")]
+[node name="DebugHud" type="CanvasLayer" parent="." unique_id=1899868787 node_paths=PackedStringArray("station", "tank", "view_switcher")]
 script = ExtResource("4_hud")
 station = NodePath("../PhysicsTank/DriverStation")
 tank = NodePath("../PhysicsTank")
 view_switcher = NodePath("../ViewSwitcher")
 
-[node name="TuningPanel" type="CanvasLayer" parent="." node_paths=PackedStringArray("tank", "chase_camera")]
+[node name="TuningPanel" type="CanvasLayer" parent="." unique_id=1706845780 node_paths=PackedStringArray("tank", "chase_camera")]
 script = ExtResource("5_tuning_panel")
 tank = NodePath("../PhysicsTank")
 chase_camera = NodePath("../ChaseCamera")
 
-[node name="ControllerServer" type="Node" parent="." node_paths=PackedStringArray("tank")]
+[node name="ControllerServer" type="Node" parent="." unique_id=1103397219 node_paths=PackedStringArray("tank")]
 script = ExtResource("6_controller_server")
 tank = NodePath("../Tank")
 
-[node name="UsbPhoneLink" type="Node" parent="." node_paths=PackedStringArray("server")]
+[node name="UsbPhoneLink" type="Node" parent="." unique_id=589401046 node_paths=PackedStringArray("server")]
 script = ExtResource("8_usb_link")
 server = NodePath("../ControllerServer")
 
-[node name="PhoneStatusLabel" type="CanvasLayer" parent="." node_paths=PackedStringArray("server", "usb_link", "debug_hud")]
+[node name="PhoneStatusLabel" type="CanvasLayer" parent="." unique_id=536777970 node_paths=PackedStringArray("server", "usb_link", "debug_hud")]
 script = ExtResource("7_phone_label")
 server = NodePath("../ControllerServer")
 usb_link = NodePath("../UsbPhoneLink")
 debug_hud = NodePath("../DebugHud")
 
-[node name="PushController" type="Node" parent="."]
+[node name="PushController" type="Node" parent="." unique_id=851683936]
 script = ExtResource("15_push_controller")
 
-[node name="PushLightSender" type="Node" parent="." node_paths=PackedStringArray("rig")]
+[node name="PushLightSender" type="Node" parent="." unique_id=1098673549 node_paths=PackedStringArray("rig")]
 script = ExtResource("16_push_lights")
 rig = NodePath("..")
 
-[node name="ThrottleDisplay" type="CanvasLayer" parent="." node_paths=PackedStringArray("rig")]
+[node name="ThrottleDisplay" type="CanvasLayer" parent="." unique_id=355667018 node_paths=PackedStringArray("rig")]
 script = ExtResource("17_throttle")
 rig = NodePath("..")
