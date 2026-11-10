@@ -1,0 +1,7 @@
+{
+  "name": "little-tank-tests",
+  "private": true,
+  "description": "Headless browser tests for mobile/index.html",
+  "scripts": { "test": "node run_tests.js" },
+  "devDependencies": { "three": "0.128.0" }
+}

@@ -10,3 +10,8 @@ tests/last_results.txt
 
 # Windows builds
 build/
+
+# Mobile game tests
+mobile/tests/node_modules/
+mobile/tests/shots/
+mobile/tests/package-lock.json

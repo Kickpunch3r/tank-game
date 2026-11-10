@@ -740,3 +740,6 @@ committed). To watch: open `tests/test_runner.tscn` and press F6.
 30. **Mobile game: strip level** (2026-11-10, developer's requests): zoomed out, camera locked to
     the level's width and following north, one test level (plain, mountain road, cliff path,
     flag) with checkpoints. See `mobile/README.md`.
+31. **Mobile game: set up for any model/session** (2026-11-10): tests saved in `mobile/tests/`
+    (`node run_tests.js`, 10 checks pass), instructions in `mobile/CLAUDE.md` (layout, testing,
+    publishing to the same phone link), pointer added to the root `CLAUDE.md`.

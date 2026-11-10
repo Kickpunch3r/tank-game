@@ -7,6 +7,8 @@ use Godot: it is one web page, `index.html`, drawn in 3D with three.js (loaded f
   private claude.ai link Claude publishes while working.
 - **Controls:** two thumb levers, one per tread. On a desktop: W/S for the left tread, Up/Down
   arrows for the right.
+- **Tests:** `cd mobile/tests`, `npm install` once, then `node run_tests.js` (details in
+  `mobile/CLAUDE.md`).
 - **Settings:** the `SET` block near the top of the script in `index.html`.
 
 ## State (step 2, 2026-11-10): one test level
