@@ -1,0 +1,565 @@
+<title>Little Tank</title>
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
+<meta name="claude:viewport-fit-sides" content="cover">
+<style>
+  /* Layout: full-screen 3D view; two thumb levers pinned to the bottom corners (portrait). */
+  :root {
+    color-scheme: dark;
+    --haze: #aebfb6;          /* sky / distance colour behind the terrain */
+    --panel: rgba(24, 30, 24, 0.55);
+    --panel-edge: rgba(235, 240, 220, 0.35);
+    --ink: #f1f3e6;
+    --ink-dim: rgba(241, 243, 230, 0.7);
+    --grip: #d9a441;          /* lever grip: brass */
+    --grip-edge: #7a5a1c;
+    --font-ui: "Trebuchet MS", "Segoe UI", system-ui, sans-serif;
+    --font-data: ui-monospace, "SF Mono", Menlo, Consolas, monospace;
+  }
+  [hidden] { display: none !important; }
+  html, body { height: 100%; margin: 0; }
+  body {
+    background: var(--haze);
+    color: var(--ink);
+    font-family: var(--font-ui);
+    overflow: hidden;
+    touch-action: none;
+    user-select: none;
+    -webkit-user-select: none;
+    -webkit-touch-callout: none;
+    overscroll-behavior: none;
+  }
+  #view { position: fixed; inset: 0; width: 100%; height: 100%; display: block; }
+
+  #hud {
+    position: fixed; inset: 0;
+    padding-top: calc(env(safe-area-inset-top, 0px) + 10px);
+    padding-bottom: calc(env(safe-area-inset-bottom, 0px) + 14px);
+    padding-left: max(16px, env(safe-area-inset-left, 0px));
+    padding-right: max(16px, env(safe-area-inset-right, 0px));
+    display: flex; flex-direction: column; justify-content: space-between;
+    pointer-events: none;
+  }
+  #topbar { display: flex; justify-content: space-between; align-items: flex-start; gap: 12px; }
+  #readout {
+    font-family: var(--font-data); font-size: 12px; line-height: 1.5;
+    font-variant-numeric: tabular-nums;
+    background: var(--panel); padding: 4px 8px; border-radius: 4px;
+    white-space: pre;
+  }
+  #reset {
+    pointer-events: auto;
+    font: 600 13px var(--font-ui); letter-spacing: 0.06em; text-transform: uppercase;
+    color: var(--ink); background: var(--panel);
+    border: 1px solid var(--panel-edge); border-radius: 4px;
+    padding: 9px 14px;
+  }
+  #reset:active { background: rgba(24, 30, 24, 0.8); }
+  #reset:focus-visible { outline: 2px solid var(--grip); outline-offset: 2px; }
+
+  #levers { display: flex; justify-content: space-between; align-items: flex-end; }
+  /* Each .lever is a big touch zone; the visible slot sits at its outer edge. */
+  .lever {
+    pointer-events: auto; touch-action: none;
+    width: 50%; height: min(46vh, 330px);
+    display: flex; flex-direction: column; justify-content: flex-end; gap: 6px;
+  }
+  .lever.left  { align-items: flex-start; }
+  .lever.right { align-items: flex-end; }
+  .slot {
+    position: relative;
+    width: 68px; height: min(30vh, 210px);
+    background: var(--panel);
+    border: 1px solid var(--panel-edge); border-radius: 10px;
+  }
+  .slot::before {            /* centre notch = stopped */
+    content: ""; position: absolute; left: 8px; right: 8px; top: 50%;
+    height: 2px; margin-top: -1px; background: var(--panel-edge);
+  }
+  .grip {
+    position: absolute; left: 5px; right: 5px; top: 50%;
+    height: 44px; margin-top: -22px;
+    background: var(--grip); border: 2px solid var(--grip-edge); border-radius: 7px;
+    box-shadow: 0 2px 0 rgba(0, 0, 0, 0.35);
+  }
+  .lever-name {
+    width: 68px; text-align: center;
+    font-size: 10px; letter-spacing: 0.12em; text-transform: uppercase; color: var(--ink-dim);
+    text-shadow: 0 1px 2px rgba(0, 0, 0, 0.6);
+  }
+  #fail {
+    position: fixed; inset: 0; display: flex; align-items: center; justify-content: center;
+    padding: 24px; text-align: center; background: #2a302a; color: var(--ink); font-size: 15px;
+  }
+</style>
+
+<canvas id="view"></canvas>
+<div id="hud">
+  <div id="topbar">
+    <div id="readout">starting…</div>
+    <button id="reset" type="button">Reset tank</button>
+  </div>
+  <div id="levers">
+    <div class="lever left" id="leverL">
+      <div class="slot"><div class="grip"></div></div>
+      <div class="lever-name">Left tread</div>
+    </div>
+    <div class="lever right" id="leverR">
+      <div class="slot"><div class="grip"></div></div>
+      <div class="lever-name">Right tread</div>
+    </div>
+  </div>
+</div>
+<div id="fail" hidden>The 3D library did not load. Check the connection and reload the page.</div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+<script>
+"use strict";
+(function () {
+  if (!window.THREE) { document.getElementById("fail").hidden = false; return; }
+
+  // ------------------------------------------------------------------
+  // Settings (all the numbers worth tweaking are here)
+  // ------------------------------------------------------------------
+  const SET = {
+    maxSpeed: 5.0,          // tread speed at full lever, units per second
+    treadAccel: 9.0,        // how fast a tread reaches the lever's speed
+    turnScale: 0.35,        // lower = slower turning
+    trackWidth: 1.6,        // distance between the treads
+    maxClimbDeg: 35,        // the tank stalls on slopes this steep or steeper
+    downhillBoost: 0.3,     // extra speed going downhill (0.3 = up to 30 %)
+    wallDeg: 50,            // ground rising more steeply than this is a wall
+    gravity: 22,
+    teeterZone: 0.7,        // how close (units) the tank's middle gets to an edge before it leans
+    teeterLean: 0.14,       // how far it leans when right at the edge (radians)
+    tiltSpring: 120,        // stiffness of the hull tilting to match the ground
+    tiltDamping: 9,         // lower = rocks for longer
+    viewWidth: 17           // how many units of ground fit across the screen
+  };
+  const START = { x: 0, z: 2, yaw: 0 };
+
+  // ------------------------------------------------------------------
+  // Terrain: a test patch stored as a grid of heights
+  // ------------------------------------------------------------------
+  const HALF = 40, CELL = 0.5, N = (HALF * 2) / CELL;       // 160 cells each way
+  const heights = new Float32Array((N + 1) * (N + 1));
+
+  function smooth(t) { t = Math.min(1, Math.max(0, t)); return t * t * (3 - 2 * t); }
+
+  function designHeight(x, z) {
+    let h = 0;
+    // Steep hill (about 37 degrees at its steepest: the tank stalls part-way up)
+    const hx = x + 22, hz = z + 4;
+    h += 5 * Math.exp(-(hx * hx + hz * hz) / 32);
+    // Rolling ground in the south-west
+    const rd = Math.hypot(x + 16, z - 22);
+    h += 1.0 * Math.sin(x * 0.5) * Math.cos(z * 0.45) * smooth((16 - rd) / 8);
+    // Mesa, 3 high, cliffs on the north and west
+    if (Math.abs(x) <= 8 && z >= -28 && z <= -16) h = Math.max(h, 3);
+    // Gentle ramp (15 degrees) up the mesa's south side
+    if (Math.abs(x) <= 2.5 && z > -16 && z < -4.8) h = Math.max(h, 3 * (1 - (z + 16) / 11.2));
+    // Steep ramp (28 degrees) up the mesa's east side
+    if (z >= -25 && z <= -20 && x > 8 && x < 13.6) h = Math.max(h, 3 * (1 - (x - 8) / 5.6));
+    // Low terrace, 1 high, with a gentle ramp on its west side
+    if (x >= 12 && x <= 24 && z >= 4 && z <= 16) h = Math.max(h, 1);
+    if (z >= 8 && z <= 12 && x > 8.3 && x < 12) h = Math.max(h, 1 - (12 - x) / 3.7);
+    // Rock wall round the edge of the patch
+    const d = Math.max(Math.abs(x), Math.abs(z));
+    if (d > 36) h = Math.max(h, Math.min(8, (d - 36) * 4));
+    return h;
+  }
+
+  for (let j = 0; j <= N; j++) {
+    for (let i = 0; i <= N; i++) {
+      heights[j * (N + 1) + i] = designHeight(-HALF + i * CELL, -HALF + j * CELL);
+    }
+  }
+
+  // Ground height anywhere (blends between the four nearest grid points)
+  function groundHeight(x, z) {
+    let gx = (x + HALF) / CELL, gz = (z + HALF) / CELL;
+    gx = Math.min(N - 0.001, Math.max(0, gx));
+    gz = Math.min(N - 0.001, Math.max(0, gz));
+    const i = Math.floor(gx), j = Math.floor(gz), fx = gx - i, fz = gz - j;
+    const row = j * (N + 1) + i;
+    const a = heights[row], b = heights[row + 1];
+    const c = heights[row + N + 1], d = heights[row + N + 2];
+    return (a * (1 - fx) + b * fx) * (1 - fz) + (c * (1 - fx) + d * fx) * fz;
+  }
+
+  // ------------------------------------------------------------------
+  // Scene
+  // ------------------------------------------------------------------
+  const canvas = document.getElementById("view");
+  const renderer = new THREE.WebGLRenderer({ canvas: canvas, antialias: true });
+  renderer.outputEncoding = THREE.sRGBEncoding;
+  renderer.shadowMap.enabled = true;
+  renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+
+  const HAZE = 0xaebfb6;
+  const scene = new THREE.Scene();
+  scene.background = new THREE.Color(HAZE);
+  scene.fog = new THREE.Fog(HAZE, 70, 140);
+
+  const camera = new THREE.PerspectiveCamera(35, 1, 1, 300);
+  scene.add(new THREE.HemisphereLight(0xdfe9f0, 0x5d6650, 0.75));
+  const sun = new THREE.DirectionalLight(0xfff1d6, 0.95);
+  sun.castShadow = true;
+  sun.shadow.mapSize.set(2048, 2048);
+  sun.shadow.camera.left = -30; sun.shadow.camera.right = 30;
+  sun.shadow.camera.top = 30; sun.shadow.camera.bottom = -30;
+  sun.shadow.camera.near = 1; sun.shadow.camera.far = 120;
+  sun.shadow.bias = -0.0015;
+  scene.add(sun); scene.add(sun.target);
+
+  function buildTerrainMesh() {
+    const triCount = N * N * 2;
+    const pos = new Float32Array(triCount * 9), col = new Float32Array(triCount * 9);
+    const grassLow = new THREE.Color(0x5f8f45).convertSRGBToLinear();
+    const grassHigh = new THREE.Color(0x9fb36a).convertSRGBToLinear();
+    const rock = new THREE.Color(0x8d8474).convertSRGBToLinear();
+    const cliff = new THREE.Color(0x6a6257).convertSRGBToLinear();
+    const tmp = new THREE.Color();
+    const pA = new THREE.Vector3(), pB = new THREE.Vector3(), pC = new THREE.Vector3();
+    const e1 = new THREE.Vector3(), e2 = new THREE.Vector3();
+    let o = 0;
+    function vert(i, j, v) {
+      v.set(-HALF + i * CELL, heights[j * (N + 1) + i], -HALF + j * CELL);
+    }
+    function tri(i0, j0, i1, j1, i2, j2, shade) {
+      vert(i0, j0, pA); vert(i1, j1, pB); vert(i2, j2, pC);
+      e1.subVectors(pB, pA); e2.subVectors(pC, pA); e1.cross(e2).normalize();
+      const up = Math.abs(e1.y), avgH = (pA.y + pB.y + pC.y) / 3;
+      if (up > 0.80) tmp.copy(grassLow).lerp(grassHigh, Math.min(1, Math.max(0, avgH / 5)));
+      else if (up > 0.55) tmp.copy(rock);
+      else tmp.copy(cliff);
+      tmp.multiplyScalar(shade);
+      const pts = [pA, pB, pC];
+      for (let k = 0; k < 3; k++) {
+        pos[o] = pts[k].x; pos[o + 1] = pts[k].y; pos[o + 2] = pts[k].z;
+        col[o] = tmp.r; col[o + 1] = tmp.g; col[o + 2] = tmp.b;
+        o += 3;
+      }
+    }
+    for (let j = 0; j < N; j++) {
+      for (let i = 0; i < N; i++) {
+        // a little fixed patchiness so flat ground isn't one flat colour
+        const s = Math.sin(i * 12.9898 + j * 78.233) * 43758.5453;
+        const shade = 0.94 + 0.12 * (s - Math.floor(s));
+        tri(i, j, i, j + 1, i + 1, j, shade);
+        tri(i + 1, j, i, j + 1, i + 1, j + 1, shade);
+      }
+    }
+    const geo = new THREE.BufferGeometry();
+    geo.setAttribute("position", new THREE.BufferAttribute(pos, 3));
+    geo.setAttribute("color", new THREE.BufferAttribute(col, 3));
+    geo.computeVertexNormals();
+    const mesh = new THREE.Mesh(geo, new THREE.MeshLambertMaterial({ vertexColors: true }));
+    mesh.receiveShadow = true; mesh.castShadow = true;
+    return mesh;
+  }
+  scene.add(buildTerrainMesh());
+
+  // Tank model: simple boxes. Forward is -Z (up the screen when facing north).
+  const TANK_LEN = 2.4, TANK_WIDTH = 1.5;
+  function buildTankModel() {
+    const g = new THREE.Group();
+    function lambert(hex) {
+      return new THREE.MeshLambertMaterial({ color: new THREE.Color(hex).convertSRGBToLinear() });
+    }
+    const hullMat = lambert(0x6b7a3a);
+    const darkMat = lambert(0x2f3329);
+    const turretMat = lambert(0x7d8c45);
+    function box(w, h, d, mat, x, y, z) {
+      const m = new THREE.Mesh(new THREE.BoxGeometry(w, h, d), mat);
+      m.position.set(x, y, z); m.castShadow = true; m.receiveShadow = true; g.add(m); return m;
+    }
+    box(0.36, 0.5, TANK_LEN, darkMat, -0.57, 0.25, 0);         // left tread
+    box(0.36, 0.5, TANK_LEN, darkMat, 0.57, 0.25, 0);          // right tread
+    box(0.9, 0.42, 2.1, hullMat, 0, 0.45, 0);                  // hull
+    box(0.74, 0.34, 0.9, turretMat, 0, 0.83, 0.15);            // turret
+    box(0.14, 0.14, 1.3, darkMat, 0, 0.85, -0.9);              // gun barrel, points forward
+    return g;
+  }
+  const tankModel = buildTankModel();
+  tankModel.rotation.order = "YXZ";
+  scene.add(tankModel);
+
+  // ------------------------------------------------------------------
+  // Tank: kinematic. It rests on the ground like a stiff plank.
+  // ------------------------------------------------------------------
+  const ALONG = [], ACROSS = [-TANK_WIDTH / 2, 0, TANK_WIDTH / 2];
+  for (let i = -6; i <= 6; i++) ALONG.push(i * (TANK_LEN / 12));   // 13 stations, nose to tail
+
+  const tank = {
+    x: START.x, z: START.z, yaw: START.yaw, y: 0, vy: 0,
+    pitch: 0, roll: 0, pitchVel: 0, rollVel: 0,
+    treadL: 0, treadR: 0, speed: 0, grounded: true
+  };
+  const levers = { left: 0, right: 0 };
+
+  // Ground heights under the tank's footprint for a given position and heading
+  function sampleFootprint(x, z, yaw, out) {
+    const fx = -Math.sin(yaw), fz = -Math.cos(yaw);   // forward
+    const rx = Math.cos(yaw), rz = -Math.sin(yaw);    // right
+    let n = 0;
+    for (let i = 0; i < ALONG.length; i++) {
+      for (let j = 0; j < ACROSS.length; j++) {
+        const px = x + fx * ALONG[i] + rx * ACROSS[j], pz = z + fz * ALONG[i] + rz * ACROSS[j];
+        out.px[n] = px; out.pz[n] = pz; out.h[n] = groundHeight(px, pz); n++;
+      }
+    }
+    return out;
+  }
+  function newFootprint() {
+    const n = ALONG.length * ACROSS.length;
+    return { px: new Float32Array(n), pz: new Float32Array(n), h: new Float32Array(n) };
+  }
+  const fpNow = newFootprint(), fpTry = newFootprint();
+  const profAlong = new Float32Array(ALONG.length), profAcross = new Float32Array(ACROSS.length);
+
+  // Where a stiff plank comes to rest on a row of ground heights, measured at its middle.
+  // Returns the height and slope there, plus a "lean" when the middle is close to an
+  // unsupported end (the teeter before tipping over an edge).
+  function restOnProfile(offs, prof, res) {
+    const c = (offs.length - 1) / 2;
+    let best = -Infinity, slope = 0;
+    for (let i = 0; i < c; i++) {
+      for (let k = c + 1; k < offs.length; k++) {
+        const s = (prof[k] - prof[i]) / (offs[k] - offs[i]);
+        const hMid = prof[i] - s * offs[i];
+        if (hMid > best + 1e-5) { best = hMid; slope = s; }
+      }
+    }
+    if (prof[c] > best + 1e-3) { best = prof[c]; slope = 0; }   // balanced on a high point
+    // how far from the middle does the ground fall away, in front and behind?
+    let gapFront = Infinity, gapBack = Infinity;
+    for (let k = c + 1; k < offs.length; k++) {
+      if (prof[k] < best + slope * offs[k] - 0.35) { gapFront = offs[k]; break; }
+    }
+    for (let i = c - 1; i >= 0; i--) {
+      if (prof[i] < best + slope * offs[i] - 0.35) { gapBack = -offs[i]; break; }
+    }
+    const zone = SET.teeterZone;
+    let lean = 0;
+    if (gapFront < zone) lean += 1 - gapFront / zone;
+    if (gapBack < zone) lean -= 1 - gapBack / zone;
+    res.height = best; res.slope = slope; res.lean = lean * SET.teeterLean;
+    return res;
+  }
+  const restAlong = { height: 0, slope: 0, lean: 0 }, restAcross = { height: 0, slope: 0, lean: 0 };
+
+  function solveRest(fp) {
+    const na = ALONG.length, nc = ACROSS.length;
+    for (let i = 0; i < na; i++) {
+      let m = -Infinity;
+      for (let j = 0; j < nc; j++) m = Math.max(m, fp.h[i * nc + j]);
+      profAlong[i] = m;
+    }
+    for (let j = 0; j < nc; j++) {
+      let m = -Infinity;
+      for (let i = 0; i < na; i++) m = Math.max(m, fp.h[i * nc + j]);
+      profAcross[j] = m;
+    }
+    restOnProfile(ALONG, profAlong, restAlong);
+    restOnProfile(ACROSS, profAcross, restAcross);
+  }
+
+  // Would moving from the current footprint to the tried one push part of the tank into a wall?
+  function hitsWall(a, b) {
+    const wallSlope = Math.tan(SET.wallDeg * Math.PI / 180);
+    for (let n = 0; n < a.h.length; n++) {
+      const d = Math.hypot(b.px[n] - a.px[n], b.pz[n] - a.pz[n]);
+      if (d < 1e-4) continue;
+      if (b.h[n] > tank.y + 0.05 && (b.h[n] - a.h[n]) / d > wallSlope) return true;
+    }
+    return false;
+  }
+
+  function resetTank(state) {
+    const s = state || START;
+    tank.x = s.x; tank.z = s.z; tank.yaw = s.yaw;
+    tank.vy = 0; tank.pitch = 0; tank.roll = 0; tank.pitchVel = 0; tank.rollVel = 0;
+    tank.treadL = 0; tank.treadR = 0; tank.speed = 0;
+    sampleFootprint(tank.x, tank.z, tank.yaw, fpNow); solveRest(fpNow);
+    tank.y = Math.min(restAlong.height, restAcross.height); tank.grounded = true;
+  }
+
+  function approach(v, target, maxStep) {
+    return v < target ? Math.min(target, v + maxStep) : Math.max(target, v - maxStep);
+  }
+
+  function stepTank(dt) {
+    sampleFootprint(tank.x, tank.z, tank.yaw, fpNow); solveRest(fpNow);
+
+    let yawRate;
+    if (tank.grounded) {
+      // Treads follow the levers
+      tank.treadL = approach(tank.treadL, levers.left * SET.maxSpeed, SET.treadAccel * dt);
+      tank.treadR = approach(tank.treadR, levers.right * SET.maxSpeed, SET.treadAccel * dt);
+      let v = (tank.treadL + tank.treadR) / 2;
+      // Slopes: slower uphill (stalls at maxClimbDeg), a little faster downhill
+      const grade = restAlong.slope * Math.sign(v);
+      const stall = Math.tan(SET.maxClimbDeg * Math.PI / 180);
+      if (grade > 0) v *= Math.max(0, 1 - Math.pow(grade / stall, 1.5));
+      else v *= 1 + Math.min(SET.downhillBoost, -grade * 0.5);
+      tank.speed = v;
+      yawRate = (tank.treadR - tank.treadL) / SET.trackWidth * SET.turnScale;
+    } else {
+      yawRate = 0;          // in the air: keeps its speed and heading, levers do nothing
+    }
+
+    // Try the move; walls block it
+    const fx = -Math.sin(tank.yaw), fz = -Math.cos(tank.yaw);
+    const lim = HALF - 1.5;
+    const nx = Math.min(lim, Math.max(-lim, tank.x + fx * tank.speed * dt));
+    const nz = Math.min(lim, Math.max(-lim, tank.z + fz * tank.speed * dt));
+    const nyaw = tank.yaw + yawRate * dt;
+    if (!hitsWall(fpNow, sampleFootprint(nx, nz, nyaw, fpTry))) {
+      tank.x = nx; tank.z = nz; tank.yaw = nyaw;
+    } else if (!hitsWall(fpNow, sampleFootprint(nx, nz, tank.yaw, fpTry))) {
+      tank.x = nx; tank.z = nz;
+    } else if (!hitsWall(fpNow, sampleFootprint(tank.x, tank.z, nyaw, fpTry))) {
+      tank.yaw = nyaw; tank.speed = 0; tank.treadL *= 0.5; tank.treadR *= 0.5;
+    } else {
+      tank.speed = 0; tank.treadL = 0; tank.treadR = 0;
+    }
+
+    // Height: gravity pulls the tank down onto whatever supports it
+    sampleFootprint(tank.x, tank.z, tank.yaw, fpNow); solveRest(fpNow);
+    const support = Math.min(restAlong.height, restAcross.height);
+    tank.vy -= SET.gravity * dt;
+    tank.y += tank.vy * dt;
+    if (tank.y <= support) { tank.y = support; tank.vy = 0; }
+    tank.grounded = tank.y - support < 0.15;
+
+    // Tilt: a springy follow of the ground's slope, so the hull rocks a little
+    const k = tank.grounded ? SET.tiltSpring : SET.tiltSpring * 0.2;
+    const c = tank.grounded ? SET.tiltDamping : SET.tiltDamping * 0.45;
+    const pitchTarget = Math.max(-1.25, Math.min(1.25, Math.atan(restAlong.slope) - restAlong.lean));
+    const rollTarget = Math.max(-1.25, Math.min(1.25, Math.atan(restAcross.slope) - restAcross.lean));
+    tank.pitchVel += ((pitchTarget - tank.pitch) * k - tank.pitchVel * c) * dt;
+    tank.rollVel += ((rollTarget - tank.roll) * k - tank.rollVel * c) * dt;
+    tank.pitch += tank.pitchVel * dt;
+    tank.roll += tank.rollVel * dt;
+  }
+
+  // ------------------------------------------------------------------
+  // Controls: two thumb levers (touch or mouse); keys W/S and Up/Down for desktop
+  // ------------------------------------------------------------------
+  const keys = {};
+  function makeLever(el) {
+    const slot = el.querySelector(".slot"), grip = el.querySelector(".grip");
+    const lever = { pointerId: null, value: 0 };
+    function travel() { return slot.clientHeight / 2 - grip.offsetHeight / 2 - 4; }
+    function show() { grip.style.transform = "translateY(" + (-lever.value * travel()) + "px)"; }
+    function read(e) {
+      const r = slot.getBoundingClientRect();
+      let v = (r.top + r.height / 2 - e.clientY) / travel();
+      v = Math.max(-1, Math.min(1, v));
+      lever.value = Math.abs(v) < 0.08 ? 0 : v;
+      show();
+    }
+    el.addEventListener("pointerdown", function (e) {
+      if (lever.pointerId !== null) return;
+      lever.pointerId = e.pointerId;
+      try { el.setPointerCapture(e.pointerId); } catch (err) { /* fine without capture */ }
+      read(e); e.preventDefault();
+    });
+    el.addEventListener("pointermove", function (e) { if (e.pointerId === lever.pointerId) read(e); });
+    function release(e) {
+      if (e.pointerId !== lever.pointerId) return;
+      lever.pointerId = null; lever.value = 0; show();
+    }
+    el.addEventListener("pointerup", release);
+    el.addEventListener("pointercancel", release);
+    lever.show = show;
+    return lever;
+  }
+  const leverL = makeLever(document.getElementById("leverL"));
+  const leverR = makeLever(document.getElementById("leverR"));
+  window.addEventListener("keydown", function (e) { keys[e.code] = true; });
+  window.addEventListener("keyup", function (e) { keys[e.code] = false; });
+  window.addEventListener("contextmenu", function (e) { e.preventDefault(); });
+  document.getElementById("reset").addEventListener("click", function () { resetTank(); });
+
+  let scripted = null;   // tests can take over the levers
+  function readLevers() {
+    if (scripted) { levers.left = scripted.left; levers.right = scripted.right; return; }
+    const kl = (keys.KeyW ? 1 : 0) - (keys.KeyS ? 1 : 0);
+    const kr = (keys.ArrowUp ? 1 : 0) - (keys.ArrowDown ? 1 : 0);
+    levers.left = leverL.pointerId !== null ? leverL.value : kl;
+    levers.right = leverR.pointerId !== null ? leverR.value : kr;
+  }
+
+  // ------------------------------------------------------------------
+  // Camera: looks down from the south, north stays up the screen
+  // ------------------------------------------------------------------
+  const camTarget = new THREE.Vector3(START.x, 0, START.z);
+  const CAM_TILT = 62 * Math.PI / 180;
+  let camDist = 50;
+  function resize() {
+    const w = window.innerWidth, h = window.innerHeight;
+    renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 2));
+    renderer.setSize(w, h, false);
+    camera.aspect = w / h; camera.updateProjectionMatrix();
+    const tanV = Math.tan(camera.fov * Math.PI / 360);
+    camDist = Math.max(SET.viewWidth / 2 / (tanV * camera.aspect), 11 / tanV);
+    leverL.show(); leverR.show();
+  }
+  window.addEventListener("resize", resize);
+
+  function updateView(dt) {
+    const follow = 1 - Math.exp(-dt * 6);
+    camTarget.x += (tank.x - camTarget.x) * follow;
+    camTarget.z += (tank.z - camTarget.z) * follow;
+    camTarget.y += (tank.y - camTarget.y) * (1 - Math.exp(-dt * 2.5));
+    camera.position.set(camTarget.x, camTarget.y + camDist * Math.sin(CAM_TILT), camTarget.z + camDist * Math.cos(CAM_TILT));
+    camera.lookAt(camTarget);
+    sun.target.position.copy(camTarget);
+    sun.position.set(camTarget.x - 28, camTarget.y + 42, camTarget.z + 16);
+    tankModel.position.set(tank.x, tank.y, tank.z);
+    tankModel.rotation.set(tank.pitch, tank.yaw, tank.roll);
+  }
+
+  // ------------------------------------------------------------------
+  // Main loop: fixed 60 steps a second so driving feels the same on every phone
+  // ------------------------------------------------------------------
+  const STEP = 1 / 60;
+  const readout = document.getElementById("readout");
+  let last = 0, carry = 0, frames = 0, fpsTime = 0, fps = 0;
+  function frame(now) {
+    requestAnimationFrame(frame);
+    const dt = Math.min(0.1, (now - last) / 1000 || 0); last = now;
+    carry += dt;
+    while (carry >= STEP) { readLevers(); stepTank(STEP); carry -= STEP; }
+    updateView(dt);
+    renderer.render(scene, camera);
+    frames++; fpsTime += dt;
+    if (fpsTime >= 0.5) {
+      fps = Math.round(frames / fpsTime); frames = 0; fpsTime = 0;
+      readout.textContent = fps + " fps\nheight " + tank.y.toFixed(1) + (tank.grounded ? "" : "  falling");
+    }
+  }
+
+  function start(saved) {
+    resetTank(saved && typeof saved.x === "number" ? saved : null);
+    camTarget.set(tank.x, tank.y, tank.z);
+    resize();
+    requestAnimationFrame(frame);
+  }
+
+  // For automated tests: drive without touch and step time by hand.
+  window.tankGame = {
+    tank: tank, settings: SET, groundHeight: groundHeight, reset: resetTank,
+    setLevers: function (l, r) { scripted = (l === null) ? null : { left: l, right: r }; },
+    simulate: function (seconds) {
+      for (let t = 0; t < seconds; t += STEP) { readLevers(); stepTank(STEP); }
+    }
+  };
+
+  // Keep the tank where it was when the page is updated while open.
+  const hot = window.claude && window.claude.hot;
+  if (hot && hot.snapshot) hot.snapshot(function () { return { x: tank.x, z: tank.z, yaw: tank.yaw }; });
+  if (hot && hot.ready) hot.ready(start); else start((hot && hot.data) || {});
+})();
+</script>

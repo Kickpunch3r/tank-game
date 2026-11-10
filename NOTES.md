@@ -586,6 +586,11 @@ committed). To watch: open `tests/test_runner.tscn` and press F6.
     same six knobs, shared presets, T to swap (also in levels), ledge strip / steps / crest,
     physics HUD, new `PhysicsTankTests`. Fixed: Tab panel's Reset to saved missed the hidden
     tank. Kinematic results unchanged. 190 checks pass (~70 s).
+29. **Mobile web game started** (2026-11-10): `mobile/index.html`, a separate top-down phone game
+    in three.js, not Godot (chosen so it can be play-tested from a phone via a link while Claude
+    works in the cloud). Kinematic tank, two thumb levers, portrait, north-up. Step 1 is a spike
+    on a test patch; details and what is untested are in `mobile/README.md`. The Godot game is
+    untouched.
 
 ## Ableton Push 3 controller (branch `push-controller`, from `physics-tank`, 2026-10-22)
 - Developer's design: the phone's layout on the Push pads. `PushLayout` (`scripts/push/`): left
