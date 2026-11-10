@@ -737,3 +737,6 @@ committed). To watch: open `tests/test_runner.tscn` and press F6.
     works in the cloud). Kinematic tank, two thumb levers, portrait, north-up. Step 1 is a spike
     on a test patch; details and what is untested are in `mobile/README.md`. The Godot game is
     untouched.
+30. **Mobile game: strip level** (2026-11-10, developer's requests): zoomed out, camera locked to
+    the level's width and following north, one test level (plain, mountain road, cliff path,
+    flag) with checkpoints. See `mobile/README.md`.

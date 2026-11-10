@@ -9,13 +9,17 @@ use Godot: it is one web page, `index.html`, drawn in 3D with three.js (loaded f
   arrows for the right.
 - **Settings:** the `SET` block near the top of the script in `index.html`.
 
-## State (step 1, 2026-11-10): a spike to prove the platform
-- Portrait, camera fixed north-up, hand-made test patch (not the real landscape).
+## State (step 2, 2026-11-10): one test level
+- Portrait, camera fixed north-up. Levels are strips 28 units wide that run up the screen; the
+  camera never moves sideways, shows the full width, and follows the tank north.
 - Kinematic tank: it rests on the ground like a stiff plank, so it tilts on slopes, leans when
   its middle nears a cliff edge, tips over and falls. Slower uphill, stalls at 35 degrees. Ground
   steeper than 50 degrees is a wall.
-- Test patch: mesa (3 high) with a gentle and a steep ramp, a low terrace (1 high), a hill too
-  steep to finish climbing, rolling ground, rock wall round the edge.
-- Checked by script in a headless phone-sized browser: both ramps, cliff fall and landing, wall
-  block, hill stall, turning direction, two-finger lever touch.
-- **Untested:** on a real phone (frame rate, lever feel, safe areas).
+- Test level (numbers in the `LEVEL` block): hilly plain, six road shelves zig-zagging up a
+  mountain 21 high, a narrow winding cliff path with a chasm (a ridge with drops on both sides in
+  the middle), then a flag. Four checkpoints; falling into the chasm returns to the last one.
+- Checked by script in a headless phone-sized browser: an autopilot drives start to flag (about
+  110 s), chasm fall and return, falling off a road shelf, the bank between shelves blocks.
+- **Untested:** on a real phone (frame rate with the bigger level, lever feel, difficulty).
+- Known rough edges: diagonal cliffs look stair-stepped (the ground is a 0.5-unit grid); the
+  mountain road is wide shelves, not a narrow road.

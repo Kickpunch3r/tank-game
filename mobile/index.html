@@ -46,15 +46,22 @@
     background: var(--panel); padding: 4px 8px; border-radius: 4px;
     white-space: pre;
   }
-  #reset {
+  #buttons { display: flex; flex-direction: column; align-items: flex-end; gap: 8px; }
+  #banner {
+    position: absolute; left: 50%; top: 30%; transform: translateX(-50%);
+    font: 700 20px var(--font-ui); letter-spacing: 0.04em; white-space: nowrap;
+    background: var(--panel); border: 1px solid var(--panel-edge); border-radius: 4px;
+    padding: 10px 18px;
+  }
+  #buttons button {
     pointer-events: auto;
-    font: 600 13px var(--font-ui); letter-spacing: 0.06em; text-transform: uppercase;
+    font: 600 11px var(--font-ui); letter-spacing: 0.06em; text-transform: uppercase;
     color: var(--ink); background: var(--panel);
     border: 1px solid var(--panel-edge); border-radius: 4px;
     padding: 9px 14px;
   }
-  #reset:active { background: rgba(24, 30, 24, 0.8); }
-  #reset:focus-visible { outline: 2px solid var(--grip); outline-offset: 2px; }
+  #buttons button:active { background: rgba(24, 30, 24, 0.8); }
+  #buttons button:focus-visible { outline: 2px solid var(--grip); outline-offset: 2px; }
 
   #levers { display: flex; justify-content: space-between; align-items: flex-end; }
   /* Each .lever is a big touch zone; the visible slot sits at its outer edge. */
@@ -96,8 +103,12 @@
 <div id="hud">
   <div id="topbar">
     <div id="readout">starting…</div>
-    <button id="reset" type="button">Reset tank</button>
+    <div id="buttons">
+      <button id="reset" type="button">Back to checkpoint</button>
+      <button id="restart" type="button">Restart level</button>
+    </div>
   </div>
+  <div id="banner" hidden></div>
   <div id="levers">
     <div class="lever left" id="leverL">
       <div class="slot"><div class="grip"></div></div>
@@ -133,56 +144,103 @@
     teeterLean: 0.14,       // how far it leans when right at the edge (radians)
     tiltSpring: 120,        // stiffness of the hull tilting to match the ground
     tiltDamping: 9,         // lower = rocks for longer
-    viewWidth: 17           // how many units of ground fit across the screen
+    viewWidth: 29           // units of ground across the screen (the level is 28 wide)
   };
-  const START = { x: 0, z: 2, yaw: 0 };
 
   // ------------------------------------------------------------------
-  // Terrain: a test patch stored as a grid of heights
+  // Terrain: one level, a strip that runs north (up the screen), stored as a grid of heights
   // ------------------------------------------------------------------
-  const HALF = 40, CELL = 0.5, N = (HALF * 2) / CELL;       // 160 cells each way
-  const heights = new Float32Array((N + 1) * (N + 1));
+  // "n" below means distance north of the level's south end, in units.
+  const LEVEL = {
+    halfWidth: 14,          // the level is 28 wide; rock walls beyond that
+    length: 240,
+    mountainStart: 58,      // the hilly plain ends and the road up begins
+    legs: 6,                // stretches of road zig-zagging up the mountain
+    legDepth: 10,           // how far north each stretch takes up
+    legRise: 3.5,           // height gained on each stretch
+    top: 21,                // height of the mountain top (legs x legRise)
+    pathStart: 135,         // the cliff path runs from here...
+    pathEnd: 215,           // ...to here
+    ridgeStart: 172,        // between these the path has a drop on BOTH sides
+    ridgeEnd: 192,
+    chasmDepth: 12,
+    flagN: 230              // the finish
+  };
+  const CELL = 0.5, X0 = -20, Z0 = -(LEVEL.length + 10);
+  const NX = 40 / CELL, NZ = (LEVEL.length + 16) / CELL;
+  const X1 = X0 + NX * CELL, Z1 = Z0 + NZ * CELL;
+  const heights = new Float32Array((NX + 1) * (NZ + 1));
+  const kinds = new Uint8Array((NX + 1) * (NZ + 1));     // 0 grass, 1 road, 2 chasm floor
 
   function smooth(t) { t = Math.min(1, Math.max(0, t)); return t * t * (3 - 2 * t); }
+  function pathCentre(n) { return 5 * Math.sin((n - LEVEL.pathStart) * 0.09); }
+  function pathHalfWidth(n) { return 2.4 + 0.5 * Math.cos((n - LEVEL.pathStart) * 0.23); }
+
+  let surfaceKind = 0;      // set by surface() for the point it was last asked about
+  function surface(x, n) {
+    const L = LEVEL;
+    surfaceKind = 0;
+    // How many road stretches lie south of this point? (their edges wobble a little)
+    let step = 0;
+    for (let k = 0; k <= L.legs; k++) {
+      if (n >= L.mountainStart + L.legDepth * k + Math.sin(x * 0.45 + k * 1.7)) step++;
+    }
+    if (step === 0) {
+      // Hilly plain: rolling ground and two bigger hills, flat at the start and at the mountain's foot
+      const fade = smooth((n - 6) / 8) * smooth((L.mountainStart - 3 - n) / 8);
+      let h = (1.1 * Math.sin(x * 0.3 + 1) * Math.cos(n * 0.21) + 0.5 * Math.sin(x * 0.5 - n * 0.33)) * fade;
+      h += 3.2 * Math.exp(-((x + 6) * (x + 6) + (n - 24) * (n - 24)) / 22);
+      h += 2.6 * Math.exp(-((x - 7) * (x - 7) + (n - 40) * (n - 40)) / 18);
+      return h;
+    }
+    if (step <= L.legs) {
+      // Mountain road: each stretch is a shelf that climbs from one side to the other.
+      // Flat turning pads at both ends; where two shelves meet at a pad they are level.
+      const k = step - 1;
+      const across = Math.min(1, Math.max(0, (x + 9) / 18));
+      surfaceKind = 1;
+      return L.legRise * (k + (k % 2 === 0 ? across : 1 - across));
+    }
+    if (n < L.pathStart || n > L.pathEnd) return L.top;      // open ground on the mountain top
+    // Cliff path: a narrow winding ledge. Drop to the east; rock face to the west,
+    // except on the ridge, where it drops on both sides.
+    const fromCentre = x - pathCentre(n), half = pathHalfWidth(n);
+    if (Math.abs(fromCentre) <= half) {
+      surfaceKind = 1;
+      return L.top + 0.2 * Math.sin(n * 0.5) * smooth((n - L.pathStart) / 4) * smooth((L.pathEnd - n) / 4);
+    }
+    const onRidge = n >= L.ridgeStart && n <= L.ridgeEnd;
+    if (fromCentre > 0 || onRidge) {
+      surfaceKind = 2;
+      return L.top - L.chasmDepth + 0.6 * Math.sin(x * 0.7) * Math.cos(n * 0.4);
+    }
+    return L.top + Math.min(5, (-fromCentre - half) * 2.5);
+  }
 
   function designHeight(x, z) {
-    let h = 0;
-    // Steep hill (about 37 degrees at its steepest: the tank stalls part-way up)
-    const hx = x + 22, hz = z + 4;
-    h += 5 * Math.exp(-(hx * hx + hz * hz) / 32);
-    // Rolling ground in the south-west
-    const rd = Math.hypot(x + 16, z - 22);
-    h += 1.0 * Math.sin(x * 0.5) * Math.cos(z * 0.45) * smooth((16 - rd) / 8);
-    // Mesa, 3 high, cliffs on the north and west
-    if (Math.abs(x) <= 8 && z >= -28 && z <= -16) h = Math.max(h, 3);
-    // Gentle ramp (15 degrees) up the mesa's south side
-    if (Math.abs(x) <= 2.5 && z > -16 && z < -4.8) h = Math.max(h, 3 * (1 - (z + 16) / 11.2));
-    // Steep ramp (28 degrees) up the mesa's east side
-    if (z >= -25 && z <= -20 && x > 8 && x < 13.6) h = Math.max(h, 3 * (1 - (x - 8) / 5.6));
-    // Low terrace, 1 high, with a gentle ramp on its west side
-    if (x >= 12 && x <= 24 && z >= 4 && z <= 16) h = Math.max(h, 1);
-    if (z >= 8 && z <= 12 && x > 8.3 && x < 12) h = Math.max(h, 1 - (12 - x) / 3.7);
-    // Rock wall round the edge of the patch
-    const d = Math.max(Math.abs(x), Math.abs(z));
-    if (d > 36) h = Math.max(h, Math.min(8, (d - 36) * 4));
+    const n = -z, hw = LEVEL.halfWidth;
+    let h = surface(Math.min(hw, Math.max(-hw, x)), Math.min(LEVEL.length, Math.max(0, n)));
+    const outside = Math.max(Math.abs(x) - hw, -n, n - LEVEL.length);
+    if (outside > 0) { h += Math.min(6, outside * 4); surfaceKind = 0; }   // rock wall round the level
     return h;
   }
 
-  for (let j = 0; j <= N; j++) {
-    for (let i = 0; i <= N; i++) {
-      heights[j * (N + 1) + i] = designHeight(-HALF + i * CELL, -HALF + j * CELL);
+  for (let j = 0; j <= NZ; j++) {
+    for (let i = 0; i <= NX; i++) {
+      heights[j * (NX + 1) + i] = designHeight(X0 + i * CELL, Z0 + j * CELL);
+      kinds[j * (NX + 1) + i] = surfaceKind;
     }
   }
 
   // Ground height anywhere (blends between the four nearest grid points)
   function groundHeight(x, z) {
-    let gx = (x + HALF) / CELL, gz = (z + HALF) / CELL;
-    gx = Math.min(N - 0.001, Math.max(0, gx));
-    gz = Math.min(N - 0.001, Math.max(0, gz));
+    let gx = (x - X0) / CELL, gz = (z - Z0) / CELL;
+    gx = Math.min(NX - 0.001, Math.max(0, gx));
+    gz = Math.min(NZ - 0.001, Math.max(0, gz));
     const i = Math.floor(gx), j = Math.floor(gz), fx = gx - i, fz = gz - j;
-    const row = j * (N + 1) + i;
+    const row = j * (NX + 1) + i;
     const a = heights[row], b = heights[row + 1];
-    const c = heights[row + N + 1], d = heights[row + N + 2];
+    const c = heights[row + NX + 1], d = heights[row + NX + 2];
     return (a * (1 - fx) + b * fx) * (1 - fz) + (c * (1 - fx) + d * fx) * fz;
   }
 
@@ -198,24 +256,25 @@
   const HAZE = 0xaebfb6;
   const scene = new THREE.Scene();
   scene.background = new THREE.Color(HAZE);
-  scene.fog = new THREE.Fog(HAZE, 70, 140);
 
-  const camera = new THREE.PerspectiveCamera(35, 1, 1, 300);
+  const camera = new THREE.PerspectiveCamera(35, 1, 5, 800);
   scene.add(new THREE.HemisphereLight(0xdfe9f0, 0x5d6650, 0.75));
   const sun = new THREE.DirectionalLight(0xfff1d6, 0.95);
   sun.castShadow = true;
   sun.shadow.mapSize.set(2048, 2048);
-  sun.shadow.camera.left = -30; sun.shadow.camera.right = 30;
-  sun.shadow.camera.top = 30; sun.shadow.camera.bottom = -30;
-  sun.shadow.camera.near = 1; sun.shadow.camera.far = 120;
-  sun.shadow.bias = -0.0015;
+  sun.shadow.camera.left = -55; sun.shadow.camera.right = 55;
+  sun.shadow.camera.top = 55; sun.shadow.camera.bottom = -55;
+  sun.shadow.camera.near = 1; sun.shadow.camera.far = 320;
+  sun.shadow.bias = -0.002;
   scene.add(sun); scene.add(sun.target);
 
   function buildTerrainMesh() {
-    const triCount = N * N * 2;
+    const triCount = NX * NZ * 2;
     const pos = new Float32Array(triCount * 9), col = new Float32Array(triCount * 9);
     const grassLow = new THREE.Color(0x5f8f45).convertSRGBToLinear();
-    const grassHigh = new THREE.Color(0x9fb36a).convertSRGBToLinear();
+    const grassHigh = new THREE.Color(0xa9b87a).convertSRGBToLinear();
+    const road = new THREE.Color(0xb59c6c).convertSRGBToLinear();
+    const chasm = new THREE.Color(0x4a4d52).convertSRGBToLinear();
     const rock = new THREE.Color(0x8d8474).convertSRGBToLinear();
     const cliff = new THREE.Color(0x6a6257).convertSRGBToLinear();
     const tmp = new THREE.Color();
@@ -223,15 +282,17 @@
     const e1 = new THREE.Vector3(), e2 = new THREE.Vector3();
     let o = 0;
     function vert(i, j, v) {
-      v.set(-HALF + i * CELL, heights[j * (N + 1) + i], -HALF + j * CELL);
+      v.set(X0 + i * CELL, heights[j * (NX + 1) + i], Z0 + j * CELL);
     }
-    function tri(i0, j0, i1, j1, i2, j2, shade) {
+    function tri(i0, j0, i1, j1, i2, j2, shade, kind) {
       vert(i0, j0, pA); vert(i1, j1, pB); vert(i2, j2, pC);
       e1.subVectors(pB, pA); e2.subVectors(pC, pA); e1.cross(e2).normalize();
       const up = Math.abs(e1.y), avgH = (pA.y + pB.y + pC.y) / 3;
-      if (up > 0.80) tmp.copy(grassLow).lerp(grassHigh, Math.min(1, Math.max(0, avgH / 5)));
-      else if (up > 0.55) tmp.copy(rock);
-      else tmp.copy(cliff);
+      if (up <= 0.55) tmp.copy(cliff);
+      else if (up <= 0.80) tmp.copy(rock);
+      else if (kind === 1) tmp.copy(road);
+      else if (kind === 2) tmp.copy(chasm);
+      else tmp.copy(grassLow).lerp(grassHigh, Math.min(1, Math.max(0, avgH / LEVEL.top)));
       tmp.multiplyScalar(shade);
       const pts = [pA, pB, pC];
       for (let k = 0; k < 3; k++) {
@@ -240,13 +301,14 @@
         o += 3;
       }
     }
-    for (let j = 0; j < N; j++) {
-      for (let i = 0; i < N; i++) {
+    for (let j = 0; j < NZ; j++) {
+      for (let i = 0; i < NX; i++) {
         // a little fixed patchiness so flat ground isn't one flat colour
         const s = Math.sin(i * 12.9898 + j * 78.233) * 43758.5453;
         const shade = 0.94 + 0.12 * (s - Math.floor(s));
-        tri(i, j, i, j + 1, i + 1, j, shade);
-        tri(i + 1, j, i, j + 1, i + 1, j + 1, shade);
+        const kind = kinds[j * (NX + 1) + i];
+        tri(i, j, i, j + 1, i + 1, j, shade, kind);
+        tri(i + 1, j, i, j + 1, i + 1, j + 1, shade, kind);
       }
     }
     const geo = new THREE.BufferGeometry();
@@ -258,6 +320,21 @@
     return mesh;
   }
   scene.add(buildTerrainMesh());
+
+  // Finish flag
+  (function () {
+    const flag = new THREE.Group();
+    const pole = new THREE.Mesh(new THREE.BoxGeometry(0.14, 3.2, 0.14),
+      new THREE.MeshLambertMaterial({ color: new THREE.Color(0xe8e4d6).convertSRGBToLinear() }));
+    pole.position.y = 1.6;
+    const cloth = new THREE.Mesh(new THREE.BoxGeometry(1.5, 0.9, 0.08),
+      new THREE.MeshLambertMaterial({ color: new THREE.Color(0xc8402c).convertSRGBToLinear() }));
+    cloth.position.set(0.8, 2.7, 0);
+    pole.castShadow = true; cloth.castShadow = true;
+    flag.add(pole); flag.add(cloth);
+    flag.position.set(0, groundHeight(0, -LEVEL.flagN), -LEVEL.flagN);
+    scene.add(flag);
+  })();
 
   // Tank model: simple boxes. Forward is -Z (up the screen when facing north).
   const TANK_LEN = 2.4, TANK_WIDTH = 1.5;
@@ -291,7 +368,7 @@
   for (let i = -6; i <= 6; i++) ALONG.push(i * (TANK_LEN / 12));   // 13 stations, nose to tail
 
   const tank = {
-    x: START.x, z: START.z, yaw: START.yaw, y: 0, vy: 0,
+    x: 0, z: 0, yaw: 0, y: 0, vy: 0,
     pitch: 0, roll: 0, pitchVel: 0, rollVel: 0,
     treadL: 0, treadR: 0, speed: 0, grounded: true
   };
@@ -375,8 +452,7 @@
     return false;
   }
 
-  function resetTank(state) {
-    const s = state || START;
+  function resetTank(s) {
     tank.x = s.x; tank.z = s.z; tank.yaw = s.yaw;
     tank.vy = 0; tank.pitch = 0; tank.roll = 0; tank.pitchVel = 0; tank.rollVel = 0;
     tank.treadL = 0; tank.treadR = 0; tank.speed = 0;
@@ -410,9 +486,8 @@
 
     // Try the move; walls block it
     const fx = -Math.sin(tank.yaw), fz = -Math.cos(tank.yaw);
-    const lim = HALF - 1.5;
-    const nx = Math.min(lim, Math.max(-lim, tank.x + fx * tank.speed * dt));
-    const nz = Math.min(lim, Math.max(-lim, tank.z + fz * tank.speed * dt));
+    const nx = Math.min(X1 - 1.5, Math.max(X0 + 1.5, tank.x + fx * tank.speed * dt));
+    const nz = Math.min(Z1 - 1.5, Math.max(Z0 + 1.5, tank.z + fz * tank.speed * dt));
     const nyaw = tank.yaw + yawRate * dt;
     if (!hitsWall(fpNow, sampleFootprint(nx, nz, nyaw, fpTry))) {
       tank.x = nx; tank.z = nz; tank.yaw = nyaw;
@@ -480,7 +555,6 @@
   window.addEventListener("keydown", function (e) { keys[e.code] = true; });
   window.addEventListener("keyup", function (e) { keys[e.code] = false; });
   window.addEventListener("contextmenu", function (e) { e.preventDefault(); });
-  document.getElementById("reset").addEventListener("click", function () { resetTank(); });
 
   let scripted = null;   // tests can take over the levers
   function readLevers() {
@@ -492,34 +566,86 @@
   }
 
   // ------------------------------------------------------------------
-  // Camera: looks down from the south, north stays up the screen
+  // Camera: looks down from the south, north stays up the screen. It never moves sideways:
+  // the level's width always fills the screen's width, and the camera follows the tank north.
   // ------------------------------------------------------------------
-  const camTarget = new THREE.Vector3(START.x, 0, START.z);
+  const camTarget = new THREE.Vector3(0, 0, 0);
   const CAM_TILT = 62 * Math.PI / 180;
-  let camDist = 50;
+  let camDist = 100, viewSouth = 30, viewNorth = 40;   // ground seen south / north of the target
+  function cameraZFor(tankZ) {
+    const southLimit = 1 - viewSouth;                          // level's south end at the screen's bottom
+    const northLimit = Math.min(southLimit, -(LEVEL.length + 1) + viewNorth);
+    const want = tankZ - viewSouth * 0.25;                     // tank sits a little below the middle
+    return Math.max(northLimit, Math.min(southLimit, want));
+  }
   function resize() {
     const w = window.innerWidth, h = window.innerHeight;
     renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 2));
     renderer.setSize(w, h, false);
     camera.aspect = w / h; camera.updateProjectionMatrix();
-    const tanV = Math.tan(camera.fov * Math.PI / 360);
-    camDist = Math.max(SET.viewWidth / 2 / (tanV * camera.aspect), 11 / tanV);
+    const halfV = camera.fov * Math.PI / 360, tanV = Math.tan(halfV);
+    camDist = SET.viewWidth / 2 / (tanV * Math.min(camera.aspect, 0.8));
+    const camHeight = camDist * Math.sin(CAM_TILT), camBack = camDist * Math.cos(CAM_TILT);
+    viewSouth = camBack - camHeight / Math.tan(CAM_TILT + halfV);
+    viewNorth = camHeight / Math.tan(CAM_TILT - halfV) - camBack;
     leverL.show(); leverR.show();
   }
   window.addEventListener("resize", resize);
 
-  function updateView(dt) {
-    const follow = 1 - Math.exp(-dt * 6);
-    camTarget.x += (tank.x - camTarget.x) * follow;
-    camTarget.z += (tank.z - camTarget.z) * follow;
-    camTarget.y += (tank.y - camTarget.y) * (1 - Math.exp(-dt * 2.5));
-    camera.position.set(camTarget.x, camTarget.y + camDist * Math.sin(CAM_TILT), camTarget.z + camDist * Math.cos(CAM_TILT));
+  function updateView(dt, snap) {
+    const wantZ = cameraZFor(tank.z);
+    camTarget.x = 0;
+    camTarget.z = snap ? wantZ : camTarget.z + (wantZ - camTarget.z) * (1 - Math.exp(-dt * 5));
+    camTarget.y = snap ? tank.y : camTarget.y + (tank.y - camTarget.y) * (1 - Math.exp(-dt * 2.5));
+    camera.position.set(0, camTarget.y + camDist * Math.sin(CAM_TILT), camTarget.z + camDist * Math.cos(CAM_TILT));
     camera.lookAt(camTarget);
     sun.target.position.copy(camTarget);
-    sun.position.set(camTarget.x - 28, camTarget.y + 42, camTarget.z + 16);
+    sun.position.set(camTarget.x - 60, camTarget.y + 110, camTarget.z + 35);
     tankModel.position.set(tank.x, tank.y, tank.z);
     tankModel.rotation.set(tank.pitch, tank.yaw, tank.roll);
   }
+
+  // ------------------------------------------------------------------
+  // Progress: checkpoints, falling into the chasm, reaching the flag
+  // ------------------------------------------------------------------
+  const checkpoints = [
+    { n: 5, x: 0, minY: -99 },                                  // start
+    { n: 55, x: -11.5, minY: -99 },                             // foot of the mountain road
+    { n: 126, x: -6, minY: LEVEL.top - 1 },                     // mountain top
+    { n: 168, x: pathCentre(168), minY: LEVEL.top - 1 }         // on the cliff path, before the ridge
+  ];
+  let checkpointIndex = 0, fallTimer = 0, won = false;
+  const banner = document.getElementById("banner");
+  let bannerUntil = 0;
+  function say(text, seconds) {
+    banner.textContent = text; banner.hidden = false;
+    bannerUntil = seconds > 0 ? performance.now() + seconds * 1000 : Infinity;
+  }
+  function toCheckpoint(snapCamera) {
+    const cp = checkpoints[checkpointIndex];
+    resetTank({ x: cp.x, z: -cp.n, yaw: 0 });
+    fallTimer = 0;
+    if (snapCamera) updateView(0, true);
+  }
+  function restartLevel() {
+    checkpointIndex = 0; won = false; banner.hidden = true; bannerUntil = 0;
+    toCheckpoint(true);
+  }
+  function updateProgress(dt) {
+    if (!tank.grounded) return;
+    const n = -tank.z, L = LEVEL;
+    const next = checkpoints[checkpointIndex + 1];
+    if (next && n >= next.n && tank.y >= next.minY) { checkpointIndex++; say("Checkpoint", 1.5); }
+    if (n > L.pathStart - 2 && n < L.pathEnd + 2 && tank.y < L.top - 6) {
+      fallTimer += dt;
+      if (fallTimer > 0.9) { toCheckpoint(false); say("Fell into the chasm", 2); }
+    } else {
+      fallTimer = 0;
+    }
+    if (!won && tank.y > L.top - 1 && Math.hypot(tank.x, n - L.flagN) < 3) { won = true; say("Summit reached", 0); }
+  }
+  document.getElementById("reset").addEventListener("click", function () { toCheckpoint(false); });
+  document.getElementById("restart").addEventListener("click", restartLevel);
 
   // ------------------------------------------------------------------
   // Main loop: fixed 60 steps a second so driving feels the same on every phone
@@ -531,9 +657,10 @@
     requestAnimationFrame(frame);
     const dt = Math.min(0.1, (now - last) / 1000 || 0); last = now;
     carry += dt;
-    while (carry >= STEP) { readLevers(); stepTank(STEP); carry -= STEP; }
-    updateView(dt);
+    while (carry >= STEP) { readLevers(); stepTank(STEP); updateProgress(STEP); carry -= STEP; }
+    updateView(dt, false);
     renderer.render(scene, camera);
+    if (!banner.hidden && now > bannerUntil) banner.hidden = true;
     frames++; fpsTime += dt;
     if (fpsTime >= 0.5) {
       fps = Math.round(frames / fpsTime); frames = 0; fpsTime = 0;
@@ -542,24 +669,33 @@
   }
 
   function start(saved) {
-    resetTank(saved && typeof saved.x === "number" ? saved : null);
-    camTarget.set(tank.x, tank.y, tank.z);
+    if (saved && typeof saved.x === "number") {
+      checkpointIndex = Math.min(checkpoints.length - 1, Math.max(0, saved.checkpoint | 0));
+      resetTank(saved);
+    } else {
+      toCheckpoint(false);
+    }
     resize();
+    updateView(0, true);
     requestAnimationFrame(frame);
   }
 
   // For automated tests: drive without touch and step time by hand.
   window.tankGame = {
-    tank: tank, settings: SET, groundHeight: groundHeight, reset: resetTank,
+    tank: tank, settings: SET, level: LEVEL, checkpoints: checkpoints,
+    groundHeight: groundHeight, pathCentre: pathCentre, reset: resetTank, restart: restartLevel,
+    progress: function () { return { checkpoint: checkpointIndex, won: won }; },
     setLevers: function (l, r) { scripted = (l === null) ? null : { left: l, right: r }; },
     simulate: function (seconds) {
-      for (let t = 0; t < seconds; t += STEP) { readLevers(); stepTank(STEP); }
+      for (let t = 0; t < seconds; t += STEP) { readLevers(); stepTank(STEP); updateProgress(STEP); }
     }
   };
 
   // Keep the tank where it was when the page is updated while open.
   const hot = window.claude && window.claude.hot;
-  if (hot && hot.snapshot) hot.snapshot(function () { return { x: tank.x, z: tank.z, yaw: tank.yaw }; });
+  if (hot && hot.snapshot) {
+    hot.snapshot(function () { return { x: tank.x, z: tank.z, yaw: tank.yaw, checkpoint: checkpointIndex }; });
+  }
   if (hot && hot.ready) hot.ready(start); else start((hot && hot.data) || {});
 })();
 </script>
