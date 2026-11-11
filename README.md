@@ -265,6 +265,7 @@ row 0   L  L  .  .  .  .  R  R     full back
 | `levels/<name>/` | A level: `height.png` (and optional `terrain.png`) and its scene (`levels/proving_ground/` is the main scene) |
 | `tools/` | Helper scripts, e.g. the one that generated the starter height map |
 | `scripts/net/` | Phone controller: servers, station registry, phone input |
+| `mobile/` | A separate top-down phone game (web page, not Godot); see `mobile/README.md` |
 | `web/` | `controller.html`: the page phones open (one self-contained file) |
 | `scripts/` | Game scripts: tank, treads, stations, inputs, cameras, course builders, HUD |
 | `tuning/` | `physics_tank_tuning.tres` (the game's tank) and `tank_tuning.tres` (old kinematic tank): all driving numbers |

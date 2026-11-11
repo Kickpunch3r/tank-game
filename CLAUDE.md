@@ -4,6 +4,10 @@ A co-operative tank crew game for a large physical installation: several players
 stations of one tank (driver, gunner, engineer) with big custom controllers and separate screens or
 vision slits. The current build covers **driving only**. (The original plans were deleted on 2026-10-22; they are in git
 history. NOTES.md records what was built and why.)
+**Second project in `mobile/`:** a separate top-down phone game (a web page, not Godot). For work
+in that folder read `mobile/CLAUDE.md` first; the Godot, Windows and `.tscn` rules below do not
+apply there.
+
 Developer background: art, storytelling, design, folk games, not programming. Learning GDScript.
 
 ## How to work with me

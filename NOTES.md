@@ -732,3 +732,14 @@ committed). To watch: open `tests/test_runner.tscn` and press F6.
     the laptop): `ViewSwitcher.views` now lists the slit camera first; V switches to the chase
     camera. View and swap tests updated. Godot also re-saved `export_presets.cfg` and the scenes
     (UIDs, unique IDs). The Windows build was made and checked on the laptop.
+29. **Mobile web game started** (2026-11-10): `mobile/index.html`, a separate top-down phone game
+    in three.js, not Godot (chosen so it can be play-tested from a phone via a link while Claude
+    works in the cloud). Kinematic tank, two thumb levers, portrait, north-up. Step 1 is a spike
+    on a test patch; details and what is untested are in `mobile/README.md`. The Godot game is
+    untouched.
+30. **Mobile game: strip level** (2026-11-10, developer's requests): zoomed out, camera locked to
+    the level's width and following north, one test level (plain, mountain road, cliff path,
+    flag) with checkpoints. See `mobile/README.md`.
+31. **Mobile game: set up for any model/session** (2026-11-10): tests saved in `mobile/tests/`
+    (`node run_tests.js`, 10 checks pass), instructions in `mobile/CLAUDE.md` (layout, testing,
+    publishing to the same phone link), pointer added to the root `CLAUDE.md`.
