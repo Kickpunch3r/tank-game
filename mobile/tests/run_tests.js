@@ -97,6 +97,11 @@ function check(name, ok, detail) {
   const bank = await page.evaluate(() => { const g = tankGame; g.reset({ x: 6, z: -73, yaw: 0 }); g.setLevers(1, 1); const y0 = g.tank.y; g.simulate(4); return { y0, y1: g.tank.y }; });
   check('bank between shelves blocks the tank', Math.abs(bank.y1 - bank.y0) < 0.5, bank.y0.toFixed(1) + ' -> ' + bank.y1.toFixed(1));
 
+  // --- Invisible side wall: the tank can't leave the screen sideways ---
+  const side = await page.evaluate(() => { const g = tankGame; g.reset({ x: -8, z: -12, yaw: Math.PI / 2 }); g.setLevers(1, 1); g.simulate(4); return { x: g.tank.x, half: g.level.halfWidth }; });
+  check('invisible wall keeps the tank on screen', side.x > -side.half && side.x < -side.half + 3.5, 'stopped at x ' + side.x.toFixed(1));
+  await shot('side_wall');
+
   // --- Touch: two fingers on the two levers (left forward, right back) spins the tank ---
   await page.evaluate(() => { tankGame.restart(); tankGame.setLevers(null); });
   const L = await page.locator('#leverL .slot').boundingBox(), R = await page.locator('#leverR .slot').boundingBox();

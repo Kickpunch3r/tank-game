@@ -144,7 +144,7 @@
     teeterLean: 0.14,       // how far it leans when right at the edge (radians)
     tiltSpring: 120,        // stiffness of the hull tilting to match the ground
     tiltDamping: 9,         // lower = rocks for longer
-    viewWidth: 29           // units of ground across the screen (the level is 28 wide)
+    viewWidth: 28           // units of ground across the screen (the level's playable width)
   };
 
   // ------------------------------------------------------------------
@@ -152,7 +152,7 @@
   // ------------------------------------------------------------------
   // "n" below means distance north of the level's south end, in units.
   const LEVEL = {
-    halfWidth: 14,          // the level is 28 wide; rock walls beyond that
+    halfWidth: 14,          // playable width is 28 = the screen's width; invisible walls at its edges
     length: 240,
     mountainStart: 58,      // the hilly plain ends and the road up begins
     legs: 6,                // stretches of road zig-zagging up the mountain
@@ -166,8 +166,10 @@
     chasmDepth: 12,
     flagN: 230              // the finish
   };
-  const CELL = 0.5, X0 = -20, Z0 = -(LEVEL.length + 10);
-  const NX = 40 / CELL, NZ = (LEVEL.length + 16) / CELL;
+  // The ground is built wider and longer than the playable level, so the screen is always
+  // full of terrain and the level's edges are never seen.
+  const CELL = 0.5, X0 = -26, Z0 = -(LEVEL.length + 16);
+  const NX = 52 / CELL, NZ = (LEVEL.length + 26) / CELL;
   const X1 = X0 + NX * CELL, Z1 = Z0 + NZ * CELL;
   const heights = new Float32Array((NX + 1) * (NZ + 1));
   const kinds = new Uint8Array((NX + 1) * (NZ + 1));     // 0 grass, 1 road, 2 chasm floor
@@ -217,13 +219,15 @@
     return L.top + Math.min(5, (-fromCentre - half) * 2.5);
   }
 
-  function designHeight(x, z) {
-    const n = -z, hw = LEVEL.halfWidth;
-    let h = surface(Math.min(hw, Math.max(-hw, x)), Math.min(LEVEL.length, Math.max(0, n)));
-    const outside = Math.max(Math.abs(x) - hw, -n, n - LEVEL.length);
-    if (outside > 0) { h += Math.min(6, outside * 4); surfaceKind = 0; }   // rock wall round the level
-    return h;
-  }
+  function designHeight(x, z) { return surface(x, -z); }
+
+  // Invisible walls: the tank's middle must stay inside this box (the screen's edges at the
+  // sides, the level's ends north and south).
+  const TANK_MARGIN = 1.4;
+  const PLAY = {
+    minX: -LEVEL.halfWidth + TANK_MARGIN, maxX: LEVEL.halfWidth - TANK_MARGIN,
+    minZ: -LEVEL.length + TANK_MARGIN, maxZ: -TANK_MARGIN
+  };
 
   for (let j = 0; j <= NZ; j++) {
     for (let i = 0; i <= NX; i++) {
@@ -486,8 +490,9 @@
 
     // Try the move; walls block it
     const fx = -Math.sin(tank.yaw), fz = -Math.cos(tank.yaw);
-    const nx = Math.min(X1 - 1.5, Math.max(X0 + 1.5, tank.x + fx * tank.speed * dt));
-    const nz = Math.min(Z1 - 1.5, Math.max(Z0 + 1.5, tank.z + fz * tank.speed * dt));
+    const nz = Math.min(PLAY.maxZ, Math.max(PLAY.minZ, tank.z + fz * tank.speed * dt));
+    const sideLimit = PLAY.maxX * visibleWidthFactor(nz);
+    const nx = Math.min(sideLimit, Math.max(-sideLimit, tank.x + fx * tank.speed * dt));
     const nyaw = tank.yaw + yawRate * dt;
     if (!hitsWall(fpNow, sampleFootprint(nx, nz, nyaw, fpTry))) {
       tank.x = nx; tank.z = nz; tank.yaw = nyaw;
@@ -573,10 +578,17 @@
   const CAM_TILT = 62 * Math.PI / 180;
   let camDist = 100, viewSouth = 30, viewNorth = 40;   // ground seen south / north of the target
   function cameraZFor(tankZ) {
-    const southLimit = 1 - viewSouth;                          // level's south end at the screen's bottom
-    const northLimit = Math.min(southLimit, -(LEVEL.length + 1) + viewNorth);
-    const want = tankZ - viewSouth * 0.25;                     // tank sits a little below the middle
+    const southLimit = -viewSouth;                             // level's south end at the screen's bottom
+    const northLimit = Math.min(southLimit, -LEVEL.length + viewNorth);
+    const want = tankZ;                                        // tank sits in the middle of the screen
     return Math.max(northLimit, Math.min(southLimit, want));
+  }
+  // The camera looks at a slant, so ground lower down the screen is nearer and less of its
+  // width fits. This says how much (1 = the full level width) at a given spot, so the
+  // invisible side walls can sit exactly at the screen's edges.
+  function visibleWidthFactor(z) {
+    const southOfCentre = z - cameraZFor(z);
+    return Math.min(1, 1 - southOfCentre * Math.cos(CAM_TILT) / camDist);
   }
   function resize() {
     const w = window.innerWidth, h = window.innerHeight;
@@ -609,7 +621,7 @@
   // Progress: checkpoints, falling into the chasm, reaching the flag
   // ------------------------------------------------------------------
   const checkpoints = [
-    { n: 5, x: 0, minY: -99 },                                  // start
+    { n: 8, x: 0, minY: -99 },                                  // start
     { n: 55, x: -11.5, minY: -99 },                             // foot of the mountain road
     { n: 126, x: -6, minY: LEVEL.top - 1 },                     // mountain top
     { n: 168, x: pathCentre(168), minY: LEVEL.top - 1 }         // on the cliff path, before the ridge

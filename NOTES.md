@@ -743,3 +743,6 @@ committed). To watch: open `tests/test_runner.tscn` and press F6.
 31. **Mobile game: set up for any model/session** (2026-11-10): tests saved in `mobile/tests/`
     (`node run_tests.js`, 10 checks pass), instructions in `mobile/CLAUDE.md` (layout, testing,
     publishing to the same phone link), pointer added to the root `CLAUDE.md`.
+32. **Mobile game: full-screen level** (2026-11-11, after the first phone play-test): tank sits
+    mid-screen; the rock walls round the level are gone, terrain continues past the playable
+    strip, invisible walls at the screen's side edges. 11 checks pass.

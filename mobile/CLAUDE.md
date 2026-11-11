@@ -15,7 +15,11 @@ Read `README.md` in this folder for what is built so far.
 ## Decisions already made (don't re-ask)
 - Web game, three.js r128 loaded from cdnjs. No build step, no other libraries.
 - Portrait. Camera fixed north-up, never moves sideways, shows the level's full width, follows
-  the tank north. Levels are strips 28 units wide that run up the screen.
+  the tank north, tank in the middle of the screen. Levels are strips 28 units wide that run up
+  the screen.
+- The level's edges are never shown: terrain is built past the playable strip so it fills the
+  screen, and invisible walls at the screen's side edges keep the tank in view (`PLAY`,
+  `visibleWidthFactor`).
 - Two thumb levers, one per tread.
 - Kinematic tank (no physics engine). It can teeter on and fall off cliffs; slopes slow it.
 
