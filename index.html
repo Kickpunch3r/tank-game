@@ -1,0 +1,849 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Little Tank</title>
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
+<meta name="claude:viewport-fit-sides" content="cover">
+<style>
+  /* Layout: full-screen 3D view; two thumb levers pinned to the bottom corners (portrait). */
+  :root {
+    color-scheme: dark;
+    --haze: #aebfb6;          /* sky / distance colour behind the terrain */
+    --panel: rgba(24, 30, 24, 0.55);
+    --panel-edge: rgba(235, 240, 220, 0.35);
+    --ink: #f1f3e6;
+    --ink-dim: rgba(241, 243, 230, 0.7);
+    --grip: #d9a441;          /* lever grip: brass */
+    --grip-edge: #7a5a1c;
+    --font-ui: "Trebuchet MS", "Segoe UI", system-ui, sans-serif;
+    --font-data: ui-monospace, "SF Mono", Menlo, Consolas, monospace;
+  }
+  [hidden] { display: none !important; }
+  html, body { height: 100%; margin: 0; }
+  body {
+    background: var(--haze);
+    color: var(--ink);
+    font-family: var(--font-ui);
+    overflow: hidden;
+    touch-action: none;
+    user-select: none;
+    -webkit-user-select: none;
+    -webkit-touch-callout: none;
+    overscroll-behavior: none;
+  }
+  #view { position: fixed; inset: 0; width: 100%; height: 100%; display: block; }
+
+  #hud {
+    position: fixed; inset: 0;
+    padding-top: calc(env(safe-area-inset-top, 0px) + 10px);
+    padding-bottom: calc(env(safe-area-inset-bottom, 0px) + 14px);
+    padding-left: max(16px, env(safe-area-inset-left, 0px));
+    padding-right: max(16px, env(safe-area-inset-right, 0px));
+    display: flex; flex-direction: column; justify-content: space-between;
+    pointer-events: none;
+  }
+  #topbar { display: flex; justify-content: space-between; align-items: flex-start; gap: 12px; }
+  #readout {
+    font-family: var(--font-data); font-size: 12px; line-height: 1.5;
+    font-variant-numeric: tabular-nums;
+    background: var(--panel); padding: 4px 8px; border-radius: 4px;
+    white-space: pre;
+  }
+  #buttons { display: flex; flex-direction: column; align-items: flex-end; gap: 8px; }
+  #banner {
+    position: absolute; left: 50%; top: 30%; transform: translateX(-50%);
+    font: 700 20px var(--font-ui); letter-spacing: 0.04em; white-space: nowrap;
+    background: var(--panel); border: 1px solid var(--panel-edge); border-radius: 4px;
+    padding: 10px 18px;
+  }
+  #debugMenu {
+    pointer-events: auto;
+    display: flex; flex-direction: column; align-items: stretch; gap: 8px;
+    background: var(--panel); border: 1px solid var(--panel-edge); border-radius: 4px;
+    padding: 8px; max-width: 190px;
+  }
+  #shakeStatus { font-family: var(--font-data); font-size: 11px; line-height: 1.4; color: var(--ink-dim); }
+  #buttons button {
+    pointer-events: auto;
+    font: 600 11px var(--font-ui); letter-spacing: 0.06em; text-transform: uppercase;
+    color: var(--ink); background: var(--panel);
+    border: 1px solid var(--panel-edge); border-radius: 4px;
+    padding: 9px 14px;
+  }
+  #buttons button:active { background: rgba(24, 30, 24, 0.8); }
+  #buttons button:focus-visible { outline: 2px solid var(--grip); outline-offset: 2px; }
+
+  #levers { display: flex; justify-content: space-between; align-items: flex-end; }
+  /* Each .lever is a big touch zone; the visible slot sits at its outer edge. */
+  .lever {
+    pointer-events: auto; touch-action: none;
+    width: 50%; height: min(46vh, 330px);
+    display: flex; flex-direction: column; justify-content: flex-end; gap: 6px;
+  }
+  .lever.left  { align-items: flex-start; }
+  .lever.right { align-items: flex-end; }
+  .slot {
+    position: relative;
+    width: 68px; height: min(30vh, 210px);
+    background: var(--panel);
+    border: 1px solid var(--panel-edge); border-radius: 10px;
+  }
+  .slot::before {            /* centre notch = stopped */
+    content: ""; position: absolute; left: 8px; right: 8px; top: 50%;
+    height: 2px; margin-top: -1px; background: var(--panel-edge);
+  }
+  .grip {
+    position: absolute; left: 5px; right: 5px; top: 50%;
+    height: 44px; margin-top: -22px;
+    background: var(--grip); border: 2px solid var(--grip-edge); border-radius: 7px;
+    box-shadow: 0 2px 0 rgba(0, 0, 0, 0.35);
+  }
+  .lever-name {
+    width: 68px; text-align: center;
+    font-size: 10px; letter-spacing: 0.12em; text-transform: uppercase; color: var(--ink-dim);
+    text-shadow: 0 1px 2px rgba(0, 0, 0, 0.6);
+  }
+  #fail {
+    position: fixed; inset: 0; display: flex; align-items: center; justify-content: center;
+    padding: 24px; text-align: center; background: #2a302a; color: var(--ink); font-size: 15px;
+  }
+</style>
+
+</head>
+<body>
+<canvas id="view"></canvas>
+<div id="hud">
+  <div id="topbar">
+    <div id="readout">starting…</div>
+    <div id="buttons">
+      <button id="reset" type="button">Back to checkpoint</button>
+      <button id="restart" type="button">Restart level</button>
+      <button id="debugToggle" type="button" aria-expanded="false" aria-controls="debugMenu">Debug</button>
+      <div id="debugMenu" hidden>
+        <button id="fire" type="button">Fire cannon</button>
+        <button id="shakeAllow" type="button" hidden>Allow shake</button>
+        <div id="shakeStatus">shake: no motion data yet</div>
+      </div>
+    </div>
+  </div>
+  <div id="banner" hidden></div>
+  <div id="levers">
+    <div class="lever left" id="leverL">
+      <div class="slot"><div class="grip"></div></div>
+      <div class="lever-name">Left tread</div>
+    </div>
+    <div class="lever right" id="leverR">
+      <div class="slot"><div class="grip"></div></div>
+      <div class="lever-name">Right tread</div>
+    </div>
+  </div>
+</div>
+<div id="fail" hidden>The 3D library did not load. Check the connection and reload the page.</div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+<script>
+"use strict";
+(function () {
+  if (!window.THREE) { document.getElementById("fail").hidden = false; return; }
+
+  // ------------------------------------------------------------------
+  // Settings (all the numbers worth tweaking are here)
+  // ------------------------------------------------------------------
+  const SET = {
+    maxSpeed: 5.0,          // tread speed at full lever, units per second
+    treadAccel: 9.0,        // how fast a tread reaches the lever's speed
+    turnScale: 0.35,        // lower = slower turning
+    trackWidth: 1.6,        // distance between the treads
+    maxClimbDeg: 35,        // the tank stalls on slopes this steep or steeper
+    downhillBoost: 0.3,     // extra speed going downhill (0.3 = up to 30 %)
+    wallDeg: 50,            // ground rising more steeply than this is a wall
+    gravity: 22,
+    teeterZone: 0.7,        // how close (units) the tank's middle gets to an edge before it leans
+    teeterLean: 0.14,       // how far it leans when right at the edge (radians)
+    tiltSpring: 120,        // stiffness of the hull tilting to match the ground
+    tiltDamping: 9,         // lower = rocks for longer
+    shellSpeed: 34,         // how fast a shell leaves the barrel
+    shellLiftDeg: 10,       // how far above the barrel's line it is lobbed
+    reloadSeconds: 1.5,
+    recoilKick: 2.2,        // how hard firing rocks the hull back
+    shakeThreshold: 14,     // how hard a shake fires the cannon (m/s2; lower = easier)
+    viewWidth: 28           // units of ground across the screen (the level's playable width)
+  };
+
+  // ------------------------------------------------------------------
+  // Terrain: one level, a strip that runs north (up the screen), stored as a grid of heights
+  // ------------------------------------------------------------------
+  // "n" below means distance north of the level's south end, in units.
+  const LEVEL = {
+    halfWidth: 14,          // playable width is 28 = the screen's width; invisible walls at its edges
+    length: 240,
+    mountainStart: 58,      // the hilly plain ends and the road up begins
+    legs: 6,                // stretches of road zig-zagging up the mountain
+    legDepth: 10,           // how far north each stretch takes up
+    legRise: 3.5,           // height gained on each stretch
+    top: 21,                // height of the mountain top (legs x legRise)
+    pathStart: 135,         // the cliff path runs from here...
+    pathEnd: 215,           // ...to here
+    ridgeStart: 172,        // between these the path has a drop on BOTH sides
+    ridgeEnd: 192,
+    chasmDepth: 12,
+    flagN: 230              // the finish
+  };
+  // The ground is built wider and longer than the playable level, so the screen is always
+  // full of terrain and the level's edges are never seen.
+  const CELL = 0.5, X0 = -26, Z0 = -(LEVEL.length + 16);
+  const NX = 52 / CELL, NZ = (LEVEL.length + 26) / CELL;
+  const X1 = X0 + NX * CELL, Z1 = Z0 + NZ * CELL;
+  const heights = new Float32Array((NX + 1) * (NZ + 1));
+  const kinds = new Uint8Array((NX + 1) * (NZ + 1));     // 0 grass, 1 road, 2 chasm floor
+
+  function smooth(t) { t = Math.min(1, Math.max(0, t)); return t * t * (3 - 2 * t); }
+  function pathCentre(n) { return 5 * Math.sin((n - LEVEL.pathStart) * 0.09); }
+  function pathHalfWidth(n) { return 2.4 + 0.5 * Math.cos((n - LEVEL.pathStart) * 0.23); }
+
+  let surfaceKind = 0;      // set by surface() for the point it was last asked about
+  function surface(x, n) {
+    const L = LEVEL;
+    surfaceKind = 0;
+    // How many road stretches lie south of this point? (their edges wobble a little)
+    let step = 0;
+    for (let k = 0; k <= L.legs; k++) {
+      if (n >= L.mountainStart + L.legDepth * k + Math.sin(x * 0.45 + k * 1.7)) step++;
+    }
+    if (step === 0) {
+      // Hilly plain: rolling ground and two bigger hills, flat at the start and at the mountain's foot
+      const fade = smooth((n - 6) / 8) * smooth((L.mountainStart - 3 - n) / 8);
+      let h = (1.1 * Math.sin(x * 0.3 + 1) * Math.cos(n * 0.21) + 0.5 * Math.sin(x * 0.5 - n * 0.33)) * fade;
+      h += 3.2 * Math.exp(-((x + 6) * (x + 6) + (n - 24) * (n - 24)) / 22);
+      h += 2.6 * Math.exp(-((x - 7) * (x - 7) + (n - 40) * (n - 40)) / 18);
+      return h;
+    }
+    if (step <= L.legs) {
+      // Mountain road: each stretch is a shelf that climbs from one side to the other.
+      // Flat turning pads at both ends; where two shelves meet at a pad they are level.
+      const k = step - 1;
+      const across = Math.min(1, Math.max(0, (x + 9) / 18));
+      surfaceKind = 1;
+      return L.legRise * (k + (k % 2 === 0 ? across : 1 - across));
+    }
+    if (n < L.pathStart || n > L.pathEnd) return L.top;      // open ground on the mountain top
+    // Cliff path: a narrow winding ledge. Drop to the east; rock face to the west,
+    // except on the ridge, where it drops on both sides.
+    const fromCentre = x - pathCentre(n), half = pathHalfWidth(n);
+    if (Math.abs(fromCentre) <= half) {
+      surfaceKind = 1;
+      return L.top + 0.2 * Math.sin(n * 0.5) * smooth((n - L.pathStart) / 4) * smooth((L.pathEnd - n) / 4);
+    }
+    const onRidge = n >= L.ridgeStart && n <= L.ridgeEnd;
+    if (fromCentre > 0 || onRidge) {
+      surfaceKind = 2;
+      return L.top - L.chasmDepth + 0.6 * Math.sin(x * 0.7) * Math.cos(n * 0.4);
+    }
+    return L.top + Math.min(5, (-fromCentre - half) * 2.5);
+  }
+
+  function designHeight(x, z) { return surface(x, -z); }
+
+  // Invisible walls: the tank's middle must stay inside this box (the screen's edges at the
+  // sides, the level's ends north and south).
+  const TANK_MARGIN = 1.4;
+  const PLAY = {
+    minX: -LEVEL.halfWidth + TANK_MARGIN, maxX: LEVEL.halfWidth - TANK_MARGIN,
+    minZ: -LEVEL.length + TANK_MARGIN, maxZ: -TANK_MARGIN
+  };
+
+  for (let j = 0; j <= NZ; j++) {
+    for (let i = 0; i <= NX; i++) {
+      heights[j * (NX + 1) + i] = designHeight(X0 + i * CELL, Z0 + j * CELL);
+      kinds[j * (NX + 1) + i] = surfaceKind;
+    }
+  }
+
+  // Ground height anywhere (blends between the four nearest grid points)
+  function groundHeight(x, z) {
+    let gx = (x - X0) / CELL, gz = (z - Z0) / CELL;
+    gx = Math.min(NX - 0.001, Math.max(0, gx));
+    gz = Math.min(NZ - 0.001, Math.max(0, gz));
+    const i = Math.floor(gx), j = Math.floor(gz), fx = gx - i, fz = gz - j;
+    const row = j * (NX + 1) + i;
+    const a = heights[row], b = heights[row + 1];
+    const c = heights[row + NX + 1], d = heights[row + NX + 2];
+    return (a * (1 - fx) + b * fx) * (1 - fz) + (c * (1 - fx) + d * fx) * fz;
+  }
+
+  // ------------------------------------------------------------------
+  // Scene
+  // ------------------------------------------------------------------
+  const canvas = document.getElementById("view");
+  const renderer = new THREE.WebGLRenderer({ canvas: canvas, antialias: true });
+  renderer.outputEncoding = THREE.sRGBEncoding;
+  renderer.shadowMap.enabled = true;
+  renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+
+  const HAZE = 0xaebfb6;
+  const scene = new THREE.Scene();
+  scene.background = new THREE.Color(HAZE);
+
+  const camera = new THREE.PerspectiveCamera(35, 1, 5, 800);
+  scene.add(new THREE.HemisphereLight(0xdfe9f0, 0x5d6650, 0.75));
+  const sun = new THREE.DirectionalLight(0xfff1d6, 0.95);
+  sun.castShadow = true;
+  sun.shadow.mapSize.set(2048, 2048);
+  sun.shadow.camera.left = -55; sun.shadow.camera.right = 55;
+  sun.shadow.camera.top = 55; sun.shadow.camera.bottom = -55;
+  sun.shadow.camera.near = 1; sun.shadow.camera.far = 320;
+  sun.shadow.bias = -0.002;
+  scene.add(sun); scene.add(sun.target);
+
+  function buildTerrainMesh() {
+    const triCount = NX * NZ * 2;
+    const pos = new Float32Array(triCount * 9), col = new Float32Array(triCount * 9);
+    const grassLow = new THREE.Color(0x5f8f45).convertSRGBToLinear();
+    const grassHigh = new THREE.Color(0xa9b87a).convertSRGBToLinear();
+    const road = new THREE.Color(0xb59c6c).convertSRGBToLinear();
+    const chasm = new THREE.Color(0x4a4d52).convertSRGBToLinear();
+    const rock = new THREE.Color(0x8d8474).convertSRGBToLinear();
+    const cliff = new THREE.Color(0x6a6257).convertSRGBToLinear();
+    const tmp = new THREE.Color();
+    const pA = new THREE.Vector3(), pB = new THREE.Vector3(), pC = new THREE.Vector3();
+    const e1 = new THREE.Vector3(), e2 = new THREE.Vector3();
+    let o = 0;
+    function vert(i, j, v) {
+      v.set(X0 + i * CELL, heights[j * (NX + 1) + i], Z0 + j * CELL);
+    }
+    function tri(i0, j0, i1, j1, i2, j2, shade, kind) {
+      vert(i0, j0, pA); vert(i1, j1, pB); vert(i2, j2, pC);
+      e1.subVectors(pB, pA); e2.subVectors(pC, pA); e1.cross(e2).normalize();
+      const up = Math.abs(e1.y), avgH = (pA.y + pB.y + pC.y) / 3;
+      if (up <= 0.55) tmp.copy(cliff);
+      else if (up <= 0.80) tmp.copy(rock);
+      else if (kind === 1) tmp.copy(road);
+      else if (kind === 2) tmp.copy(chasm);
+      else tmp.copy(grassLow).lerp(grassHigh, Math.min(1, Math.max(0, avgH / LEVEL.top)));
+      tmp.multiplyScalar(shade);
+      const pts = [pA, pB, pC];
+      for (let k = 0; k < 3; k++) {
+        pos[o] = pts[k].x; pos[o + 1] = pts[k].y; pos[o + 2] = pts[k].z;
+        col[o] = tmp.r; col[o + 1] = tmp.g; col[o + 2] = tmp.b;
+        o += 3;
+      }
+    }
+    for (let j = 0; j < NZ; j++) {
+      for (let i = 0; i < NX; i++) {
+        // a little fixed patchiness so flat ground isn't one flat colour
+        const s = Math.sin(i * 12.9898 + j * 78.233) * 43758.5453;
+        const shade = 0.94 + 0.12 * (s - Math.floor(s));
+        const kind = kinds[j * (NX + 1) + i];
+        tri(i, j, i, j + 1, i + 1, j, shade, kind);
+        tri(i + 1, j, i, j + 1, i + 1, j + 1, shade, kind);
+      }
+    }
+    const geo = new THREE.BufferGeometry();
+    geo.setAttribute("position", new THREE.BufferAttribute(pos, 3));
+    geo.setAttribute("color", new THREE.BufferAttribute(col, 3));
+    geo.computeVertexNormals();
+    const mesh = new THREE.Mesh(geo, new THREE.MeshLambertMaterial({ vertexColors: true }));
+    mesh.receiveShadow = true; mesh.castShadow = true;
+    return mesh;
+  }
+  scene.add(buildTerrainMesh());
+
+  // Finish flag
+  (function () {
+    const flag = new THREE.Group();
+    const pole = new THREE.Mesh(new THREE.BoxGeometry(0.14, 3.2, 0.14),
+      new THREE.MeshLambertMaterial({ color: new THREE.Color(0xe8e4d6).convertSRGBToLinear() }));
+    pole.position.y = 1.6;
+    const cloth = new THREE.Mesh(new THREE.BoxGeometry(1.5, 0.9, 0.08),
+      new THREE.MeshLambertMaterial({ color: new THREE.Color(0xc8402c).convertSRGBToLinear() }));
+    cloth.position.set(0.8, 2.7, 0);
+    pole.castShadow = true; cloth.castShadow = true;
+    flag.add(pole); flag.add(cloth);
+    flag.position.set(0, groundHeight(0, -LEVEL.flagN), -LEVEL.flagN);
+    scene.add(flag);
+  })();
+
+  // Tank model: simple boxes. Forward is -Z (up the screen when facing north).
+  const TANK_LEN = 2.4, TANK_WIDTH = 1.5;
+  function buildTankModel() {
+    const g = new THREE.Group();
+    function lambert(hex) {
+      return new THREE.MeshLambertMaterial({ color: new THREE.Color(hex).convertSRGBToLinear() });
+    }
+    const hullMat = lambert(0x6b7a3a);
+    const darkMat = lambert(0x2f3329);
+    const turretMat = lambert(0x7d8c45);
+    function box(w, h, d, mat, x, y, z) {
+      const m = new THREE.Mesh(new THREE.BoxGeometry(w, h, d), mat);
+      m.position.set(x, y, z); m.castShadow = true; m.receiveShadow = true; g.add(m); return m;
+    }
+    box(0.36, 0.5, TANK_LEN, darkMat, -0.57, 0.25, 0);         // left tread
+    box(0.36, 0.5, TANK_LEN, darkMat, 0.57, 0.25, 0);          // right tread
+    box(0.9, 0.42, 2.1, hullMat, 0, 0.45, 0);                  // hull
+    box(0.74, 0.34, 0.9, turretMat, 0, 0.83, 0.15);            // turret
+    box(0.14, 0.14, 1.3, darkMat, 0, 0.85, -0.9);              // gun barrel, points forward
+    return g;
+  }
+  const tankModel = buildTankModel();
+  tankModel.rotation.order = "YXZ";
+  scene.add(tankModel);
+
+  // ------------------------------------------------------------------
+  // Tank: kinematic. It rests on the ground like a stiff plank.
+  // ------------------------------------------------------------------
+  const ALONG = [], ACROSS = [-TANK_WIDTH / 2, 0, TANK_WIDTH / 2];
+  for (let i = -6; i <= 6; i++) ALONG.push(i * (TANK_LEN / 12));   // 13 stations, nose to tail
+
+  const tank = {
+    x: 0, z: 0, yaw: 0, y: 0, vy: 0,
+    pitch: 0, roll: 0, pitchVel: 0, rollVel: 0,
+    treadL: 0, treadR: 0, speed: 0, grounded: true
+  };
+  const levers = { left: 0, right: 0 };
+
+  // Ground heights under the tank's footprint for a given position and heading
+  function sampleFootprint(x, z, yaw, out) {
+    const fx = -Math.sin(yaw), fz = -Math.cos(yaw);   // forward
+    const rx = Math.cos(yaw), rz = -Math.sin(yaw);    // right
+    let n = 0;
+    for (let i = 0; i < ALONG.length; i++) {
+      for (let j = 0; j < ACROSS.length; j++) {
+        const px = x + fx * ALONG[i] + rx * ACROSS[j], pz = z + fz * ALONG[i] + rz * ACROSS[j];
+        out.px[n] = px; out.pz[n] = pz; out.h[n] = groundHeight(px, pz); n++;
+      }
+    }
+    return out;
+  }
+  function newFootprint() {
+    const n = ALONG.length * ACROSS.length;
+    return { px: new Float32Array(n), pz: new Float32Array(n), h: new Float32Array(n) };
+  }
+  const fpNow = newFootprint(), fpTry = newFootprint();
+  const profAlong = new Float32Array(ALONG.length), profAcross = new Float32Array(ACROSS.length);
+
+  // Where a stiff plank comes to rest on a row of ground heights, measured at its middle.
+  // Returns the height and slope there, plus a "lean" when the middle is close to an
+  // unsupported end (the teeter before tipping over an edge).
+  function restOnProfile(offs, prof, res) {
+    const c = (offs.length - 1) / 2;
+    let best = -Infinity, slope = 0;
+    for (let i = 0; i < c; i++) {
+      for (let k = c + 1; k < offs.length; k++) {
+        const s = (prof[k] - prof[i]) / (offs[k] - offs[i]);
+        const hMid = prof[i] - s * offs[i];
+        if (hMid > best + 1e-5) { best = hMid; slope = s; }
+      }
+    }
+    if (prof[c] > best + 1e-3) { best = prof[c]; slope = 0; }   // balanced on a high point
+    // how far from the middle does the ground fall away, in front and behind?
+    let gapFront = Infinity, gapBack = Infinity;
+    for (let k = c + 1; k < offs.length; k++) {
+      if (prof[k] < best + slope * offs[k] - 0.35) { gapFront = offs[k]; break; }
+    }
+    for (let i = c - 1; i >= 0; i--) {
+      if (prof[i] < best + slope * offs[i] - 0.35) { gapBack = -offs[i]; break; }
+    }
+    const zone = SET.teeterZone;
+    let lean = 0;
+    if (gapFront < zone) lean += 1 - gapFront / zone;
+    if (gapBack < zone) lean -= 1 - gapBack / zone;
+    res.height = best; res.slope = slope; res.lean = lean * SET.teeterLean;
+    return res;
+  }
+  const restAlong = { height: 0, slope: 0, lean: 0 }, restAcross = { height: 0, slope: 0, lean: 0 };
+
+  function solveRest(fp) {
+    const na = ALONG.length, nc = ACROSS.length;
+    for (let i = 0; i < na; i++) {
+      let m = -Infinity;
+      for (let j = 0; j < nc; j++) m = Math.max(m, fp.h[i * nc + j]);
+      profAlong[i] = m;
+    }
+    for (let j = 0; j < nc; j++) {
+      let m = -Infinity;
+      for (let i = 0; i < na; i++) m = Math.max(m, fp.h[i * nc + j]);
+      profAcross[j] = m;
+    }
+    restOnProfile(ALONG, profAlong, restAlong);
+    restOnProfile(ACROSS, profAcross, restAcross);
+  }
+
+  // Would moving from the current footprint to the tried one push part of the tank into a wall?
+  function hitsWall(a, b) {
+    const wallSlope = Math.tan(SET.wallDeg * Math.PI / 180);
+    for (let n = 0; n < a.h.length; n++) {
+      const d = Math.hypot(b.px[n] - a.px[n], b.pz[n] - a.pz[n]);
+      if (d < 1e-4) continue;
+      if (b.h[n] > tank.y + 0.05 && (b.h[n] - a.h[n]) / d > wallSlope) return true;
+    }
+    return false;
+  }
+
+  function resetTank(s) {
+    tank.x = s.x; tank.z = s.z; tank.yaw = s.yaw;
+    tank.vy = 0; tank.pitch = 0; tank.roll = 0; tank.pitchVel = 0; tank.rollVel = 0;
+    tank.treadL = 0; tank.treadR = 0; tank.speed = 0;
+    sampleFootprint(tank.x, tank.z, tank.yaw, fpNow); solveRest(fpNow);
+    tank.y = Math.min(restAlong.height, restAcross.height); tank.grounded = true;
+  }
+
+  function approach(v, target, maxStep) {
+    return v < target ? Math.min(target, v + maxStep) : Math.max(target, v - maxStep);
+  }
+
+  function stepTank(dt) {
+    sampleFootprint(tank.x, tank.z, tank.yaw, fpNow); solveRest(fpNow);
+
+    let yawRate;
+    if (tank.grounded) {
+      // Treads follow the levers
+      tank.treadL = approach(tank.treadL, levers.left * SET.maxSpeed, SET.treadAccel * dt);
+      tank.treadR = approach(tank.treadR, levers.right * SET.maxSpeed, SET.treadAccel * dt);
+      let v = (tank.treadL + tank.treadR) / 2;
+      // Slopes: slower uphill (stalls at maxClimbDeg), a little faster downhill
+      const grade = restAlong.slope * Math.sign(v);
+      const stall = Math.tan(SET.maxClimbDeg * Math.PI / 180);
+      if (grade > 0) v *= Math.max(0, 1 - Math.pow(grade / stall, 1.5));
+      else v *= 1 + Math.min(SET.downhillBoost, -grade * 0.5);
+      tank.speed = v;
+      yawRate = (tank.treadR - tank.treadL) / SET.trackWidth * SET.turnScale;
+    } else {
+      yawRate = 0;          // in the air: keeps its speed and heading, levers do nothing
+    }
+
+    // Try the move; walls block it
+    const fx = -Math.sin(tank.yaw), fz = -Math.cos(tank.yaw);
+    const nz = Math.min(PLAY.maxZ, Math.max(PLAY.minZ, tank.z + fz * tank.speed * dt));
+    const sideLimit = PLAY.maxX * visibleWidthFactor(nz);
+    const nx = Math.min(sideLimit, Math.max(-sideLimit, tank.x + fx * tank.speed * dt));
+    const nyaw = tank.yaw + yawRate * dt;
+    if (!hitsWall(fpNow, sampleFootprint(nx, nz, nyaw, fpTry))) {
+      tank.x = nx; tank.z = nz; tank.yaw = nyaw;
+    } else if (!hitsWall(fpNow, sampleFootprint(nx, nz, tank.yaw, fpTry))) {
+      tank.x = nx; tank.z = nz;
+    } else if (!hitsWall(fpNow, sampleFootprint(tank.x, tank.z, nyaw, fpTry))) {
+      tank.yaw = nyaw; tank.speed = 0; tank.treadL *= 0.5; tank.treadR *= 0.5;
+    } else {
+      tank.speed = 0; tank.treadL = 0; tank.treadR = 0;
+    }
+
+    // Height: gravity pulls the tank down onto whatever supports it
+    sampleFootprint(tank.x, tank.z, tank.yaw, fpNow); solveRest(fpNow);
+    const support = Math.min(restAlong.height, restAcross.height);
+    tank.vy -= SET.gravity * dt;
+    tank.y += tank.vy * dt;
+    if (tank.y <= support) { tank.y = support; tank.vy = 0; }
+    tank.grounded = tank.y - support < 0.15;
+
+    // Tilt: a springy follow of the ground's slope, so the hull rocks a little
+    const k = tank.grounded ? SET.tiltSpring : SET.tiltSpring * 0.2;
+    const c = tank.grounded ? SET.tiltDamping : SET.tiltDamping * 0.45;
+    const pitchTarget = Math.max(-1.25, Math.min(1.25, Math.atan(restAlong.slope) - restAlong.lean));
+    const rollTarget = Math.max(-1.25, Math.min(1.25, Math.atan(restAcross.slope) - restAcross.lean));
+    tank.pitchVel += ((pitchTarget - tank.pitch) * k - tank.pitchVel * c) * dt;
+    tank.rollVel += ((rollTarget - tank.roll) * k - tank.rollVel * c) * dt;
+    tank.pitch += tank.pitchVel * dt;
+    tank.roll += tank.rollVel * dt;
+  }
+
+  // ------------------------------------------------------------------
+  // Cannon: shells fly in an arc and land with a puff of dust. Nothing to hit yet.
+  // ------------------------------------------------------------------
+  const cannon = { reload: 0, recoil: 0, shotsFired: 0, lastImpact: null };
+  const shells = [], puffs = [];
+  const shellGeo = new THREE.SphereGeometry(0.16, 8, 6);
+  const shellMat = new THREE.MeshBasicMaterial({ color: 0x1d1d1a });
+  const puffGeo = new THREE.SphereGeometry(1, 10, 8);
+  const tankQuat = new THREE.Quaternion(), tankEuler = new THREE.Euler(0, 0, 0, "YXZ");
+
+  function addPuff(x, y, z, size, seconds, hex) {
+    const mesh = new THREE.Mesh(puffGeo, new THREE.MeshBasicMaterial({ color: hex, transparent: true, opacity: 0.8, depthWrite: false }));
+    mesh.position.set(x, y, z);
+    scene.add(mesh);
+    puffs.push({ mesh: mesh, age: 0, life: seconds, size: size });
+  }
+
+  // Returns true if a shell was fired (false while reloading).
+  function fireCannon() {
+    if (cannon.reload > 0) return false;
+    tankEuler.set(tank.pitch, tank.yaw, tank.roll);
+    tankQuat.setFromEuler(tankEuler);
+    const lift = SET.shellLiftDeg * Math.PI / 180;
+    const dir = new THREE.Vector3(0, Math.sin(lift), -Math.cos(lift)).applyQuaternion(tankQuat);
+    const muzzle = new THREE.Vector3(0, 0.85, -1.6).applyQuaternion(tankQuat);
+    const mesh = new THREE.Mesh(shellGeo, shellMat);
+    mesh.position.set(tank.x + muzzle.x, tank.y + muzzle.y, tank.z + muzzle.z);
+    mesh.castShadow = true;
+    scene.add(mesh);
+    shells.push({ mesh: mesh, vel: dir.multiplyScalar(SET.shellSpeed), age: 0 });
+    addPuff(mesh.position.x, mesh.position.y, mesh.position.z, 0.6, 0.18, 0xffe9a8);   // muzzle flash
+    cannon.reload = SET.reloadSeconds;
+    cannon.recoil = 0.3;
+    cannon.shotsFired++;
+    tank.pitchVel += SET.recoilKick;        // nose rocks up
+    return true;
+  }
+
+  function stepCannon(dt) {
+    cannon.reload = Math.max(0, cannon.reload - dt);
+    cannon.recoil *= Math.exp(-dt * 9);
+    for (let i = shells.length - 1; i >= 0; i--) {
+      const sh = shells[i], p = sh.mesh.position;
+      sh.vel.y -= SET.gravity * dt;
+      p.x += sh.vel.x * dt; p.y += sh.vel.y * dt; p.z += sh.vel.z * dt;
+      sh.age += dt;
+      const ground = groundHeight(p.x, p.z);
+      if (p.y <= ground || sh.age > 5) {
+        cannon.lastImpact = { x: p.x, y: ground, z: p.z };
+        addPuff(p.x, ground + 0.2, p.z, 1.7, 0.55, 0xcbb994);                       // dust
+        scene.remove(sh.mesh);
+        shells.splice(i, 1);
+      }
+    }
+    for (let i = puffs.length - 1; i >= 0; i--) {
+      const pf = puffs[i];
+      pf.age += dt;
+      const t = pf.age / pf.life;
+      if (t >= 1) { scene.remove(pf.mesh); pf.mesh.material.dispose(); puffs.splice(i, 1); continue; }
+      pf.mesh.scale.setScalar(pf.size * (0.35 + 0.65 * t));
+      pf.mesh.material.opacity = 0.8 * (1 - t);
+    }
+  }
+
+  // Shake to fire. Needs the phone's motion sensor, which some pages aren't allowed to read
+  // (the claude.ai link is one), and which iPhones only give after the player taps "Allow".
+  const shake = { status: "no motion data yet", gravity: null };
+  function onMotion(e) {
+    let a = e.acceleration, mag = 0;
+    if (a && a.x !== null && a.x !== undefined) {
+      mag = Math.hypot(a.x, a.y, a.z);
+    } else {
+      // Only the reading that includes gravity: track gravity slowly and subtract it.
+      a = e.accelerationIncludingGravity;
+      if (!a || a.x === null || a.x === undefined) return;
+      if (!shake.gravity) shake.gravity = { x: a.x, y: a.y, z: a.z };
+      const g = shake.gravity;
+      g.x += (a.x - g.x) * 0.1; g.y += (a.y - g.y) * 0.1; g.z += (a.z - g.z) * 0.1;
+      mag = Math.hypot(a.x - g.x, a.y - g.y, a.z - g.z);
+    }
+    shake.status = "on";
+    if (mag > SET.shakeThreshold) fireCannon();
+  }
+  const needsShakePermission = typeof DeviceMotionEvent !== "undefined" && typeof DeviceMotionEvent.requestPermission === "function";
+  if (typeof DeviceMotionEvent === "undefined") shake.status = "this browser has no motion sensor";
+  else {
+    // Listen straight away (Android sends motion without asking); iPhones stay silent until allowed.
+    window.addEventListener("devicemotion", onMotion);
+    if (needsShakePermission) shake.status = "tap Allow shake";
+  }
+  function askShakePermission() {
+    DeviceMotionEvent.requestPermission().then(function (answer) {
+      if (answer === "granted") { if (shake.status !== "on") shake.status = "allowed, no motion data yet"; }
+      else shake.status = "blocked (not allowed)";
+    }).catch(function () { shake.status = "blocked by this page's host"; });
+  }
+
+  // ------------------------------------------------------------------
+  // Controls: two thumb levers (touch or mouse); keys W/S and Up/Down for desktop
+  // ------------------------------------------------------------------
+  const keys = {};
+  function makeLever(el) {
+    const slot = el.querySelector(".slot"), grip = el.querySelector(".grip");
+    const lever = { pointerId: null, value: 0 };
+    function travel() { return slot.clientHeight / 2 - grip.offsetHeight / 2 - 4; }
+    function show() { grip.style.transform = "translateY(" + (-lever.value * travel()) + "px)"; }
+    function read(e) {
+      const r = slot.getBoundingClientRect();
+      let v = (r.top + r.height / 2 - e.clientY) / travel();
+      v = Math.max(-1, Math.min(1, v));
+      lever.value = Math.abs(v) < 0.08 ? 0 : v;
+      show();
+    }
+    el.addEventListener("pointerdown", function (e) {
+      if (lever.pointerId !== null) return;
+      lever.pointerId = e.pointerId;
+      try { el.setPointerCapture(e.pointerId); } catch (err) { /* fine without capture */ }
+      read(e); e.preventDefault();
+    });
+    el.addEventListener("pointermove", function (e) { if (e.pointerId === lever.pointerId) read(e); });
+    function release(e) {
+      if (e.pointerId !== lever.pointerId) return;
+      lever.pointerId = null; lever.value = 0; show();
+    }
+    el.addEventListener("pointerup", release);
+    el.addEventListener("pointercancel", release);
+    lever.show = show;
+    return lever;
+  }
+  const leverL = makeLever(document.getElementById("leverL"));
+  const leverR = makeLever(document.getElementById("leverR"));
+  window.addEventListener("keydown", function (e) { keys[e.code] = true; });
+  window.addEventListener("keyup", function (e) { keys[e.code] = false; });
+  window.addEventListener("contextmenu", function (e) { e.preventDefault(); });
+
+  let scripted = null;   // tests can take over the levers
+  function readLevers() {
+    if (scripted) { levers.left = scripted.left; levers.right = scripted.right; return; }
+    const kl = (keys.KeyW ? 1 : 0) - (keys.KeyS ? 1 : 0);
+    const kr = (keys.ArrowUp ? 1 : 0) - (keys.ArrowDown ? 1 : 0);
+    levers.left = leverL.pointerId !== null ? leverL.value : kl;
+    levers.right = leverR.pointerId !== null ? leverR.value : kr;
+  }
+
+  // ------------------------------------------------------------------
+  // Camera: looks down from the south, north stays up the screen. It never moves sideways:
+  // the level's width always fills the screen's width, and the camera follows the tank north.
+  // ------------------------------------------------------------------
+  const camTarget = new THREE.Vector3(0, 0, 0);
+  const CAM_TILT = 62 * Math.PI / 180;
+  let camDist = 100, viewSouth = 30, viewNorth = 40;   // ground seen south / north of the target
+  function cameraZFor(tankZ) {
+    const southLimit = -viewSouth;                             // level's south end at the screen's bottom
+    const northLimit = Math.min(southLimit, -LEVEL.length + viewNorth);
+    const want = tankZ;                                        // tank sits in the middle of the screen
+    return Math.max(northLimit, Math.min(southLimit, want));
+  }
+  // The camera looks at a slant, so ground lower down the screen is nearer and less of its
+  // width fits. This says how much (1 = the full level width) at a given spot, so the
+  // invisible side walls can sit exactly at the screen's edges.
+  function visibleWidthFactor(z) {
+    const southOfCentre = z - cameraZFor(z);
+    return Math.min(1, 1 - southOfCentre * Math.cos(CAM_TILT) / camDist);
+  }
+  function resize() {
+    const w = window.innerWidth, h = window.innerHeight;
+    renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 2));
+    renderer.setSize(w, h, false);
+    camera.aspect = w / h; camera.updateProjectionMatrix();
+    const halfV = camera.fov * Math.PI / 360, tanV = Math.tan(halfV);
+    camDist = SET.viewWidth / 2 / (tanV * Math.min(camera.aspect, 0.8));
+    const camHeight = camDist * Math.sin(CAM_TILT), camBack = camDist * Math.cos(CAM_TILT);
+    viewSouth = camBack - camHeight / Math.tan(CAM_TILT + halfV);
+    viewNorth = camHeight / Math.tan(CAM_TILT - halfV) - camBack;
+    leverL.show(); leverR.show();
+  }
+  window.addEventListener("resize", resize);
+
+  function updateView(dt, snap) {
+    const wantZ = cameraZFor(tank.z);
+    camTarget.x = 0;
+    camTarget.z = snap ? wantZ : camTarget.z + (wantZ - camTarget.z) * (1 - Math.exp(-dt * 5));
+    camTarget.y = snap ? tank.y : camTarget.y + (tank.y - camTarget.y) * (1 - Math.exp(-dt * 2.5));
+    camera.position.set(0, camTarget.y + camDist * Math.sin(CAM_TILT), camTarget.z + camDist * Math.cos(CAM_TILT));
+    camera.lookAt(camTarget);
+    sun.target.position.copy(camTarget);
+    sun.position.set(camTarget.x - 60, camTarget.y + 110, camTarget.z + 35);
+    // firing shoves the model back a little along its own length
+    tankModel.position.set(tank.x + Math.sin(tank.yaw) * cannon.recoil, tank.y, tank.z + Math.cos(tank.yaw) * cannon.recoil);
+    tankModel.rotation.set(tank.pitch, tank.yaw, tank.roll);
+  }
+
+  // ------------------------------------------------------------------
+  // Progress: checkpoints, falling into the chasm, reaching the flag
+  // ------------------------------------------------------------------
+  const checkpoints = [
+    { n: 8, x: 0, minY: -99 },                                  // start
+    { n: 55, x: -11.5, minY: -99 },                             // foot of the mountain road
+    { n: 126, x: -6, minY: LEVEL.top - 1 },                     // mountain top
+    { n: 168, x: pathCentre(168), minY: LEVEL.top - 1 }         // on the cliff path, before the ridge
+  ];
+  let checkpointIndex = 0, fallTimer = 0, won = false;
+  const banner = document.getElementById("banner");
+  let bannerUntil = 0;
+  function say(text, seconds) {
+    banner.textContent = text; banner.hidden = false;
+    bannerUntil = seconds > 0 ? performance.now() + seconds * 1000 : Infinity;
+  }
+  function toCheckpoint(snapCamera) {
+    const cp = checkpoints[checkpointIndex];
+    resetTank({ x: cp.x, z: -cp.n, yaw: 0 });
+    fallTimer = 0;
+    if (snapCamera) updateView(0, true);
+  }
+  function restartLevel() {
+    checkpointIndex = 0; won = false; banner.hidden = true; bannerUntil = 0;
+    toCheckpoint(true);
+  }
+  function updateProgress(dt) {
+    if (!tank.grounded) return;
+    const n = -tank.z, L = LEVEL;
+    const next = checkpoints[checkpointIndex + 1];
+    if (next && n >= next.n && tank.y >= next.minY) { checkpointIndex++; say("Checkpoint", 1.5); }
+    if (n > L.pathStart - 2 && n < L.pathEnd + 2 && tank.y < L.top - 6) {
+      fallTimer += dt;
+      if (fallTimer > 0.9) { toCheckpoint(false); say("Fell into the chasm", 2); }
+    } else {
+      fallTimer = 0;
+    }
+    if (!won && tank.y > L.top - 1 && Math.hypot(tank.x, n - L.flagN) < 3) { won = true; say("Summit reached", 0); }
+  }
+  document.getElementById("reset").addEventListener("click", function () { toCheckpoint(false); });
+  document.getElementById("restart").addEventListener("click", restartLevel);
+  const debugToggle = document.getElementById("debugToggle"), debugMenu = document.getElementById("debugMenu");
+  const shakeAllow = document.getElementById("shakeAllow"), shakeStatus = document.getElementById("shakeStatus");
+  debugToggle.addEventListener("click", function () {
+    debugMenu.hidden = !debugMenu.hidden;
+    debugToggle.setAttribute("aria-expanded", String(!debugMenu.hidden));
+  });
+  document.getElementById("fire").addEventListener("click", fireCannon);
+  shakeAllow.hidden = !needsShakePermission;
+  shakeAllow.addEventListener("click", askShakePermission);
+
+  // ------------------------------------------------------------------
+  // Main loop: fixed 60 steps a second so driving feels the same on every phone
+  // ------------------------------------------------------------------
+  const STEP = 1 / 60;
+  const readout = document.getElementById("readout");
+  let last = 0, carry = 0, frames = 0, fpsTime = 0, fps = 0;
+  function frame(now) {
+    requestAnimationFrame(frame);
+    const dt = Math.min(0.1, (now - last) / 1000 || 0); last = now;
+    carry += dt;
+    while (carry >= STEP) { readLevers(); stepTank(STEP); stepCannon(STEP); updateProgress(STEP); carry -= STEP; }
+    updateView(dt, false);
+    renderer.render(scene, camera);
+    if (!banner.hidden && now > bannerUntil) banner.hidden = true;
+    frames++; fpsTime += dt;
+    if (fpsTime >= 0.5) {
+      fps = Math.round(frames / fpsTime); frames = 0; fpsTime = 0;
+      readout.textContent = fps + " fps\nheight " + tank.y.toFixed(1) + (tank.grounded ? "" : "  falling");
+      shakeStatus.textContent = "shake: " + shake.status;
+    }
+  }
+
+  function start(saved) {
+    if (saved && typeof saved.x === "number") {
+      checkpointIndex = Math.min(checkpoints.length - 1, Math.max(0, saved.checkpoint | 0));
+      resetTank(saved);
+    } else {
+      toCheckpoint(false);
+    }
+    resize();
+    updateView(0, true);
+    requestAnimationFrame(frame);
+  }
+
+  // For automated tests: drive without touch and step time by hand.
+  window.tankGame = {
+    tank: tank, settings: SET, level: LEVEL, checkpoints: checkpoints,
+    groundHeight: groundHeight, pathCentre: pathCentre, reset: resetTank, restart: restartLevel,
+    fire: fireCannon, cannon: cannon, shake: shake,
+    shellsInFlight: function () { return shells.length; },
+    progress: function () { return { checkpoint: checkpointIndex, won: won }; },
+    setLevers: function (l, r) { scripted = (l === null) ? null : { left: l, right: r }; },
+    simulate: function (seconds) {
+      for (let t = 0; t < seconds; t += STEP) { readLevers(); stepTank(STEP); stepCannon(STEP); updateProgress(STEP); }
+    }
+  };
+
+  // Keep the tank where it was when the page is updated while open.
+  const hot = window.claude && window.claude.hot;
+  if (hot && hot.snapshot) {
+    hot.snapshot(function () { return { x: tank.x, z: tank.z, yaw: tank.yaw, checkpoint: checkpointIndex }; });
+  }
+  if (hot && hot.ready) hot.ready(start); else start((hot && hot.data) || {});
+})();
+</script>
+</body>
+</html>
