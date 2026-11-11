@@ -1,0 +1,7 @@
+{
+  "name": "neon-treads-tests",
+  "private": true,
+  "description": "Headless browser tests for neon/index.html",
+  "scripts": { "test": "node run_tests.js" },
+  "devDependencies": { "three": "0.128.0" }
+}

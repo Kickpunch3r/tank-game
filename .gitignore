@@ -15,3 +15,8 @@ build/
 mobile/tests/node_modules/
 mobile/tests/shots/
 mobile/tests/package-lock.json
+
+# Neon Treads tests
+neon/tests/node_modules/
+neon/tests/shots/
+neon/tests/package-lock.json
