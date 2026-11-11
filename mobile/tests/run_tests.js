@@ -102,6 +102,39 @@ function check(name, ok, detail) {
   check('invisible wall keeps the tank on screen', side.x > -side.half && side.x < -side.half + 3.5, 'stopped at x ' + side.x.toFixed(1));
   await shot('side_wall');
 
+  // --- Cannon: fires a shell that lands ahead of the tank; reloading blocks a second shot ---
+  const shot1 = await page.evaluate(() => {
+    const g = tankGame; g.restart(); g.setLevers(0, 0); g.simulate(0.5);
+    const first = g.fire(), second = g.fire(), inFlight = g.shellsInFlight();
+    g.simulate(1.4);
+    const stillReloading = g.fire();
+    g.simulate(0.3);
+    const afterReload = g.fire();
+    return { first, second, inFlight, stillReloading, afterReload, impact: g.cannon.lastImpact, tankZ: g.tank.z, tankX: g.tank.x };
+  });
+  const ahead = shot1.impact ? shot1.tankZ - shot1.impact.z : 0;
+  check('cannon fires one shell', shot1.first && shot1.inFlight === 1);
+  check('shell lands ahead of the tank', shot1.impact && ahead > 8 && ahead < 30 && Math.abs(shot1.impact.x - shot1.tankX) < 1, 'landed ' + ahead.toFixed(1) + ' units ahead');
+  check('reload blocks firing for 1.5 s', !shot1.second && !shot1.stillReloading && shot1.afterReload);
+  await page.evaluate(() => { tankGame.setLevers(null); tankGame.simulate(2); });
+  await page.click('#debugToggle');
+  const firedBefore = await page.evaluate(() => tankGame.cannon.shotsFired);
+  await page.click('#fire');
+  check('Fire button in the debug menu fires', await page.evaluate(n => tankGame.cannon.shotsFired === n + 1, firedBefore));
+  if (SHOTS) await page.screenshot({ path: path.join(__dirname, 'shots', 'cannon_fired.png') });
+
+  // --- Shake: a hard jolt from the motion sensor fires; a gentle one doesn't ---
+  const shaken = await page.evaluate(() => {
+    const g = tankGame; g.simulate(3);
+    const before = g.cannon.shotsFired;
+    window.dispatchEvent(new DeviceMotionEvent('devicemotion', { acceleration: { x: 3, y: 2, z: 1 } }));
+    const afterGentle = g.cannon.shotsFired;
+    window.dispatchEvent(new DeviceMotionEvent('devicemotion', { acceleration: { x: 18, y: 6, z: 2 } }));
+    return { gentle: afterGentle - before, hard: g.cannon.shotsFired - afterGentle, status: g.shake.status };
+  });
+  check('a hard shake fires, a gentle one does not', shaken.gentle === 0 && shaken.hard === 1, 'status: ' + shaken.status);
+  await page.click('#debugToggle');
+
   // --- Touch: two fingers on the two levers (left forward, right back) spins the tank ---
   await page.evaluate(() => { tankGame.restart(); tankGame.setLevers(null); });
   const L = await page.locator('#leverL .slot').boundingBox(), R = await page.locator('#leverR .slot').boundingBox();

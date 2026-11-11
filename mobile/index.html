@@ -53,6 +53,13 @@
     background: var(--panel); border: 1px solid var(--panel-edge); border-radius: 4px;
     padding: 10px 18px;
   }
+  #debugMenu {
+    pointer-events: auto;
+    display: flex; flex-direction: column; align-items: stretch; gap: 8px;
+    background: var(--panel); border: 1px solid var(--panel-edge); border-radius: 4px;
+    padding: 8px; max-width: 190px;
+  }
+  #shakeStatus { font-family: var(--font-data); font-size: 11px; line-height: 1.4; color: var(--ink-dim); }
   #buttons button {
     pointer-events: auto;
     font: 600 11px var(--font-ui); letter-spacing: 0.06em; text-transform: uppercase;
@@ -106,6 +113,12 @@
     <div id="buttons">
       <button id="reset" type="button">Back to checkpoint</button>
       <button id="restart" type="button">Restart level</button>
+      <button id="debugToggle" type="button" aria-expanded="false" aria-controls="debugMenu">Debug</button>
+      <div id="debugMenu" hidden>
+        <button id="fire" type="button">Fire cannon</button>
+        <button id="shakeAllow" type="button" hidden>Allow shake</button>
+        <div id="shakeStatus">shake: no motion data yet</div>
+      </div>
     </div>
   </div>
   <div id="banner" hidden></div>
@@ -144,6 +157,11 @@
     teeterLean: 0.14,       // how far it leans when right at the edge (radians)
     tiltSpring: 120,        // stiffness of the hull tilting to match the ground
     tiltDamping: 9,         // lower = rocks for longer
+    shellSpeed: 34,         // how fast a shell leaves the barrel
+    shellLiftDeg: 10,       // how far above the barrel's line it is lobbed
+    reloadSeconds: 1.5,
+    recoilKick: 2.2,        // how hard firing rocks the hull back
+    shakeThreshold: 14,     // how hard a shake fires the cannon (m/s2; lower = easier)
     viewWidth: 28           // units of ground across the screen (the level's playable width)
   };
 
@@ -524,6 +542,103 @@
   }
 
   // ------------------------------------------------------------------
+  // Cannon: shells fly in an arc and land with a puff of dust. Nothing to hit yet.
+  // ------------------------------------------------------------------
+  const cannon = { reload: 0, recoil: 0, shotsFired: 0, lastImpact: null };
+  const shells = [], puffs = [];
+  const shellGeo = new THREE.SphereGeometry(0.16, 8, 6);
+  const shellMat = new THREE.MeshBasicMaterial({ color: 0x1d1d1a });
+  const puffGeo = new THREE.SphereGeometry(1, 10, 8);
+  const tankQuat = new THREE.Quaternion(), tankEuler = new THREE.Euler(0, 0, 0, "YXZ");
+
+  function addPuff(x, y, z, size, seconds, hex) {
+    const mesh = new THREE.Mesh(puffGeo, new THREE.MeshBasicMaterial({ color: hex, transparent: true, opacity: 0.8, depthWrite: false }));
+    mesh.position.set(x, y, z);
+    scene.add(mesh);
+    puffs.push({ mesh: mesh, age: 0, life: seconds, size: size });
+  }
+
+  // Returns true if a shell was fired (false while reloading).
+  function fireCannon() {
+    if (cannon.reload > 0) return false;
+    tankEuler.set(tank.pitch, tank.yaw, tank.roll);
+    tankQuat.setFromEuler(tankEuler);
+    const lift = SET.shellLiftDeg * Math.PI / 180;
+    const dir = new THREE.Vector3(0, Math.sin(lift), -Math.cos(lift)).applyQuaternion(tankQuat);
+    const muzzle = new THREE.Vector3(0, 0.85, -1.6).applyQuaternion(tankQuat);
+    const mesh = new THREE.Mesh(shellGeo, shellMat);
+    mesh.position.set(tank.x + muzzle.x, tank.y + muzzle.y, tank.z + muzzle.z);
+    mesh.castShadow = true;
+    scene.add(mesh);
+    shells.push({ mesh: mesh, vel: dir.multiplyScalar(SET.shellSpeed), age: 0 });
+    addPuff(mesh.position.x, mesh.position.y, mesh.position.z, 0.6, 0.18, 0xffe9a8);   // muzzle flash
+    cannon.reload = SET.reloadSeconds;
+    cannon.recoil = 0.3;
+    cannon.shotsFired++;
+    tank.pitchVel += SET.recoilKick;        // nose rocks up
+    return true;
+  }
+
+  function stepCannon(dt) {
+    cannon.reload = Math.max(0, cannon.reload - dt);
+    cannon.recoil *= Math.exp(-dt * 9);
+    for (let i = shells.length - 1; i >= 0; i--) {
+      const sh = shells[i], p = sh.mesh.position;
+      sh.vel.y -= SET.gravity * dt;
+      p.x += sh.vel.x * dt; p.y += sh.vel.y * dt; p.z += sh.vel.z * dt;
+      sh.age += dt;
+      const ground = groundHeight(p.x, p.z);
+      if (p.y <= ground || sh.age > 5) {
+        cannon.lastImpact = { x: p.x, y: ground, z: p.z };
+        addPuff(p.x, ground + 0.2, p.z, 1.7, 0.55, 0xcbb994);                       // dust
+        scene.remove(sh.mesh);
+        shells.splice(i, 1);
+      }
+    }
+    for (let i = puffs.length - 1; i >= 0; i--) {
+      const pf = puffs[i];
+      pf.age += dt;
+      const t = pf.age / pf.life;
+      if (t >= 1) { scene.remove(pf.mesh); pf.mesh.material.dispose(); puffs.splice(i, 1); continue; }
+      pf.mesh.scale.setScalar(pf.size * (0.35 + 0.65 * t));
+      pf.mesh.material.opacity = 0.8 * (1 - t);
+    }
+  }
+
+  // Shake to fire. Needs the phone's motion sensor, which some pages aren't allowed to read
+  // (the claude.ai link is one), and which iPhones only give after the player taps "Allow".
+  const shake = { status: "no motion data yet", gravity: null };
+  function onMotion(e) {
+    let a = e.acceleration, mag = 0;
+    if (a && a.x !== null && a.x !== undefined) {
+      mag = Math.hypot(a.x, a.y, a.z);
+    } else {
+      // Only the reading that includes gravity: track gravity slowly and subtract it.
+      a = e.accelerationIncludingGravity;
+      if (!a || a.x === null || a.x === undefined) return;
+      if (!shake.gravity) shake.gravity = { x: a.x, y: a.y, z: a.z };
+      const g = shake.gravity;
+      g.x += (a.x - g.x) * 0.1; g.y += (a.y - g.y) * 0.1; g.z += (a.z - g.z) * 0.1;
+      mag = Math.hypot(a.x - g.x, a.y - g.y, a.z - g.z);
+    }
+    shake.status = "on";
+    if (mag > SET.shakeThreshold) fireCannon();
+  }
+  const needsShakePermission = typeof DeviceMotionEvent !== "undefined" && typeof DeviceMotionEvent.requestPermission === "function";
+  if (typeof DeviceMotionEvent === "undefined") shake.status = "this browser has no motion sensor";
+  else {
+    // Listen straight away (Android sends motion without asking); iPhones stay silent until allowed.
+    window.addEventListener("devicemotion", onMotion);
+    if (needsShakePermission) shake.status = "tap Allow shake";
+  }
+  function askShakePermission() {
+    DeviceMotionEvent.requestPermission().then(function (answer) {
+      if (answer === "granted") { if (shake.status !== "on") shake.status = "allowed, no motion data yet"; }
+      else shake.status = "blocked (not allowed)";
+    }).catch(function () { shake.status = "blocked by this page's host"; });
+  }
+
+  // ------------------------------------------------------------------
   // Controls: two thumb levers (touch or mouse); keys W/S and Up/Down for desktop
   // ------------------------------------------------------------------
   const keys = {};
@@ -613,7 +728,8 @@
     camera.lookAt(camTarget);
     sun.target.position.copy(camTarget);
     sun.position.set(camTarget.x - 60, camTarget.y + 110, camTarget.z + 35);
-    tankModel.position.set(tank.x, tank.y, tank.z);
+    // firing shoves the model back a little along its own length
+    tankModel.position.set(tank.x + Math.sin(tank.yaw) * cannon.recoil, tank.y, tank.z + Math.cos(tank.yaw) * cannon.recoil);
     tankModel.rotation.set(tank.pitch, tank.yaw, tank.roll);
   }
 
@@ -658,6 +774,15 @@
   }
   document.getElementById("reset").addEventListener("click", function () { toCheckpoint(false); });
   document.getElementById("restart").addEventListener("click", restartLevel);
+  const debugToggle = document.getElementById("debugToggle"), debugMenu = document.getElementById("debugMenu");
+  const shakeAllow = document.getElementById("shakeAllow"), shakeStatus = document.getElementById("shakeStatus");
+  debugToggle.addEventListener("click", function () {
+    debugMenu.hidden = !debugMenu.hidden;
+    debugToggle.setAttribute("aria-expanded", String(!debugMenu.hidden));
+  });
+  document.getElementById("fire").addEventListener("click", fireCannon);
+  shakeAllow.hidden = !needsShakePermission;
+  shakeAllow.addEventListener("click", askShakePermission);
 
   // ------------------------------------------------------------------
   // Main loop: fixed 60 steps a second so driving feels the same on every phone
@@ -669,7 +794,7 @@
     requestAnimationFrame(frame);
     const dt = Math.min(0.1, (now - last) / 1000 || 0); last = now;
     carry += dt;
-    while (carry >= STEP) { readLevers(); stepTank(STEP); updateProgress(STEP); carry -= STEP; }
+    while (carry >= STEP) { readLevers(); stepTank(STEP); stepCannon(STEP); updateProgress(STEP); carry -= STEP; }
     updateView(dt, false);
     renderer.render(scene, camera);
     if (!banner.hidden && now > bannerUntil) banner.hidden = true;
@@ -677,6 +802,7 @@
     if (fpsTime >= 0.5) {
       fps = Math.round(frames / fpsTime); frames = 0; fpsTime = 0;
       readout.textContent = fps + " fps\nheight " + tank.y.toFixed(1) + (tank.grounded ? "" : "  falling");
+      shakeStatus.textContent = "shake: " + shake.status;
     }
   }
 
@@ -696,10 +822,12 @@
   window.tankGame = {
     tank: tank, settings: SET, level: LEVEL, checkpoints: checkpoints,
     groundHeight: groundHeight, pathCentre: pathCentre, reset: resetTank, restart: restartLevel,
+    fire: fireCannon, cannon: cannon, shake: shake,
+    shellsInFlight: function () { return shells.length; },
     progress: function () { return { checkpoint: checkpointIndex, won: won }; },
     setLevers: function (l, r) { scripted = (l === null) ? null : { left: l, right: r }; },
     simulate: function (seconds) {
-      for (let t = 0; t < seconds; t += STEP) { readLevers(); stepTank(STEP); updateProgress(STEP); }
+      for (let t = 0; t < seconds; t += STEP) { readLevers(); stepTank(STEP); stepCannon(STEP); updateProgress(STEP); }
     }
   };
 

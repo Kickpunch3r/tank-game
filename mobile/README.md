@@ -22,9 +22,13 @@ use Godot: it is one web page, `index.html`, drawn in 3D with three.js (loaded f
 - Test level (numbers in the `LEVEL` block): hilly plain, six road shelves zig-zagging up a
   mountain 21 high, a narrow winding cliff path with a chasm (a ridge with drops on both sides in
   the middle), then a flag. Four checkpoints; falling into the chasm returns to the last one.
+- Cannon: a shell is lobbed along the barrel (lands about 18 units ahead on flat ground) with a
+  dust puff, hull recoil and a 1.5 s reload. Fired from the **Debug** menu's Fire button, or by
+  shaking the phone where the page is allowed to read the motion sensor (not in the claude.ai
+  link; iPhones also need a tap on "Allow shake"). The Debug menu shows the shake status.
 - Checked by script in a headless phone-sized browser: an autopilot drives start to flag (about
   110 s), chasm fall and return, falling off a road shelf, the bank between shelves blocks, the
   invisible side wall keeps the tank on screen.
-- **Untested:** on a real phone (frame rate with the bigger level, lever feel, difficulty).
+- **Untested:** shake on any real phone (only simulated motion events). Also on a real phone (frame rate with the bigger level, lever feel, difficulty).
 - Known rough edges: diagonal cliffs look stair-stepped (the ground is a 0.5-unit grid); the
   mountain road is wide shelves, not a narrow road.

@@ -746,3 +746,6 @@ committed). To watch: open `tests/test_runner.tscn` and press F6.
 32. **Mobile game: full-screen level** (2026-11-11, after the first phone play-test): tank sits
     mid-screen; the rock walls round the level are gone, terrain continues past the playable
     strip, invisible walls at the screen's side edges. 11 checks pass.
+33. **Mobile game: cannon** (2026-11-11): shell, dust puff, recoil, reload; Debug menu with a Fire
+    button; shake-to-fire written but the claude.ai link can't read the motion sensor, so shake
+    needs other hosting (not set up yet). 16 checks pass (shake tested with simulated events only).

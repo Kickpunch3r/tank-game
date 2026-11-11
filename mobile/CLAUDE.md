@@ -39,10 +39,13 @@ Read `README.md` in this folder for what is built so far.
 5. **Tank:** `stepTank(dt)`. The tank samples ground heights under its footprint and rests on
    them like a stiff plank (`restOnProfile`), which gives slope tilt, teetering and tipping off
    edges. `hitsWall` blocks moves into ground steeper than `SET.wallDeg`.
-6. **Controls:** levers write into `levers`; the tank reads only that (same idea as the Godot
+6. **Cannon:** `fireCannon()`, `stepCannon(dt)` (shells, dust puffs, reload, recoil) and shake
+   detection (`onMotion`). The claude.ai link is not allowed to read the motion sensor, so
+   there shake only shows a status in the Debug menu; the Fire button there always works.
+7. **Controls:** levers write into `levers`; the tank reads only that (same idea as the Godot
    game's `DriverStation`).
-7. **Camera**, **Progress** (checkpoints, chasm fall, flag), **Main loop** (fixed 60 steps/s).
-8. `window.tankGame`: hooks the tests use to drive the tank and step time.
+8. **Camera**, **Progress** (checkpoints, chasm fall, flag), **Main loop** (fixed 60 steps/s).
+9. `window.tankGame`: hooks the tests use to drive the tank and step time.
 
 Keep it one file until a second level is added; then move level data into its own file.
 
