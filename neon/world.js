@@ -200,10 +200,12 @@
 
     // Dim towers beyond the level's edges, so the screen is always full and no edge shows
     const towerTint = [0.035, 0.05, 0.11];
-    for (let r = -4; r < level.rows + 12; r++) {
+    for (let r = -10; r < level.rows + 12; r++) {
       for (let c = -4; c < COLS + 4; c++) {
         if (c >= 0 && c < COLS && r >= 0 && r < level.rows) continue;
-        const top = 7 + Math.floor(hash(c, r) * 4) * 2;
+        // South of the level the scenery is sunken, not tall: the camera looks from the south,
+        // so anything tall there would hide the tank.
+        const top = r < 0 ? -0.6 - Math.floor(hash(c, r) * 3) * 0.7 : 7 + Math.floor(hash(c, r) * 4) * 2;
         const x0 = -HALF_WIDTH + c * TILE, x1 = x0 + TILE, z0 = -r * TILE, z1 = z0 - TILE;
         const P = [[x0, top, z0], [x1, top, z0], [x1, top, z1], [x0, top, z1]];
         tops.quad(P, towerTint, [[0, 0], [1, 0], [1, 1], [0, 1]]);

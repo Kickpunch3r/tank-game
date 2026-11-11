@@ -966,7 +966,8 @@
   const CAM_TILT = 62 * Math.PI / 180;
   let camDist = 100, viewSouth = 30, viewNorth = 40;
   function cameraZFor(tankZ) {
-    const southLimit = -viewSouth, northLimit = Math.min(southLimit, -level.length + viewNorth);
+    // the tank stays mid-screen even at the start: the towers south of the level fill the view
+    const southLimit = 34 - viewSouth, northLimit = Math.min(southLimit, -level.length + viewNorth);
     return Math.max(northLimit, Math.min(southLimit, tankZ));
   }
   // The slanted camera sees less width lower down the screen; 1 = the full level width.

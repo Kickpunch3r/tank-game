@@ -8,6 +8,9 @@ history. NOTES.md records what was built and why.)
 in that folder read `mobile/CLAUDE.md` first; the Godot, Windows and `.tscn` rules below do not
 apply there.
 
+**Third project in `neon/` (branch `neon-treads` only):** Neon Treads, a fuller rebuild of the
+phone game. Read `neon/CLAUDE.md` first for work there.
+
 Developer background: art, storytelling, design, folk games, not programming. Learning GDScript.
 
 ## How to work with me
