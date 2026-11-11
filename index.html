@@ -121,7 +121,7 @@
       <button id="restart" type="button">Restart level</button>
       <button id="debugToggle" type="button" aria-expanded="false" aria-controls="debugMenu">Debug</button>
       <div id="debugMenu" hidden>
-        <button id="fire" type="button">Fire cannon</button>
+        <button id="fire" type="button">Fire laser</button>
         <button id="shakeAllow" type="button" hidden>Allow shake</button>
         <div id="shakeStatus">shake: no motion data yet</div>
       </div>
@@ -163,8 +163,8 @@
     teeterLean: 0.14,       // how far it leans when right at the edge (radians)
     tiltSpring: 120,        // stiffness of the hull tilting to match the ground
     tiltDamping: 9,         // lower = rocks for longer
-    shellSpeed: 34,         // how fast a shell leaves the barrel
-    shellLiftDeg: 10,       // how far above the barrel's line it is lobbed
+    laserRange: 45,         // how far the laser reaches if nothing is in the way
+    laserSeconds: 0.45,     // how long the beam stays visible
     reloadSeconds: 1.5,
     recoilKick: 2.2,        // how hard firing rocks the hull back
     shakeThreshold: 14,     // how hard a shake fires the cannon (m/s2; lower = easier)
@@ -548,36 +548,101 @@
   }
 
   // ------------------------------------------------------------------
-  // Cannon: shells fly in an arc and land with a puff of dust. Nothing to hit yet.
+  // Cannon: a laser. The beam is instant and straight along the barrel; it stops at the first
+  // ground it meets. Glowing beam, a burst of sparks at the muzzle and at the hit. Nothing to
+  // damage yet.
   // ------------------------------------------------------------------
   const cannon = { reload: 0, recoil: 0, shotsFired: 0, lastImpact: null };
-  const shells = [], puffs = [];
-  const shellGeo = new THREE.SphereGeometry(0.16, 8, 6);
-  const shellMat = new THREE.MeshBasicMaterial({ color: 0x1d1d1a });
-  const puffGeo = new THREE.SphereGeometry(1, 10, 8);
   const tankQuat = new THREE.Quaternion(), tankEuler = new THREE.Euler(0, 0, 0, "YXZ");
+  const UP = new THREE.Vector3(0, 1, 0);
 
-  function addPuff(x, y, z, size, seconds, hex) {
-    const mesh = new THREE.Mesh(puffGeo, new THREE.MeshBasicMaterial({ color: hex, transparent: true, opacity: 0.8, depthWrite: false }));
-    mesh.position.set(x, y, z);
+  // Beam: three cylinders inside each other (white-hot core, two red glow layers).
+  const beamGeo = new THREE.CylinderGeometry(1, 1, 1, 10, 1, true);
+  const BEAM_LAYERS = [
+    { radius: 0.95, color: 0xff2414, opacity: 0.22 },
+    { radius: 0.45, color: 0xff5a2a, opacity: 0.55 },
+    { radius: 0.17, color: 0xfff6dc, opacity: 1.0 }
+  ];
+  const beam = { group: new THREE.Group(), age: Infinity, length: 1, meshes: [] };
+  BEAM_LAYERS.forEach(function (layer) {
+    const mesh = new THREE.Mesh(beamGeo, new THREE.MeshBasicMaterial({
+      color: layer.color, transparent: true, opacity: layer.opacity, depthWrite: false, fog: false }));
+    beam.group.add(mesh); beam.meshes.push(mesh);
+  });
+  beam.group.visible = false;
+  scene.add(beam.group);
+
+  // Glow balls at the muzzle and at the hit, and a light that flashes on the ground nearby.
+  const glowGeo = new THREE.SphereGeometry(1, 12, 8);
+  const glows = [];
+  function addGlow(pos, size, seconds, hex) {
+    const mesh = new THREE.Mesh(glowGeo, new THREE.MeshBasicMaterial({ color: hex, transparent: true, opacity: 0.85, depthWrite: false }));
+    mesh.position.copy(pos);
     scene.add(mesh);
-    puffs.push({ mesh: mesh, age: 0, life: seconds, size: size });
+    glows.push({ mesh: mesh, age: 0, life: seconds, size: size });
+  }
+  const muzzleLight = new THREE.PointLight(0xff5030, 0, 14, 2);
+  scene.add(muzzleLight);
+
+  // Sparks: one pool of small bright blocks that fly, slow down, cool from white to red and shrink.
+  const SPARK_COUNT = 160;
+  const sparkMesh = new THREE.InstancedMesh(new THREE.BoxGeometry(1, 1, 1), new THREE.MeshBasicMaterial({ color: 0xffffff }), SPARK_COUNT);
+  sparkMesh.frustumCulled = false;
+  const sparks = [];
+  const sparkDummy = new THREE.Object3D(), sparkColor = new THREE.Color();
+  const SPARK_HOT = new THREE.Color(0xfffbe6), SPARK_COOL = new THREE.Color(0xff3a14);
+  for (let i = 0; i < SPARK_COUNT; i++) {
+    sparks.push({ pos: new THREE.Vector3(), vel: new THREE.Vector3(), age: 1, life: 1, size: 0 });
+    sparkDummy.scale.setScalar(0); sparkDummy.updateMatrix();
+    sparkMesh.setMatrixAt(i, sparkDummy.matrix);
+    sparkMesh.setColorAt(i, SPARK_HOT);
+  }
+  scene.add(sparkMesh);
+  let nextSpark = 0;
+  // Throws `count` sparks from `pos`, mostly along `dir`; `spread` 0 = tight jet, 1 = all directions.
+  function burst(pos, dir, count, speed, spread, seconds) {
+    for (let n = 0; n < count; n++) {
+      const sp = sparks[nextSpark]; nextSpark = (nextSpark + 1) % SPARK_COUNT;
+      sp.pos.copy(pos);
+      sp.vel.set(Math.random() - 0.5, Math.random() - 0.5, Math.random() - 0.5).normalize().multiplyScalar(spread)
+        .add(dir).normalize().multiplyScalar(speed * (0.35 + 0.65 * Math.random()));
+      sp.age = 0; sp.life = seconds * (0.5 + 0.5 * Math.random()); sp.size = 0.18 + 0.24 * Math.random();
+    }
   }
 
-  // Returns true if a shell was fired (false while reloading).
+  // Returns true if the laser fired (false while reloading).
   function fireCannon() {
     if (cannon.reload > 0) return false;
     tankEuler.set(tank.pitch, tank.yaw, tank.roll);
     tankQuat.setFromEuler(tankEuler);
-    const lift = SET.shellLiftDeg * Math.PI / 180;
-    const dir = new THREE.Vector3(0, Math.sin(lift), -Math.cos(lift)).applyQuaternion(tankQuat);
+    const dir = new THREE.Vector3(0, 0, -1).applyQuaternion(tankQuat);
     const muzzle = new THREE.Vector3(0, 0.85, -1.6).applyQuaternion(tankQuat);
-    const mesh = new THREE.Mesh(shellGeo, shellMat);
-    mesh.position.set(tank.x + muzzle.x, tank.y + muzzle.y, tank.z + muzzle.z);
-    mesh.castShadow = true;
-    scene.add(mesh);
-    shells.push({ mesh: mesh, vel: dir.multiplyScalar(SET.shellSpeed), age: 0 });
-    addPuff(mesh.position.x, mesh.position.y, mesh.position.z, 0.6, 0.18, 0xffe9a8);   // muzzle flash
+    muzzle.x += tank.x; muzzle.y += tank.y; muzzle.z += tank.z;
+
+    // Walk along the beam until it meets the ground or runs out of range.
+    const end = muzzle.clone();
+    let reach = 0, hit = false;
+    while (reach < SET.laserRange) {
+      reach += 0.25;
+      end.copy(dir).multiplyScalar(reach).add(muzzle);
+      if (end.y <= groundHeight(end.x, end.z)) { hit = true; break; }
+    }
+    cannon.lastImpact = { x: end.x, y: end.y, z: end.z, hit: hit, reach: reach };
+
+    beam.length = reach; beam.age = 0;
+    beam.group.position.copy(muzzle).add(end).multiplyScalar(0.5);
+    beam.group.quaternion.setFromUnitVectors(UP, dir);
+    beam.group.visible = true;
+
+    addGlow(muzzle, 1.5, 0.25, 0xffd9a0);
+    burst(muzzle, dir, 34, 17, 0.45, 0.45);                      // muzzle flash
+    muzzleLight.position.copy(muzzle).addScaledVector(dir, 0.8); muzzleLight.position.y += 0.6;
+    muzzleLight.intensity = 3;
+    if (hit) {
+      addGlow(end, 2.4, 0.45, 0xff7038);
+      burst(end, new THREE.Vector3(-dir.x * 0.5, 1, -dir.z * 0.5).normalize(), 30, 11, 0.8, 0.7);
+    }
+
     cannon.reload = SET.reloadSeconds;
     cannon.recoil = 0.3;
     cannon.shotsFired++;
@@ -588,27 +653,46 @@
   function stepCannon(dt) {
     cannon.reload = Math.max(0, cannon.reload - dt);
     cannon.recoil *= Math.exp(-dt * 9);
-    for (let i = shells.length - 1; i >= 0; i--) {
-      const sh = shells[i], p = sh.mesh.position;
-      sh.vel.y -= SET.gravity * dt;
-      p.x += sh.vel.x * dt; p.y += sh.vel.y * dt; p.z += sh.vel.z * dt;
-      sh.age += dt;
-      const ground = groundHeight(p.x, p.z);
-      if (p.y <= ground || sh.age > 5) {
-        cannon.lastImpact = { x: p.x, y: ground, z: p.z };
-        addPuff(p.x, ground + 0.2, p.z, 1.7, 0.55, 0xcbb994);                       // dust
-        scene.remove(sh.mesh);
-        shells.splice(i, 1);
+    muzzleLight.intensity *= Math.exp(-dt * 14);
+
+    // Beam: flares wide, then thins and fades
+    if (beam.group.visible) {
+      beam.age += dt;
+      const t = beam.age / SET.laserSeconds;
+      if (t >= 1) {
+        beam.group.visible = false;
+      } else {
+        const width = t < 0.12 ? 1 + 0.8 * (t / 0.12) : 1.8 * (1 - (t - 0.12) / 0.88);
+        for (let i = 0; i < beam.meshes.length; i++) {
+          beam.meshes[i].scale.set(BEAM_LAYERS[i].radius * width, beam.length, BEAM_LAYERS[i].radius * width);
+          beam.meshes[i].material.opacity = BEAM_LAYERS[i].opacity * (1 - t * t);
+        }
       }
     }
-    for (let i = puffs.length - 1; i >= 0; i--) {
-      const pf = puffs[i];
-      pf.age += dt;
-      const t = pf.age / pf.life;
-      if (t >= 1) { scene.remove(pf.mesh); pf.mesh.material.dispose(); puffs.splice(i, 1); continue; }
-      pf.mesh.scale.setScalar(pf.size * (0.35 + 0.65 * t));
-      pf.mesh.material.opacity = 0.8 * (1 - t);
+    for (let i = glows.length - 1; i >= 0; i--) {
+      const gl = glows[i];
+      gl.age += dt;
+      const t = gl.age / gl.life;
+      if (t >= 1) { scene.remove(gl.mesh); gl.mesh.material.dispose(); glows.splice(i, 1); continue; }
+      gl.mesh.scale.setScalar(gl.size * (0.4 + 0.6 * t));
+      gl.mesh.material.opacity = 0.85 * (1 - t);
     }
+    for (let i = 0; i < SPARK_COUNT; i++) {
+      const sp = sparks[i];
+      if (sp.age >= sp.life) continue;
+      sp.age += dt;
+      const t = Math.min(1, sp.age / sp.life);
+      sp.vel.multiplyScalar(Math.exp(-dt * 4)); sp.vel.y -= 9 * dt;
+      sp.pos.addScaledVector(sp.vel, dt);
+      sparkDummy.position.copy(sp.pos);
+      sparkDummy.scale.setScalar(sp.size * (1 - t));
+      sparkDummy.rotation.set(sp.age * 9, sp.age * 7, 0);
+      sparkDummy.updateMatrix();
+      sparkMesh.setMatrixAt(i, sparkDummy.matrix);
+      sparkMesh.setColorAt(i, sparkColor.copy(SPARK_HOT).lerp(SPARK_COOL, t));
+    }
+    sparkMesh.instanceMatrix.needsUpdate = true;
+    sparkMesh.instanceColor.needsUpdate = true;
   }
 
   // Shake to fire. Needs the phone's motion sensor, which some pages aren't allowed to read
@@ -795,11 +879,12 @@
   // ------------------------------------------------------------------
   const STEP = 1 / 60;
   const readout = document.getElementById("readout");
+  let paused = false;       // tests freeze time to photograph short effects
   let last = 0, carry = 0, frames = 0, fpsTime = 0, fps = 0;
   function frame(now) {
     requestAnimationFrame(frame);
     const dt = Math.min(0.1, (now - last) / 1000 || 0); last = now;
-    carry += dt;
+    carry = paused ? 0 : carry + dt;
     while (carry >= STEP) { readLevers(); stepTank(STEP); stepCannon(STEP); updateProgress(STEP); carry -= STEP; }
     updateView(dt, false);
     renderer.render(scene, camera);
@@ -828,8 +913,10 @@
   window.tankGame = {
     tank: tank, settings: SET, level: LEVEL, checkpoints: checkpoints,
     groundHeight: groundHeight, pathCentre: pathCentre, reset: resetTank, restart: restartLevel,
+    pause: function (on) { paused = on; },
     fire: fireCannon, cannon: cannon, shake: shake,
-    shellsInFlight: function () { return shells.length; },
+    beamVisible: function () { return beam.group.visible; },
+    liveSparks: function () { return sparks.filter(function (sp) { return sp.age < sp.life; }).length; },
     progress: function () { return { checkpoint: checkpointIndex, won: won }; },
     setLevers: function (l, r) { scripted = (l === null) ? null : { left: l, right: r }; },
     simulate: function (seconds) {
