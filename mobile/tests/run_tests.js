@@ -8,7 +8,8 @@ const { chromium } = require('playwright');
 const fs = require('fs');
 const path = require('path');
 
-const PAGE = path.resolve(__dirname, '..', 'index.html');
+// Set PAGE=/some/other/index.html to test a built copy (e.g. the GitHub Pages build).
+const PAGE = process.env.PAGE ? path.resolve(process.env.PAGE) : path.resolve(__dirname, '..', 'index.html');
 const THREE_JS = fs.readFileSync(path.join(__dirname, 'node_modules', 'three', 'build', 'three.min.js'), 'utf8');
 const SHOTS = process.argv.includes('--shots');
 let failed = 0;

@@ -72,6 +72,12 @@ node run_tests.js      # add --shots to save screenshots into mobile/tests/shots
 - `index.html` has no `<!doctype>`, `<html>`, `<head>` or `<body>` tags on purpose: the Artifact
   page adds them. Scripts may only load from cdnjs; everything else must be inside the file.
 - Tell the developer to refresh the link, and what to try.
+- **Second copy on GitHub Pages** (public web address, needed for shake-to-fire, set up
+  2026-11-11): after publishing to the claude.ai link and pushing `main`, also run
+  `bash mobile/publish_to_github_pages.sh`. It builds the page with the missing `<html>` tags
+  and pushes only that to the `gh-pages` branch (developer's standing permission; never
+  force-push it). The address is https://kickpunch3r.github.io/tank-game/ once the developer has
+  switched Pages on. GitHub takes a minute or so to update it.
 
 ## Keep up to date
 - `mobile/README.md`: the "State" section (what is built, what is tested, what is untested).

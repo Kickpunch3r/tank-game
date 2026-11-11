@@ -3,8 +3,9 @@
 A separate, small top-down game for phones, loosely based on the installation game. It does not
 use Godot: it is one web page, `index.html`, drawn in 3D with three.js (loaded from a public CDN).
 
-- **Play:** open `index.html` in a browser (needs an internet connection for three.js), or use the
-  private claude.ai link Claude publishes while working.
+- **Play:** the private claude.ai link Claude publishes while working, or the public GitHub Pages
+  copy at https://kickpunch3r.github.io/tank-game/ (the only one where shake-to-fire can work).
+  Opening `index.html` straight in a browser also works (needs internet for three.js).
 - **Controls:** two thumb levers, one per tread. On a desktop: W/S for the left tread, Up/Down
   arrows for the right.
 - **Tests:** `cd mobile/tests`, `npm install` once, then `node run_tests.js` (details in
