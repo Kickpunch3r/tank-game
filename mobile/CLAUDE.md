@@ -11,6 +11,12 @@ Read `README.md` in this folder for what is built so far.
   **do not apply** to work in this folder. Leave the Godot game untouched unless asked.
 - This game is usually developed in a Claude cloud session (Linux container), not on the laptop.
   Work is lost unless committed and pushed. Commit at the end of a task.
+- **Push finished changes straight to `main`** (developer's standing permission, 2026-11-11, for
+  work in `mobile/` only): once a change passes the tests and is published, commit it, push the
+  session's branch, then push the same commits to `main` as a plain fast-forward
+  (`git push origin <session-branch>:main`). No pull request needed. Never force-push `main`; if
+  the push is refused because `main` has moved, fetch and rebase onto it first, re-run the tests,
+  then push. Unfinished or failing work stays on the session's branch.
 
 ## Decisions already made (don't re-ask)
 - Web game, three.js r128 loaded from cdnjs. No build step, no other libraries.
