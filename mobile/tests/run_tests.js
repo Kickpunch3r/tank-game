@@ -103,26 +103,45 @@ function check(name, ok, detail) {
   check('invisible wall keeps the tank on screen', side.x > -side.half && side.x < -side.half + 3.5, 'stopped at x ' + side.x.toFixed(1));
   await shot('side_wall');
 
-  // --- Cannon: fires a shell that lands ahead of the tank; reloading blocks a second shot ---
+  // --- Laser: an instant straight beam with sparks; reloading blocks a second shot ---
   const shot1 = await page.evaluate(() => {
     const g = tankGame; g.restart(); g.setLevers(0, 0); g.simulate(0.5);
-    const first = g.fire(), second = g.fire(), inFlight = g.shellsInFlight();
+    const first = g.fire(), second = g.fire(), beamOn = g.beamVisible(), sparks = g.liveSparks();
+    const impact = Object.assign({}, g.cannon.lastImpact), tankX = g.tank.x, tankZ = g.tank.z;
     g.simulate(1.4);
-    const stillReloading = g.fire();
+    const beamGone = !g.beamVisible(), stillReloading = g.fire();
     g.simulate(0.3);
     const afterReload = g.fire();
-    return { first, second, inFlight, stillReloading, afterReload, impact: g.cannon.lastImpact, tankZ: g.tank.z, tankX: g.tank.x };
+    return { first, second, beamOn, sparks, impact, tankX, tankZ, beamGone, stillReloading, afterReload };
   });
-  const ahead = shot1.impact ? shot1.tankZ - shot1.impact.z : 0;
-  check('cannon fires one shell', shot1.first && shot1.inFlight === 1);
-  check('shell lands ahead of the tank', shot1.impact && ahead > 8 && ahead < 30 && Math.abs(shot1.impact.x - shot1.tankX) < 1, 'landed ' + ahead.toFixed(1) + ' units ahead');
+  const ahead = shot1.tankZ - shot1.impact.z;
+  check('laser fires: beam and muzzle sparks appear', shot1.first && shot1.beamOn && shot1.sparks >= 30, shot1.sparks + ' sparks');
+  check('beam goes straight ahead of the tank', ahead > 3 && ahead <= 47 && Math.abs(shot1.impact.x - shot1.tankX) < 0.5, 'reached ' + ahead.toFixed(1) + ' units ahead');
+  check('beam fades away', shot1.beamGone);
   check('reload blocks firing for 1.5 s', !shot1.second && !shot1.stillReloading && shot1.afterReload);
+  const wallShot = await page.evaluate(() => {
+    const g = tankGame; g.reset({ x: 6, z: -73, yaw: 0 }); g.simulate(2); g.fire();
+    return g.cannon.lastImpact;
+  });
+  check('beam stops at a rock bank', wallShot.hit && wallShot.reach < 8, 'stopped after ' + wallShot.reach.toFixed(1) + ' units');
+  if (SHOTS) {
+    await page.evaluate(() => { tankGame.restart(); tankGame.simulate(2); });
+    await page.waitForTimeout(1500);
+    await page.evaluate(() => { tankGame.pause(true); tankGame.fire(); tankGame.simulate(0.08); });
+    await page.waitForTimeout(400);
+    await page.screenshot({ path: path.join(__dirname, 'shots', 'laser.png') });
+    await page.evaluate(() => { tankGame.reset({ x: 6, z: -73, yaw: 0.5 }); tankGame.simulate(2.5); });
+    await page.evaluate(() => tankGame.pause(false)); await page.waitForTimeout(1500);
+    await page.evaluate(() => { tankGame.pause(true); tankGame.fire(); tankGame.simulate(0.12); });
+    await page.waitForTimeout(400);
+    await page.screenshot({ path: path.join(__dirname, 'shots', 'laser_hit.png') });
+    await page.evaluate(() => tankGame.pause(false));
+  }
   await page.evaluate(() => { tankGame.setLevers(null); tankGame.simulate(2); });
   await page.click('#debugToggle');
   const firedBefore = await page.evaluate(() => tankGame.cannon.shotsFired);
   await page.click('#fire');
   check('Fire button in the debug menu fires', await page.evaluate(n => tankGame.cannon.shotsFired === n + 1, firedBefore));
-  if (SHOTS) await page.screenshot({ path: path.join(__dirname, 'shots', 'cannon_fired.png') });
 
   // --- Shake: a hard jolt from the motion sensor fires; a gentle one doesn't ---
   const shaken = await page.evaluate(() => {

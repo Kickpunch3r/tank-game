@@ -749,3 +749,6 @@ committed). To watch: open `tests/test_runner.tscn` and press F6.
 33. **Mobile game: cannon** (2026-11-11): shell, dust puff, recoil, reload; Debug menu with a Fire
     button; shake-to-fire written but the claude.ai link can't read the motion sensor, so shake
     needs other hosting (not set up yet). 16 checks pass (shake tested with simulated events only).
+34. **Mobile game: laser** (2026-11-11, developer's request): the lobbed shell is replaced by an
+    instant glowing beam with spark bursts at the muzzle and the hit. GitHub Pages copy set up
+    (`mobile/publish_to_github_pages.sh`, `gh-pages` branch). 18 checks pass.

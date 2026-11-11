@@ -39,7 +39,7 @@ Read `README.md` in this folder for what is built so far.
 5. **Tank:** `stepTank(dt)`. The tank samples ground heights under its footprint and rests on
    them like a stiff plank (`restOnProfile`), which gives slope tilt, teetering and tipping off
    edges. `hitsWall` blocks moves into ground steeper than `SET.wallDeg`.
-6. **Cannon:** `fireCannon()`, `stepCannon(dt)` (shells, dust puffs, reload, recoil) and shake
+6. **Cannon (a laser):** `fireCannon()`, `stepCannon(dt)` (beam, glow, spark bursts, reload, recoil) and shake
    detection (`onMotion`). The claude.ai link is not allowed to read the motion sensor, so
    there shake only shows a status in the Debug menu; the Fire button there always works.
 7. **Controls:** levers write into `levers`; the tank reads only that (same idea as the Godot
